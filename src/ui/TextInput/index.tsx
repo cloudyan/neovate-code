@@ -2,6 +2,7 @@ import chalk from 'chalk';
 import { Text, useInput } from 'ink';
 import { type Key } from 'ink';
 import React from 'react';
+import { basename } from 'pathe';
 import { PASTE_CONFIG } from '../constants';
 import { darkTheme } from './constant';
 import { useTextInput } from './hooks/useTextInput';
@@ -114,6 +115,7 @@ export type Props = {
    */
   readonly onImagePaste?: (
     base64Image: string,
+    filename?: string,
   ) => Promise<{ prompt?: string }> | void;
 
   /**
@@ -254,7 +256,11 @@ export default function TextInput({
           try {
             const imageResult = await processImageFromPath(mergedInput);
             if (imageResult) {
-              const imagePromptResult = await onImagePaste(imageResult.base64);
+              const fileName = basename(imageResult.path);
+              const imagePromptResult = await onImagePaste(
+                imageResult.base64,
+                fileName,
+              );
               if (imagePromptResult?.prompt) {
                 const { newValue, newCursorOffset } = insertTextAtCursor(
                   imagePromptResult.prompt,
@@ -323,9 +329,9 @@ export default function TextInput({
           })();
         } else {
           // Process each chunk as individual input if not paste-like
-          chunks.forEach((chunk) =>
-            onInput(chunk, { name: '' } as unknown as Key),
-          );
+          chunks.forEach((chunk) => {
+            onInput(chunk, { name: '' } as unknown as Key);
+          });
         }
       }
     }, PASTE_CONFIG.TIMEOUT_MS);
@@ -421,7 +427,7 @@ export default function TextInput({
         : chalk.inverse(' ');
   }
 
-  const showPlaceholder = originalValue.length == 0 && placeholder;
+  const showPlaceholder = originalValue.length === 0 && placeholder;
   return (
     <Text wrap="truncate-end" dimColor={isDimmed}>
       {showPlaceholder ? renderedPlaceholder : renderedValue}
