@@ -286,6 +286,8 @@ async function runInteractive(
   process.on('SIGTERM', exit);
 }
 
+// 程序入口
+// 负责初始化 Context 并根据参数选择运行模式
 export async function runNeovate(opts: {
   productName: string;
   productASCIIArt?: string;

@@ -52,9 +52,11 @@
 
 | 文件 | 作用 | 关键内容 |
 |------|------|----------|
+| `src/project.ts` | 核心业务逻辑 | 执行消息发送和 AI 交互逻辑 |
 | `src/context.ts` | 依赖注入和上下文管理 | 全局配置、插件、MCP 服务器 |
-| `src/project.ts` | 项目操作主类 | 消息发送、会话管理 |
-| `src/session.ts` | 会话持久化 | 会话加载/保存、历史记录 |
+| `src/session.ts` | 会话持久化 | 管理会话状态加载/保存、历史记录 |
+
+入口调用 projct，而 project 调用 Context、Session 实现具体功能。
 
 ---
 
@@ -90,6 +92,8 @@ src/tools/
 | `src/messageBus.ts` | 事件总线，组件间通信 |
 | `src/uiBridge.ts` | UI 层与后端的通信桥梁 |
 | `src/nodeBridge.ts` | Node 后端逻辑处理 |
+
+两个桥的协作关系是：UI 组件通过 UIBridge 发送请求 → NodeBridge 处理业务逻辑 → 结果通过 MessageBus 返回给 UIBridge → 更新 UI 状态。这种桥接模式实现了前后端完全解耦。
 
 **关键概念**:
 - 使用 `DirectTransport` 创建双向通信通道
@@ -338,6 +342,21 @@ pnpm test:watch
 - `src/plugin.ts` - Plugin 接口
 - `src/tool.ts` - Tool 接口
 - `src/slash-commands/types.ts` - SlashCommand 接口
+
+详细
+
+- Quiet 模式 (-q 或 --quiet)
+  - `runNeovate → runQuiet → new Project() → project.send()`
+  - 直接使用 Project 类发送消息
+  - 自动批准所有工具调用 `(onToolApprove: () => Promise.resolve(true))`
+  - 不加载 UI 组件，纯命令行输出
+  - 适用于脚本化调用或自动化任务
+- 交互模式 (默认)
+  - 使用桥接模式 (Bridge Pattern) 分离 UI 和业务逻辑
+  - 通过 UIBridge 和 NodeBridge 双向通信
+  - UI 层使用 React Ink 渲染终端界面
+  - 工具调用需要用户交互审批 (除非配置为 autoEdit/yolo)
+  - 支持会话历史、实时输出等功能
 
 ---
 

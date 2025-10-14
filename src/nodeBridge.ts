@@ -31,6 +31,19 @@ type NodeBridgeOpts = {
   contextCreateOpts: any;
 };
 
+/**
+ * 作用：处理所有后端业务逻辑，包括 AI 交互、文件操作、配置管理等
+ * 核心功能：
+     1. 通过 MessageBus 注册大量消息处理器（如 session.send、models.list 等）
+     2. 管理 Context 生命周期（创建、缓存、销毁）
+     3. 实现具体功能模块（如 MCP 状态、模型列表、会话管理等）
+     4. 调用 Project 类执行 AI 任务
+ * 关键设计：
+     * 使用消息处理器模式解耦功能模块
+     * 支持多工作目录的上下文管理
+     * 集中处理所有异步业务逻辑
+ */
+
 export class NodeBridge {
   messageBus: MessageBus;
   private contextCreateOpts: any;
