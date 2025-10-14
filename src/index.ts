@@ -236,12 +236,15 @@ async function runInteractive(
   // 4. 确定会话 ID
   const sessionId = (() => {
     if (argv.resume) {
-      return argv.resume; // 恢复指定会话 --resume <session-id>
+      // 恢复指定会话 --resume <session-id>
+      return argv.resume;
     }
     if (argv.continue) {
-      return paths.getLatestSessionId(); // 继续最新会话 --continue
+      // 继续最新会话 --continue
+      return paths.getLatestSessionId() || Session.createSessionId();
     }
-    return Session.createSessionId(); // 创建新会话
+    // 创建新会话
+    return Session.createSessionId();
   })();
 
   // 5. 加载会话消息和历史
