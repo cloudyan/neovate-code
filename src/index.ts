@@ -34,28 +34,28 @@ export type { Plugin, Context };
 process.env.YARGS_MIN_NODE_VERSION = '18';
 
 type Argv = {
-  _: string[];
+  _: string[]; // 位置参数
   // boolean
-  help: boolean;
+  help: boolean; // -h, --help
   mcp: boolean;
-  quiet: boolean;
-  continue?: boolean;
-  version: boolean;
+  quiet: boolean; // -q, --quiet
+  continue?: boolean; // -c, --continue
+  version: boolean; // -v, --version
   browser?: boolean;
   // string
   appendSystemPrompt?: string;
-  approvalMode?: string;
-  cwd?: string;
+  approvalMode?: string; // --approval-mode
+  cwd?: string; // --cwd
   language?: string;
-  model?: string;
-  outputFormat?: string;
-  outputStyle?: string;
-  planModel?: string;
-  resume?: string;
-  systemPrompt?: string;
+  model?: string; // -m, --model
+  outputFormat?: string; // --output-format
+  outputStyle?: string; // --output-style
+  planModel?: string; // --plan-model
+  resume?: string; // -r, --resume
+  systemPrompt?: string; // --system-prompt
   // array
-  plugin: string[];
-  mcpConfig: string[];
+  plugin: string[]; // --plugin (可多次使用)
+  mcpConfig: string[]; // --mcp-config (可多次使用)
 };
 
 async function parseArgs(argv: any) {
@@ -138,6 +138,7 @@ Commands:
   );
 }
 
+// Quiet 安静模式 - 非交互式执行
 async function runQuiet(argv: Argv, context: Context) {
   try {
     const exit = () => {
@@ -147,10 +148,15 @@ async function runQuiet(argv: Argv, context: Context) {
     process.on('SIGTERM', exit);
     const prompt = argv._[0];
     assert(prompt, 'Prompt is required in quiet mode');
+
+    // 1. 获取提示词
     let input = String(prompt) as string;
     let model: string | undefined;
+
+    // 2. 处理 slash 命令
     if (isSlashCommand(input)) {
       const parsed = parseSlashCommand(input);
+      // 转换为普通提示词
       const slashCommandManager = await SlashCommandManager.create(context);
       const commandEntry = slashCommandManager.get(parsed.command);
       if (commandEntry) {
@@ -172,17 +178,21 @@ async function runQuiet(argv: Argv, context: Context) {
         }
       }
     }
+
+    // 3. 恢复会话（如果指定）
     let sessionId = argv.resume;
     if (argv.continue) {
       sessionId = context.paths.getLatestSessionId();
     }
+
+    // 4. 创建项目实例并发送消息
     const project = new Project({
       context,
       sessionId,
     });
     await project.send(input, {
       model,
-      onToolApprove: () => Promise.resolve(true),
+      onToolApprove: () => Promise.resolve(true), // 自动批准所有工具
     });
     process.exit(0);
   } catch (e: any) {
@@ -192,37 +202,49 @@ async function runQuiet(argv: Argv, context: Context) {
   }
 }
 
+// 交互模式 - 默认模式
 async function runInteractive(
   argv: Argv,
   contextCreateOpts: any,
   cwd: string,
   upgrade?: UpgradeOptions,
 ) {
+  // 1. 创建 UIBridge 和 NodeBridge
   const appStore = useAppStore.getState();
+  // 两个 Bridge 解耦，通过 MessageBus 通信，互不依赖
   const uiBridge = new UIBridge({
+    // 处理 UI 相关逻辑（Ink/React）
     appStore,
   });
   const nodeBridge = new NodeBridge({
+    // 处理业务逻辑（AI 交互、文件操作）
     contextCreateOpts,
   });
+
+  // 2. 创建通信通道--桥接模式 (Bridge Pattern)
   const [uiTransport, nodeTransport] = DirectTransport.createPair();
   uiBridge.messageBus.setTransport(uiTransport);
   nodeBridge.messageBus.setTransport(nodeTransport);
 
+  // 3. 初始化路径管理
   // Initialize the Zustand store with the UIBridge
   const paths = new Paths({
     productName: contextCreateOpts.productName,
     cwd,
   });
+
+  // 4. 确定会话 ID
   const sessionId = (() => {
     if (argv.resume) {
-      return argv.resume;
+      return argv.resume; // 恢复指定会话 --resume <session-id>
     }
     if (argv.continue) {
-      return paths.getLatestSessionId();
+      return paths.getLatestSessionId(); // 继续最新会话 --continue
     }
-    return Session.createSessionId();
+    return Session.createSessionId(); // 创建新会话
   })();
+
+  // 5. 加载会话消息和历史
   const [messages, history] = (() => {
     const logPath = paths.getSessionLogPath(sessionId);
     const messages = loadSessionMessages({ logPath });
@@ -232,6 +254,8 @@ async function runInteractive(
     const history = globalData.getProjectHistory({ cwd });
     return [messages, history];
   })();
+
+  // 6. 初始化应用状态
   const initialPrompt = String(argv._[0] || '');
   await appStore.initialize({
     bridge: uiBridge,
@@ -245,10 +269,13 @@ async function runInteractive(
     upgrade,
   });
 
+  // 7. 渲染 Ink UI
   render(React.createElement(App), {
-    patchConsole: true,
-    exitOnCtrlC: false,
+    patchConsole: true, // 捕获 console 输出
+    exitOnCtrlC: false, // 自定义 Ctrl+C 处理
   });
+
+  // 8. 注册退出信号处理
   const exit = () => {
     process.exit(0);
   };
@@ -271,63 +298,78 @@ export async function runNeovate(opts: {
   // Parse MCP config if provided
   const mcpServers = parseMcpConfig(argv.mcpConfig || [], cwd);
 
+  // 集中管理依赖--依赖注入 (Dependency Injection)
   const contextCreateOpts = {
+    // 产品信息
     productName: opts.productName,
     productASCIIArt: opts.productASCIIArt,
     version: opts.version,
+    // 命令行参数配置
     argvConfig: {
-      model: argv.model,
-      planModel: argv.planModel,
-      quiet: argv.quiet,
-      outputFormat: argv.outputFormat,
-      plugins: argv.plugin,
-      systemPrompt: argv.systemPrompt,
-      appendSystemPrompt: argv.appendSystemPrompt,
-      language: argv.language,
-      outputStyle: argv.outputStyle,
-      approvalMode: argv.approvalMode,
-      mcpServers,
-      browser: argv.browser,
+      model: argv.model, // AI 模型
+      planModel: argv.planModel, // 计划模式专用模型
+      quiet: argv.quiet, // 安静模式标志
+      outputFormat: argv.outputFormat, // 输出格式 (text/json/stream-json)
+      plugins: argv.plugin, // 额外插件路径
+      systemPrompt: argv.systemPrompt, // 自定义系统提示词
+      appendSystemPrompt: argv.appendSystemPrompt, // 追加系统提示词
+      language: argv.language, // 语言设置
+      outputStyle: argv.outputStyle, // 输出样式
+      approvalMode: argv.approvalMode, // 工具审批模式
+      mcpServers, // MCP 服务器配置
+      browser: argv.browser, // 浏览器集成
     },
+    // 插件列表
     plugins: opts.plugins,
   };
 
   // sub commands
-  const command = argv._[0];
+  const command = argv._[0]; // 获取第一个位置参数
+
+  // 一. Server Next 模式
   if (command === 'servernext') {
     await runServerNext({
       contextCreateOpts,
     });
     return;
   }
+
+  // 二. 子命令处理
   const validCommands = ['config', 'commit', 'mcp', 'run', 'server', 'update'];
   if (validCommands.includes(command)) {
     const context = await Context.create({
       cwd,
       ...contextCreateOpts,
     });
+
+    // 根据命令动态加载并执行
     switch (command) {
       case 'config': {
+        // 配置管理 (查看/编辑配置)
         const { runConfig } = await import('./commands/config');
         await runConfig(context);
         break;
       }
       case 'mcp': {
+        // MCP 服务器管理
         const { runMCP } = await import('./commands/mcp');
         await runMCP(context);
         break;
       }
       case 'run': {
+        // 运行自定义命令
         const { runRun } = await import('./commands/run');
         await runRun(context);
         break;
       }
       case 'commit': {
+        // AI 辅助 Git 提交
         const { runCommit } = await import('./commands/commit');
         await runCommit(context);
         break;
       }
       case 'update': {
+        // 检查和应用更新
         const { runUpdate } = await import('./commands/update');
         await runUpdate(context, opts.upgrade);
         break;
@@ -338,6 +380,7 @@ export async function runNeovate(opts: {
     return;
   }
 
+  // 显示帮助信息和版本号
   if (argv.help) {
     printHelp(opts.productName.toLowerCase());
     return;
@@ -347,18 +390,26 @@ export async function runNeovate(opts: {
     return;
   }
 
+  // 三. Quiet 安静模式 - 非交互式执行
   if (argv.quiet) {
     const context = await Context.create({
-      cwd,
+      cwd, // 工作目录
       ...contextCreateOpts,
     });
+
+    // 触发插件的 initialized 钩子
     await context.apply({
       hook: 'initialized',
       args: [{ cwd, quiet: true }],
-      type: PluginHookType.Series,
+      type: PluginHookType.Series, // 串行执行插件钩子
     });
+
+    // 执行安静模式逻辑
     await runQuiet(argv, context);
   } else {
+    // 四. 交互模式 - 默认
+
+    // 不升级的条件
     let upgrade = opts.upgrade;
     if (process.env.NEOVATE_SELF_UPDATE === 'none') {
       upgrade = undefined;
@@ -374,6 +425,8 @@ export async function runNeovate(opts: {
     ) {
       upgrade = undefined;
     }
+
+    // 执行交互模式
     await runInteractive(argv, contextCreateOpts, cwd, upgrade);
   }
 }
