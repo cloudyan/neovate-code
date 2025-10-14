@@ -1,0 +1,236 @@
+# Commit 命令架构解析
+
+## 概述
+
+`commit.ts` 是 Neovate 的一个专用命令，用于智能生成 Git 提交信息。该命令通过分析暂存区的代码变更，使用 AI 模型生成符合规范的提交信息，并支持自动提交、推送到远程仓库等功能。
+
+## 核心功能
+
+1. **智能提交信息生成** - 基于代码变更自动生成提交信息
+2. **分支名称生成** - 根据提交信息生成合适的分支名称
+3. **交互式操作** - 提供多种操作选项供用户选择
+4. **自动化流程** - 支持一键提交和推送
+5. **格式验证** - 确保生成的提交信息符合规范
+
+## 架构图
+
+```mermaid
+graph TD
+    A[runCommit函数] --> B[参数解析]
+    B --> C[环境检查]
+    C --> D[变更检测]
+    D --> E[暂存区处理]
+    E --> F[差异获取]
+    F --> G[提交信息生成]
+    G --> H[分支名称生成]
+    H --> I[交互模式处理]
+    I --> J[执行操作]
+
+    J --> K[复制到剪贴板]
+    J --> L[提交变更]
+    J --> M[推送变更]
+    J --> N[创建分支]
+
+    style A fill:#e1f5fe,color:#000
+    style B fill:#e8f5e8,color:#000
+    style C fill:#fff3e0,color:#000
+    style D fill:#fce4ec,color:#000
+    style E fill:#e1f5fe,color:#000
+    style F fill:#e8f5e8,color:#000
+    style G fill:#fff3e0,color:#000
+    style H fill:#fce4ec,color:#000
+    style I fill:#e1f5fe,color:#000
+    style J fill:#e8f5e8,color:#000
+
+    classDef process fill:#e1f5fe,stroke:#333,color:#000;
+    classDef parse fill:#e8f5e8,stroke:#333,color:#000;
+    classDef check fill:#fff3e0,stroke:#333,color:#000;
+    classDef action fill:#fce4ec,stroke:#333,color:#000;
+
+    class A,G,H process
+    class B,I parse
+    class C,D,E,F check
+    class J,K,L,M,N action
+```
+
+## 主要组件
+
+### 1. runCommit 函数
+
+这是命令的入口点，负责整个流程的协调：
+
+1. **参数解析** - 使用 yargs-parser 解析命令行参数
+2. **环境检查** - 验证 Git 安装、仓库状态和用户配置
+3. **变更检测** - 检查是否有待提交的变更
+4. **暂存区处理** - 根据参数决定是否自动暂存文件
+5. **差异获取** - 获取暂存区的代码差异
+6. **提交信息生成** - 调用 AI 模型生成提交信息
+7. **操作执行** - 根据参数和用户选择执行相应操作
+
+### 2. 提交信息生成
+
+```typescript
+async function generateCommitMessage(opts: GenerateCommitMessageOpts)
+```
+
+该函数负责调用 AI 模型生成提交信息：
+
+1. 构造系统提示词（包含提交规范要求）
+2. 调用 `query` 函数与 AI 模型交互
+3. 验证返回结果的格式
+
+### 3. 分支名称生成
+
+```typescript
+async function generateBranchName(opts: GenerateBranchNameOpts)
+```
+
+该函数根据提交信息生成合适的分支名称：
+
+1. 构造系统提示词（包含分支命名规范）
+2. 调用 `query` 函数与 AI 模型交互
+3. 验证返回结果的格式
+
+## 系统提示词
+
+### 提交信息生成系统提示词（中文翻译）
+
+```text
+你是一位专业的软件工程师，负责根据提供的代码差异生成简洁的一行 Git 提交信息。
+
+请仔细查看提供的上下文和即将提交到 Git 仓库的差异。
+仔细审查这些差异。
+为这些变更生成一行提交信息。
+提交信息的结构应如下： <类型>: <描述>
+使用这些类型：fix, feat, build, chore, ci, docs, style, refactor, perf, test
+使用中文生成提交信息。
+
+确保提交信息：
+- 以适当的前缀开始。
+- 使用祈使语气（例如，"add feature" 而不是 "added feature" 或 "adding feature"）。
+- 不超过 72 个字符。
+
+仅回复一行提交信息，不要包含任何额外的文本、解释或换行符。
+
+## 指南
+
+- 使用现在时，如 "add feature" 而不是 "added feature"
+- 不要大写首字母
+- 不要以句号结尾
+- 保持简洁直接，描述变更内容
+- 请不要过度思考，直接生成符合规范的提交文本
+- 必须严格遵守上述标准，不要添加任何个人解释或建议
+```
+
+### 分支名称生成系统提示词（中文翻译）
+
+```text
+你是一位专业的软件工程师，负责根据提交信息和代码变更生成有意义的 Git 分支名称。
+
+请查看提供的提交信息并生成一个清晰、描述性的 Git 分支名称。
+
+## 分支命名规则
+
+1. **格式**：适用时使用传统格式：
+   - 对于传统提交：`<类型>/<描述>`（例如，"feat/user-authentication"，"fix/memory-leak"）
+   - 对于常规提交：`<描述>`（例如，"update-documentation"，"refactor-api"）
+
+2. **字符规则**：
+   - 仅使用小写字母、数字和连字符
+   - 不要使用空格、特殊字符或下划线
+   - 用连字符替换空格
+   - 最多 50 个字符
+   - 不要有前导或尾随连字符
+
+3. **内容指南**：
+   - 描述性但简洁
+   - 关注正在实现的主要功能/变更
+   - 删除不必要的词语如 "the"、"a"、"an"
+   - 适用时使用现在时动词
+
+## 示例
+
+输入："feat: add user authentication system"
+输出：feat/add-user-authentication
+
+输入："fix: resolve memory leak in data processing"
+输出：fix/resolve-memory-leak
+
+输入："Update API documentation for new endpoints"
+输出：update-api-documentation
+
+输入："refactor: simplify database connection logic"
+输出：refactor/simplify-database-connection
+
+输入："Add support for dark mode theme"
+输出：add-dark-mode-support
+
+## 指令
+
+仅生成分支名称，不要包含任何额外的文本、解释或格式。
+分支名称应简洁、专业，并遵循 Git 最佳实践。
+```
+
+## 工作流程
+
+1. **初始化检查**
+   - 验证 Git 安装
+   - 检查是否在 Git 仓库中
+   - 验证 Git 用户配置
+   - 检查是否有待提交的变更
+
+2. **暂存处理**
+   - 如果指定 `-s` 参数，自动暂存所有变更
+   - 获取暂存区的差异
+
+3. **提交信息生成**
+   - 如果指定 `--follow-style`，分析仓库最近的提交风格
+   - 构造包含差异和风格信息的提示词
+   - 调用 AI 模型生成提交信息
+   - 根据 `--ai` 参数决定是否添加 [AI] 后缀
+
+4. **分支名称生成**
+   - 如果指定 `--checkout` 参数，生成分支名称
+   - 创建并切换到新分支
+
+5. **操作执行**
+   - 交互模式：显示选项供用户选择
+   - 非交互模式：根据参数自动执行操作
+
+## 交互模式
+
+在交互模式下，用户可以选择以下操作：
+
+1. **复制到剪贴板** - 将生成的提交信息复制到剪贴板
+2. **提交变更** - 执行 Git 提交操作
+3. **提交并推送** - 提交后自动推送到远程仓库
+4. **创建分支并提交** - 创建新分支并提交变更
+5. **编辑提交信息** - 修改生成的提交信息
+6. **取消** - 取消操作
+
+## 错误处理
+
+系统包含全面的错误处理机制：
+
+1. **环境错误** - Git 未安装、不在仓库中、用户未配置等
+2. **操作错误** - 暂存失败、提交失败、推送失败等
+3. **网络错误** - 推送时的网络问题，支持重试
+4. **格式错误** - 提交信息或分支名称格式不正确
+
+## 配置选项
+
+命令支持多种参数：
+
+- `-s, --stage` - 自动暂存所有变更
+- `-c, --commit` - 自动提交变更
+- `-n, --no-verify` - 跳过预提交钩子
+- `--language` - 设置提交信息语言
+- `--copy` - 复制提交信息到剪贴板
+- `--push` - 提交后推送变更
+- `--follow-style` - 遵循仓库现有提交风格
+- `--ai` - 添加 [AI] 后缀
+- `--checkout` - 创建并切换到新分支
+
+## 总结
+
+`commit.ts` 命令通过结合 AI 技术和 Git 操作，为开发者提供了一个智能化的提交信息生成工具。它不仅能够自动生成符合规范的提交信息，还支持完整的提交流程自动化，大大提高了开发效率。
