@@ -22,57 +22,60 @@ export interface ModelModalities {
 }
 
 interface ModelCost {
-  input: number;
+  input: number; // 输入令牌成本(每百万令牌)
   output: number;
-  cache_read?: number;
+  cache_read?: number; // 缓存读取成本(每百万令牌，可选)
   cache_write?: number;
 }
 
 interface ModelLimit {
-  context: number;
-  output: number;
+  context: number; // 上下文窗口大小(令牌数)
+  output: number; // 最大输出长度(令牌数)
 }
 
 export interface Model {
-  id: string;
-  name: string;
-  shortName?: string;
-  attachment: boolean;
-  reasoning: boolean;
-  temperature: boolean;
-  tool_call: boolean;
-  knowledge: string;
-  release_date: string;
-  last_updated: string;
-  modalities: ModelModalities;
-  open_weights: boolean;
-  cost: ModelCost;
-  limit: ModelLimit;
+  id: string; // 模型唯一标识符
+  name: string; // 模型显示名称
+  shortName?: string; // 模型短名称(可选)
+  attachment: boolean; // 是否支持附件(如图片、文件等) for GPT-4o, Gemini
+  reasoning: boolean; // 是否支持推理模式 for o3, DeepSeek-R1
+  temperature: boolean; // 是否支持温度参数调节
+  tool_call: boolean; // 是否支持工具调用
+  knowledge: string; // 模型知识截止日期
+  release_date: string; // 模型发布日期
+  last_updated: string; // 模型最后更新日期
+  modalities: ModelModalities; // 模型支持的输入/输出模态
+  open_weights: boolean; // 是否使用开源权重
+  cost: ModelCost; // 模型使用成本
+  limit: ModelLimit; // 模型限制(上下文长度、输出长度等)
 }
 
 export interface Provider {
-  id: string;
-  env: string[];
-  name: string;
-  apiEnv?: string[];
-  api?: string;
-  doc: string;
-  models: Record<string, string | Omit<Model, 'id' | 'cost'>>;
+  id: string; // 提供商唯一标识符
+  env: string[]; // 必需的环境变量列表
+  name: string; // 提供商显示名称
+  apiEnv?: string[]; // API 地址环境变量(可选)
+  api?: string; // 默认 API 地址
+  doc: string; // 提供商文档链接
+  models: Record<string, string | Omit<Model, 'id' | 'cost'>>; // 支持的模型列表
+  // 创建模型实例的函数
   createModel(
     name: string,
     provider: Provider,
     globalConfigDir: string,
   ): Promise<LanguageModelV1> | LanguageModelV1;
+  // 额外配置选项
   options?: {
-    baseURL?: string;
-    apiKey?: string;
-    headers?: Record<string, string>;
+    baseURL?: string; // 基础 API 地址
+    apiKey?: string; // API 密钥
+    headers?: Record<string, string>; // 请求头部
   };
 }
 
 export type ProvidersMap = Record<string, Provider>;
 export type ModelMap = Record<string, Omit<Model, 'id' | 'cost'>>;
 
+// 预定义的所有模型映射表
 export const models: ModelMap = {
   'deepseek-v3-0324': {
     name: 'DeepSeek-V3-0324',
@@ -779,6 +782,7 @@ export const defaultModelCreator = (name: string, provider: Provider) => {
   })(name);
 };
 
+// 预定义的所有提供商映射表
 export const providers: ProvidersMap = {
   'github-copilot': {
     id: 'github-copilot',
@@ -1215,6 +1219,7 @@ export const providers: ProvidersMap = {
 
 // value format: provider/model
 export type ModelAlias = Record<string, string>;
+// 模型别名映射表，用于简化模型引用
 export const modelAlias: ModelAlias = {
   deepseek: 'deepseek/deepseek-chat',
   r1: 'deepseek/deepseek-reasoner',
@@ -1272,6 +1277,7 @@ function mergeConfigProviders(
   return mergedProviders;
 }
 
+// 系统提供多个插件扩展点
 export async function resolveModelWithContext(
   name: string | null,
   context: Context,
@@ -1315,28 +1321,36 @@ export async function resolveModelWithContext(
   };
 }
 
+// 模型解析
 export async function resolveModel(
   name: string,
   providers: ProvidersMap,
   modelAlias: Record<string, string>,
   globalConfigDir: string,
 ): Promise<ModelInfo> {
+  // 1. 别名解析
   const alias = modelAlias[name];
   if (alias) {
     name = alias;
   }
+
+  // 2. 提供商查找
   const [providerStr, ...modelNameArr] = name.split('/');
   const provider = providers[providerStr];
   assert(
     provider,
     `Provider ${providerStr} not found, valid providers: ${Object.keys(providers).join(', ')}`,
   );
+
+  // 3. 模型验证
   const modelId = modelNameArr.join('/');
   const model = provider.models[modelId] as Model;
   assert(
     model,
     `Model ${modelId} not found in provider ${providerStr}, valid models: ${Object.keys(provider.models).join(', ')}`,
   );
+
+  // 4. 实例创建
   model.id = modelId;
   let m = provider.createModel(modelId, provider, globalConfigDir);
   if (isPromise(m)) {
