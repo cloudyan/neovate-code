@@ -1277,35 +1277,83 @@ function mergeConfigProviders(
   return mergedProviders;
 }
 
-// 系统提供多个插件扩展点
+/**
+ * 带上下文的模型解析函数（核心入口）
+ *
+ * 这是模型解析的核心入口函数，集成了插件系统、配置管理和模型解析三大功能模块。
+ * 它协调整个解析流程，支持插件扩展和配置覆盖。
+ *
+ * @param name - 模型名称（可为 null，将使用配置中的默认模型）
+ *               支持格式：
+ *               - 完整格式: "provider/model" (如 "openai/gpt-4o")
+ *               - 别名格式: "gpt-4o" (会通过 modelAlias 转换)
+ * @param context - 应用上下文，包含配置、插件、路径等信息
+ * @returns 返回包含以下内容的对象：
+ *          - providers: 最终的提供商映射（经过插件钩子和配置合并）
+ *          - modelAlias: 模型别名映射（经过插件钩子处理）
+ *          - model: 解析后的模型信息（如果指定了模型名称）
+ *
+ * @example
+ * ```typescript
+ * const { providers, modelAlias, model } = await resolveModelWithContext(
+ *   'gpt-4o',
+ *   context
+ * );
+ * // model 包含 provider、model 元数据和 aisdk 实例
+ * ```
+ *
+ * 工作流程：
+ * 1. 通过 provider 钩子允许插件扩展提供商
+ * 2. 合并用户配置文件中的提供商定义
+ * 3. 通过 modelAlias 钩子允许插件自定义别名
+ * 4. 确定模型名称（参数优先，否则使用配置）
+ * 5. 调用 resolveModel 进行实际解析
+ * 6. 返回完整的解析结果
+ */
 export async function resolveModelWithContext(
   name: string | null,
   context: Context,
 ) {
+  // 1. 插件钩子: provider
+  // 允许插件扩展或修改提供商定义
+  // 使用 SeriesLast 类型，以内置 providers 为基础，插件可以添加新提供商或修改现有提供商
   const hookedProviders = await context.apply({
     hook: 'provider',
     args: [
       {
-        models,
-        defaultModelCreator,
-        createOpenAI,
+        models, // 所有预定义的模型
+        defaultModelCreator, // 默认的模型创建函数
+        createOpenAI, // OpenAI SDK 创建函数（供插件使用）
       },
     ],
-    memo: providers,
+    memo: providers, // 初始值为内置的提供商映射
     type: PluginHookType.SeriesLast,
   });
 
+  // 2. 配置合并
+  // 如果配置文件中定义了提供商，则深度合并到已处理的提供商中
+  // 支持覆盖现有提供商或添加新的提供商
   const finalProviders = context.config.provider
     ? mergeConfigProviders(hookedProviders, context.config.provider)
     : hookedProviders;
 
+  // 3. 插件钩子: modelAlias
+  // 允许插件自定义模型别名映射
+  // 使用 SeriesLast 类型，以内置 modelAlias 为基础
   const hookedModelAlias = await context.apply({
     hook: 'modelAlias',
     args: [],
-    memo: modelAlias,
+    memo: modelAlias, // 初始值为内置的别名映射
     type: PluginHookType.SeriesLast,
   });
+
+  // 4. 确定模型名称
+  // 优先使用传入的 name 参数，否则使用配置中的默认模型
   const modelName = name || context.config.model;
+
+  // 5. 解析模型
+  // 如果有模型名称，调用 resolveModel 进行实际解析
+  // resolveModel 是纯粹的解析函数，不处理插件和配置
   const model = modelName
     ? await resolveModel(
         modelName,
@@ -1314,10 +1362,12 @@ export async function resolveModelWithContext(
         context.paths.globalConfigDir,
       )
     : null;
+
+  // 6. 返回完整结果
   return {
-    providers: finalProviders,
-    modelAlias,
-    model,
+    providers: finalProviders, // 经过插件钩子和配置合并后的最终提供商
+    modelAlias, // 注意：这里返回的是原始 modelAlias，而非 hookedModelAlias
+    model, // 解析后的模型信息（包含 provider、model、aisdk）
   };
 }
 

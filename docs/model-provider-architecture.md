@@ -1,5 +1,7 @@
 # AI 模型和服务提供商架构设计
 
+- source: [model.ts](../src/model.ts)
+
 ## 概述
 
 Neovate 采用模块化设计支持多种 AI 模型和服务提供商。核心设计包括：
@@ -9,23 +11,35 @@ Neovate 采用模块化设计支持多种 AI 模型和服务提供商。核心�
 3. **模型别名系统** - 简化模型引用
 4. **动态解析机制** - 支持插件扩展和配置覆盖
 
-## 架构图
+## 整体架构图
 
 ```mermaid
 graph TD
     A[用户命令] --> B[CLI解析]
     B --> C[Context初始化]
-    C --> D[Model解析]
-    D --> E[Provider查找]
-    E --> F[模型实例化]
+    C --> D[resolveModelWithContext]
+    D --> D1[插件钩子: provider]
+    D1 --> D2[配置合并]
+    D2 --> D3[插件钩子: modelAlias]
+    D3 --> E[resolveModel]
+    E --> E1[别名解析]
+    E1 --> E2[提供商查找]
+    E2 --> E3[模型验证]
+    E3 --> E4[实例创建]
+    E4 --> F[返回ModelInfo]
     F --> G[Agent框架]
-    G --> H[AI服务]
+    G --> H[AI服务调用]
 
-    subgraph 核心组件
-        C
+    subgraph 核心解析流程
         D
+        D1
+        D2
+        D3
         E
-        F
+        E1
+        E2
+        E3
+        E4
     end
 
     subgraph 执行层
@@ -33,26 +47,39 @@ graph TD
         H
     end
 
-    I[插件系统] -.-> C
-    J[配置文件] -.-> C
-    K[环境变量] -.-> F
+    I[插件系统] -.-> D1
+    I -.-> D3
+    J[配置文件] -.-> D2
+    K[环境变量] -.-> E4
 
     style A fill:#e1f5fe,color:#000
     style B fill:#e8f5e8,color:#000
     style C fill:#fff3e0,color:#000
-    style D fill:#fff3e0,color:#000
-    style E fill:#fff3e0,color:#000
-    style F fill:#fff3e0,color:#000
+    style D fill:#fff9c4,color:#000
+    style E fill:#f3e5f5,color:#000
     style G fill:#fce4ec,color:#000
     style H fill:#fce4ec,color:#000
 
-    classDef core fill:#fff3e0,stroke:#333;
-    classDef execution fill:#fce4ec,stroke:#333;
-    class C,D,E,F core
+    classDef core fill:#fff3e0,stroke:#333,color:#000;
+    classDef execution fill:#fce4ec,stroke:#333,color:#000;
+    class D,D1,D2,D3,E,E1,E2,E3,E4 core
     class G,H execution
 ```
 
-在模型解析阶段(D)，系统会调用 `resolveModelWithContext` 函数来处理模型解析，该函数会考虑插件钩子和配置合并，然后调用 `resolveModel` 完成具体的模型解析过程。
+### 架构说明
+
+系统采用两层解析机制：
+
+1. **resolveModelWithContext（外层）**：
+   - 处理插件扩展（provider 钩子、modelAlias 钩子）
+   - 合并用户配置
+   - 协调整个解析流程
+
+2. **resolveModel（内层）**：
+   - 纯粹的模型解析逻辑
+   - 别名查找和转换
+   - 提供商和模型验证
+   - 创建实际的模型实例
 
 ## 核心数据结构
 
@@ -222,69 +249,126 @@ class GithubProvider {
 }
 ```
 
-## 模型解析流程
+## resolveModel 函数详解
 
-1. **别名解析** - 将简短别名转换为完整模型标识符
-2. **提供商查找** - 根据标识符前缀查找对应提供商
-3. **模型验证** - 验证模型在提供商中是否存在
-4. **实例创建** - 调用提供商的 `createModel` 方法创建模型实例
+`resolveModel` 是纯粹的模型解析函数，负责将模型名称转换为可用的模型实例。它不处理插件和配置，这些由 `resolveModelWithContext` 负责。
+
+### 函数签名
 
 ```typescript
 async function resolveModel(
-  name: string,
-  providers: ProvidersMap,
-  modelAlias: Record<string, string>,
-  globalConfigDir: string,
-): Promise<ModelInfo> {
-  // 1. 别名解析
-  const alias = modelAlias[name];
-  if (alias) {
-    name = alias;
-  }
+  name: string,                              // 模型名称（如 "gpt-4o" 或 "openai/gpt-4o"）
+  providers: ProvidersMap,                   // 提供商映射表
+  modelAlias: Record<string, string>,        // 别名映射表
+  globalConfigDir: string,                   // 全局配置目录
+): Promise<ModelInfo>
+```
 
-  // 2. 提供商查找
-  const [providerStr, ...modelNameArr] = name.split('/');
-  const provider = providers[providerStr];
+### 解析流程
 
-  // 3. 模型验证
-  const modelId = modelNameArr.join('/');
-  const model = provider.models[modelId] as Model;
+```typescript
+// 1. 别名转换：查找并应用别名
+const alias = modelAlias[name];
+if (alias) {
+  name = alias;  // "gpt-4o" -> "openai/gpt-4o"
+}
 
-  // 4. 实例创建
-  model.id = modelId;
-  let m = provider.createModel(modelId, provider, globalConfigDir);
-  if (isPromise(m)) {
-    m = await m;
-  }
+// 2. 提供商查找：从模型全名中提取提供商
+const [providerStr, ...modelNameArr] = name.split('/');
+const provider = providers[providerStr];  // 获取 openai 提供商
 
-  return {
-    provider,
-    model,
-    aisdk: aisdk(m as LanguageModelV1),
-  };
+// 3. 模型验证：检查模型是否在提供商中存在
+const modelId = modelNameArr.join('/');
+const model = provider.models[modelId] as Model;
+
+// 4. 实例创建：调用提供商的 createModel 方法
+model.id = modelId;
+let m = provider.createModel(modelId, provider, globalConfigDir);
+if (isPromise(m)) {
+  m = await m;
+}
+
+return {
+  provider,                              // 提供商信息
+  model,                                 // 模型元数据
+  aisdk: aisdk(m as LanguageModelV1),   // AI SDK 封装实例
+};
+```
+
+### 四个关键步骤
+
+1. **别名转换**
+   - 输入：短名称（如 "gpt-4o"）
+   - 查找：在 `modelAlias` 表中查找
+   - 输出：完整名称（如 "openai/gpt-4o"）
+   - 注意：不是钩子，是内部查表操作
+
+2. **提供商查找**
+   - 按 `/` 分割模型名称
+   - 前缀作为提供商 ID（如 "openai"）
+   - 在 `providers` 中查找对应提供商
+   - 失败抛出错误并列出有效提供商
+
+3. **模型验证**
+   - 剩余部分作为模型 ID（如 "gpt-4o"）
+   - 在提供商的 `models` 中查找
+   - 失败抛出错误并列出该提供商的有效模型
+
+4. **实例创建**
+   - 调用 `provider.createModel()` 方法
+   - 传入模型 ID、提供商对象和配置目录
+   - 处理同步/异步返回
+   - 使用 AI SDK 封装原始模型实例
+
+### 返回值：ModelInfo
+
+```typescript
+interface ModelInfo {
+  provider: Provider;      // 提供商完整信息
+  model: Model;           // 模型元数据（能力、限制等）
+  aisdk: AiSdkModel;     // 封装后的可调用模型实例
 }
 ```
 
-### resolveModelWithContext 架构
+### resolveModelWithContext 函数
+
+`resolveModelWithContext` 是模型解析的核心入口函数，集成了插件系统、配置管理和模型解析三大功能模块。
+
+#### 函数签名
+
+```typescript
+async function resolveModelWithContext(
+  name: string | null,
+  context: Context,
+): Promise<{
+  providers: ProvidersMap;
+  modelAlias: ModelAlias;
+  model: ModelInfo | null;
+}>
+```
+
+#### 工作流程
 
 ```mermaid
 graph TD
-    A[resolveModelWithContext] --> B[插件钩子处理]
+    A[resolveModelWithContext] --> B[插件钩子: provider]
     B --> C[配置合并]
-    C --> D[resolveModel调用]
-    D --> E[别名解析]
-    E --> F[提供商查找]
-    F --> G[模型验证]
-    G --> H[实例创建]
-    H --> I[返回ModelInfo]
+    C --> D[插件钩子: modelAlias]
+    D --> E[resolveModel调用]
+    E --> F[别名转换: modelAlias]
+    F --> G[提供商查找]
+    G --> H[模型验证]
+    H --> I[实例创建]
+    I --> J[返回结果]
 
-    J[Context] -.-> A
-    K[模型名称] -.-> A
+    K[Context] -.-> A
+    L[模型名称] -.-> A
 
     style A fill:#e1f5fe,color:#000
     style B fill:#e8f5e8,color:#000
     style C fill:#fff3e0,color:#000
-    style D fill:#fce4ec,color:#000
+    style D fill:#e8f5e8,color:#000
+    style E fill:#fce4ec,color:#000
 
     classDef process fill:#e1f5fe,stroke:#333;
     classDef plugin fill:#e8f5e8,stroke:#333;
@@ -292,10 +376,79 @@ graph TD
     classDef resolve fill:#fce4ec,stroke:#333;
 
     class A process
-    class B plugin
+    class B,D plugin
     class C config
-    class D resolve
+    class E resolve
 ```
+
+#### 处理步骤
+
+1. **插件钩子处理 - Provider**
+   - 通过 `provider` 钩子允许插件扩展或修改提供商定义
+   - 使用 `SeriesLast` 类型，以内置 `providers` 为基础
+   - 传入工具函数：`models`、`defaultModelCreator`、`createOpenAI`
+
+2. **配置合并**
+   - 如果存在 `context.config.provider`，则合并配置到已钩子处理的提供商
+   - 使用 `mergeConfigProviders` 函数深度合并
+   - 支持覆盖现有提供商或添加新提供商
+
+3. **插件钩子处理 - ModelAlias**
+   - 通过 `modelAlias` 钩子允许插件自定义别名映射
+   - 使用 `SeriesLast` 类型，以内置 `modelAlias` 为基础
+
+4. **模型名称确定**
+   - 优先使用传入的 `name` 参数
+   - 否则使用配置中的 `context.config.model`
+   - 如果都没有，则返回 `null`
+
+5. **调用 resolveModel**
+   - 传入确定的模型名称、最终提供商列表、别名映射和全局配置目录
+   - 返回包含 `provider`、`model` 和 `aisdk` 的 `ModelInfo` 对象
+
+6. **返回完整结果**
+   - `providers`: 经过插件钩子和配置合并后的最终提供商映射
+   - `modelAlias`: 经过插件钩子处理后的别名映射
+   - `model`: 解析后的模型信息（如果有指定模型）
+
+#### 使用示例
+
+```typescript
+// 在应用启动时调用
+const { providers, modelAlias, model } = await resolveModelWithContext(
+  'gpt-4o',  // 或 null 使用默认模型
+  context,
+);
+
+// model 包含:
+// - provider: 提供商信息
+// - model: 模型元数据
+// - aisdk: AI SDK 封装的模型实例
+```
+
+#### 扩展点
+
+此函数提供两个关键扩展点：
+
+1. **provider 钩子** - 位置: src/model.ts:1285-1296
+   ```typescript
+   context.apply({
+     hook: 'provider',
+     args: [{ models, defaultModelCreator, createOpenAI }],
+     memo: providers,
+     type: PluginHookType.SeriesLast,
+   })
+   ```
+
+2. **modelAlias 钩子** - 位置: src/model.ts:1302-1307
+   ```typescript
+   context.apply({
+     hook: 'modelAlias',
+     args: [],
+     memo: modelAlias,
+     type: PluginHookType.SeriesLast,
+   })
+   ```
 
 ### 流式事件处理
 

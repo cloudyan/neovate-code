@@ -119,17 +119,17 @@ async function resolveTools(opts: ResolveToolsOpts) {
 ```typescript
 class Tools {
   tools: Record<string, Tool>;
-  
+
   get(toolName: string) { /* 获取工具 */ }
   length() { /* 获取工具数量 */ }
-  
+
   async invoke(toolName: string, args: string): Promise<ToolResult> {
     // 验证参数并执行工具
     const result = validateToolParams(tool.parameters, args);
     const argsObj = JSON.parse(args);
     return await tool.execute(argsObj);
   }
-  
+
   getToolsPrompt() { /* 生成工具使用提示 */ }
 }
 ```
