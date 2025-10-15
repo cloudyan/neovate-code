@@ -120,7 +120,7 @@ LlmsContext.create() 是一个动态创建过程，每次对话都会重新生�
 
 ## 上下文信息结构
 
-### 1. Context 部分
+### 1. 组装 Context 部分
 
 ```xml
 <context name="gitStatus">
@@ -156,7 +156,7 @@ Context 部分包含以下信息：
 - `readme`: README.md 内容
 - 自定义上下文（通过 context 钩子扩展）
 
-### 2. Environment 部分
+### 2. 组装 Environment 部分
 
 ```xml
 <env name="Working directory">/path/to/project</env>

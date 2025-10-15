@@ -44,6 +44,12 @@ export class Context {
   argvConfig: Record<string, any>;  // 原始命令行参数，某些场景需要区分命令行配置
   mcpManager: MCPManager;           // MCP 服务器管理器，管理外部工具集成
   #pluginManager: PluginManager;    // 插件管理器（私有），通过 apply() 访问
+
+  // 方法
+  constructor(opts: ContextOpts): void;
+  async apply(applyOpts: Omit<PluginApplyOpts, 'pluginContext'>): Promise<any>;
+  async destroy(): Promise<void>;
+  static async create(opts: ContextCreateOpts): Promise<Context>;
 }
 ```
 
