@@ -2,13 +2,12 @@
 
 > 深入理解 Neovate Code 的上下文管理、依赖注入和生命周期控制
 
-- source: [src/context.ts](../src/context.ts), [src/llmsContext.ts](../src/llmsContext.ts)
+- source: [src/context.ts](../src/context.ts)
 
 ## 目录
 
 - [概述](#概述)
 - [Context 核心类](#context-核心类)
-- [LlmsContext 类](#llmscontext-类)
 - [上下文创建流程](#上下文创建流程)
 - [依赖注入机制](#依赖注入机制)
 - [生命周期管理](#生命周期管理)
@@ -19,10 +18,7 @@
 
 ## 概述
 
-Neovate Code 的上下文系统由两个核心类组成：
-
-1. **Context** - 全局上下文管理、依赖注入容器
-2. **LlmsContext** - AI 模型上下文管理、环境信息组装
+Neovate Code 的上下文系统由核心类 Context 组成，作为全局上下文管理器和依赖注入容器。
 
 ### 设计目标
 
@@ -30,7 +26,6 @@ Neovate Code 的上下文系统由两个核心类组成：
 - ✅ **配置集中化**: 合并多个来源的配置（文件、命令行、插件）
 - ✅ **插件生命周期**: 协调插件的初始化和销毁
 - ✅ **路径管理**: 统一管理全局和项目级别的路径
-- ✅ **环境隔离**: 为 AI 模型提供完整的运行环境信息
 
 ---
 
@@ -40,15 +35,15 @@ Neovate Code 的上下文系统由两个核心类组成：
 
 ```typescript
 export class Context {
-  cwd: string;                      // 当前工作目录
-  productName: string;              // 产品名称
-  productASCIIArt?: string;         // ASCII 艺术字
-  version: string;                  // 版本号
-  config: Config;                   // 配置对象
-  paths: Paths;                     // 路径管理器
-  argvConfig: Record<string, any>;  // 命令行配置
-  mcpManager: MCPManager;           // MCP 管理器
-  #pluginManager: PluginManager;    // 插件管理器（私有）
+  cwd: string;                      // 当前工作目录，所有相对路径的基准
+  productName: string;              // 产品名称（小写），用于路径和配置文件查找
+  productASCIIArt?: string;         // ASCII 艺术字，用于终端显示
+  version: string;                  // 版本号，用于显示和兼容性检查
+  config: Config;                   // 最终配置对象（合并所有来源）
+  paths: Paths;                     // 路径管理器，统一管理全局和项目路径
+  argvConfig: Record<string, any>;  // 原始命令行参数，某些场景需要区分命令行配置
+  mcpManager: MCPManager;           // MCP 服务器管理器，管理外部工具集成
+  #pluginManager: PluginManager;    // 插件管理器（私有），通过 apply() 访问
 }
 ```
 
@@ -56,10 +51,10 @@ export class Context {
 
 #### 1. 基础信息
 
-- **cwd**: 当前工作目录，所有路径操作的基准
-- **productName**: 产品名称（如 "neovate"）
-- **version**: 当前版本号
-- **productASCIIArt**: 可选的 ASCII 艺术字标题
+- **cwd**: 当前工作目录，所有相对路径的基准
+- **productName**: 产品名称（小写），用于路径和配置文件查找
+- **version**: 当前版本号，用于显示和兼容性检查
+- **productASCIIArt**: 可选的 ASCII 艺术字标题，用于终端显示
 
 #### 2. 配置系统
 
@@ -68,11 +63,32 @@ export class Context {
   - 优先级：命令行 > 项目 > 全局 > 默认
 - **argvConfig**: 原始命令行参数（保留用于某些场景）
 
+Config 对象包含以下主要属性：
+- `model`: 主要使用的 AI 模型
+- `planModel`: 用于计划阶段的 AI 模型
+- `language`: 语言设置
+- `quiet`: 是否启用安静模式
+- `approvalMode`: 工具审批模式（default/autoEdit/yolo）
+- `plugins`: 插件列表
+- `mcpServers`: MCP 服务器配置
+- `provider`: 提供商配置
+- `systemPrompt`: 自定义系统提示词
+- `todo`: 是否启用待办功能
+- `autoCompact`: 是否启用自动对话压缩
+- `commit`: 提交配置
+- `outputStyle`: 输出样式
+- `outputFormat`: 输出格式
+- `autoUpdate`: 是否启用自动更新
+- `browser`: 是否启用浏览器集成
+
 #### 3. 管理器
 
-- **paths**: 路径管理器，提供统一的路径访问
-- **pluginManager**: 插件管理器，负责插件加载和钩子执行
-- **mcpManager**: MCP 服务器管理器，处理外部工具集成
+- **paths**: 路径管理器，统一管理全局和项目路径
+  - `globalConfigDir`: 全局配置目录 (`~/.neovate/`)
+  - `projectConfigDir`: 项目配置目录 (`<cwd>/.neovate/`)
+  - `getSessionLogPath(sessionId)`: 获取会话日志路径
+- **#pluginManager**: 插件管理器（私有），通过 apply() 方法访问
+- **mcpManager**: MCP 服务器管理器，管理外部工具集成
 
 ### 核心方法
 
@@ -89,9 +105,35 @@ async apply(applyOpts: Omit<PluginApplyOpts, 'pluginContext'>) {
 
 **作用**: 触发指定的插件钩子，允许插件修改或扩展行为
 
+Context 与插件交互的核心方法，允许插件：
+- 扩展功能（如添加工具、提供商）
+- 修改行为（如修改系统提示词、配置）
+- 监听事件（如对话完成、查询结束）
+
+**参数说明**:
+- `applyOpts.hook`: 钩子名称（如 'tool', 'systemPrompt'）
+- `applyOpts.args`: 传递给钩子的参数
+- `applyOpts.memo`: 初始值或累积值
+- `applyOpts.type`: 钩子类型（First/Series/SeriesLast/SeriesMerge/Parallel）
+
+**钩子类型说明**:
+- `First`: 只返回第一个非空结果
+- `Series`: 串行执行所有钩子，不关心返回值
+- `SeriesLast`: 串行执行，每次将前一个结果作为下一个钩子的第一个参数
+- `SeriesMerge`: 串行执行，合并结果（数组连接或对象合并）
+- `Parallel`: 并行执行所有钩子
+
 **示例**:
 ```typescript
-// 触发 systemPrompt 钩子
+// 扩展工具
+const tools = await context.apply({
+  hook: 'tool',
+  args: [{ sessionId: 'abc123' }],
+  memo: [],
+  type: PluginHookType.SeriesMerge,
+});
+
+// 修改系统提示词
 const modifiedPrompt = await context.apply({
   hook: 'systemPrompt',
   args: [{ sessionId: 'abc123' }],
@@ -115,9 +157,18 @@ async destroy() {
 
 **作用**: 清理资源，触发销毁钩子
 
-**流程**:
-1. 销毁 MCP 管理器（关闭所有 MCP 连接）
+**执行顺序**:
+1. 销毁 MCP 管理器（关闭所有 MCP 服务器连接）
 2. 并行触发所有插件的 destroy 钩子
+
+**使用示例**:
+```typescript
+try {
+  await doWork(context);
+} finally {
+  await context.destroy();
+}
+```
 
 #### 3. create() - 静态工厂方法
 
@@ -127,128 +178,42 @@ static async create(opts: ContextCreateOpts): Promise<Context>
 
 **作用**: 创建 Context 实例（推荐使用方式）
 
+**创建流程**:
+1. 初始化 Paths（路径管理器）
+2. 创建 ConfigManager，加载和合并配置
+3. 扫描插件（内置 → 全局 → 项目 → 配置文件 → 命令行）
+4. 规范化插件（字符串路径 → Plugin 对象）
+5. 创建 PluginManager
+6. 触发 config 钩子，允许插件修改配置
+7. 合并 MCP 配置，创建 MCPManager
+8. 创建并返回 Context 实例
+
 **参数**:
 ```typescript
 type ContextCreateOpts = {
-  cwd: string;                    // 工作目录
+  cwd: string;                    // 当前工作目录
   productName: string;            // 产品名称
-  productASCIIArt?: string;       // ASCII 艺术字
+  productASCIIArt?: string;       // ASCII 艺术字标题
   version: string;                // 版本号
-  argvConfig: Record<string, any>;// 命令行配置
-  plugins: (string | Plugin)[];   // 插件列表
+  argvConfig: Record<string, any>;// 命令行参数对象
+  plugins: (string | Plugin)[];   // 插件列表（路径或对象）
 };
-```
 
----
+**插件扫描顺序**（优先级从低到高）:
+1. 内置插件（硬编码的核心插件）
+2. 全局插件（`~/.neovate/plugins/*.{js,ts}`）
+3. 项目插件（`<cwd>/.neovate/plugins/*.{js,ts}`）
+4. 配置文件中的插件
+5. 命令行指定的插件（最高优先级）
 
-## LlmsContext 类
-
-### 职责
-
-为 AI 模型提供完整的运行环境信息，包括：
-- Git 状态
-- 目录结构
-- 项目规则
-- README 内容
-- 自定义上下文（通过插件扩展）
-- 环境变量
-
-### 类定义
-
+**使用示例**:
 ```typescript
-export class LlmsContext {
-  messages: string[];  // 上下文消息数组
-
-  static async create(opts: LlmsContextCreateOpts): Promise<LlmsContext>
-}
-```
-
-### 创建流程
-
-```mermaid
-graph TD
-    A[LlmsContext.create] --> B[获取 Git 状态]
-    B --> C{是否为项目目录?}
-    C -->|是| D[获取目录结构]
-    C -->|否| E[跳过目录结构]
-    D --> F[获取项目规则]
-    E --> F
-    F --> G{README.md 存在?}
-    G -->|是| H[读取 README]
-    G -->|否| I[跳过 README]
-    H --> J[触发 context 钩子]
-    I --> J
-    J --> K[组装 Context 部分]
-    K --> L[触发 env 钩子]
-    L --> M[组装 Environment 部分]
-    M --> N[返回 LlmsContext 实例]
-
-    style A fill:#e1f5fe,color:#000
-    style J fill:#fff3e0,color:#000
-    style N fill:#e8f5e9,color:#000
-```
-
-### 上下文信息结构
-
-#### 1. Context 部分
-
-```xml
-<context name="gitStatus">
-Current branch: main
-Status:
-M src/context.ts
-M docs/arch.md
-</context>
-
-<context name="directoryStructure">
-- src/
-  - context.ts
-  - project.ts
-  ...
-</context>
-
-<context name="rules">
-- Always use TypeScript strict mode
-- Follow existing code style
-...
-</context>
-
-<context name="readme">
-# Project Name
-Project description...
-</context>
-```
-
-#### 2. Environment 部分
-
-```xml
-<env name="Working directory">/path/to/project</env>
-<env name="Is directory a git repo">YES</env>
-<env name="Platform">darwin</env>
-<env name="Today's date">2025-01-15</env>
-```
-
-### 插件扩展点
-
-#### 1. context 钩子
-
-```typescript
-api.addHook('context', (llmsContext, { sessionId, userPrompt }) => {
-  return {
-    ...llmsContext,
-    customInfo: 'Custom context information',
-  };
-});
-```
-
-#### 2. env 钩子
-
-```typescript
-api.addHook('env', (llmsEnv, { sessionId, userPrompt }) => {
-  return {
-    ...llmsEnv,
-    'Custom Env': 'Custom environment variable',
-  };
+const context = await Context.create({
+  cwd: process.cwd(),
+  productName: 'neovate',
+  version: '1.0.0',
+  argvConfig: parseArgs(process.argv),
+  plugins: ['my-plugin'],
 });
 ```
 
@@ -290,6 +255,13 @@ graph TD
     style I fill:#fff3e0,color:#000
     style N fill:#e8f5e9,color:#000
 ```
+
+Context.create() 是一个复杂的创建过程，它通过一个"先有鸡还是先有蛋"的问题：
+- 需要 context 才能触发钩子
+- 需要触发 config 钩子才能得到最终配置
+- 需要最终配置才能创建 context
+
+解决方案是创建一个临时的部分 context 来触发 config 钩子，然后使用经过插件处理的配置创建最终的 Context 实例。
 
 ### 详细步骤
 
@@ -406,6 +378,13 @@ Context 实现了 **依赖注入容器** 模式，提供以下优势：
 3. **可扩展**: 通过插件系统扩展 Context
 4. **集中管理**: 所有依赖在一处初始化
 
+Context 作为依赖注入容器，管理所有核心依赖：
+- 配置管理（Config）
+- 路径管理（Paths）
+- 插件管理（PluginManager）
+- MCP 服务器管理（MCPManager）
+- 命令行参数（argvConfig）
+
 ### 使用示例
 
 #### Project 中使用 Context
@@ -473,6 +452,14 @@ stateDiagram-v2
     Destroying --> Destroyed: 触发 destroy 钩子
     Destroyed --> [*]
 ```
+
+Context 的生命周期包括以下几个阶段：
+1. **Creating**: 通过 Context.create() 创建实例
+2. **Initializing**: 加载配置和插件
+3. **Ready**: 触发 initialized 钩子，准备就绪
+4. **Active**: 开始使用，处理请求
+5. **Destroying**: 调用 context.destroy() 开始销毁
+6. **Destroyed**: 触发 destroy 钩子，完成销毁
 
 ### 生命周期钩子
 
@@ -558,6 +545,8 @@ const myPlugin: Plugin = {
 };
 ```
 
+使用 SeriesMerge 类型，插件可以合并配置对象。
+
 #### 2. 扩展工具
 
 ```typescript
@@ -566,6 +555,8 @@ api.addHook('tool', (tools, { sessionId }) => {
 });
 ```
 
+使用 SeriesMerge 类型，插件可以合并工具数组。
+
 #### 3. 修改系统提示词
 
 ```typescript
@@ -573,6 +564,8 @@ api.addHook('systemPrompt', (prompt, { sessionId }) => {
   return prompt + '\nAdditional instructions';
 });
 ```
+
+使用 SeriesLast 类型，插件可以修改系统提示词。
 
 #### 4. 扩展上下文信息
 
@@ -585,6 +578,8 @@ api.addHook('context', (llmsContext, { sessionId, userPrompt }) => {
 });
 ```
 
+使用 SeriesMerge 类型，插件可以合并上下文对象。详情请参考 [LlmsContext 文档](./llmsContext.md)。
+
 #### 5. 扩展环境信息
 
 ```typescript
@@ -595,6 +590,8 @@ api.addHook('env', (llmsEnv, { sessionId, userPrompt }) => {
   };
 });
 ```
+
+使用 SeriesMerge 类型，插件可以合并环境变量对象。详情请参考 [LlmsContext 文档](./llmsContext.md)。
 
 ### 插件钩子执行顺序
 
@@ -636,6 +633,8 @@ const context = await Context.create({
   plugins: [],
 });
 ```
+
+Context.create() 是创建 Context 实例的推荐方式，它会自动处理依赖注入、配置合并和插件初始化。
 
 ### 2. 传递 Context 而非拆分属性
 
@@ -727,12 +726,16 @@ const llmsContext = await LlmsContext.create({
 4. **路径管理器** - 统一管理全局和项目路径
 5. **环境隔离** - 提供完整的运行环境信息
 
+Context 是 Neovate Code 的核心组件，作为依赖注入容器管理所有核心依赖，并通过插件系统提供可扩展性。
+
 ### LlmsContext 的核心价值
 
 1. **环境信息组装** - 为 AI 提供完整的运行环境
 2. **项目上下文** - Git 状态、目录结构、规则等
 3. **可扩展性** - 通过插件钩子扩展上下文信息
 4. **动态生成** - 每次对话都重新生成，保证信息新鲜
+
+LlmsContext 专为 AI 模型设计，提供结构化的上下文信息，帮助 AI 更好地理解项目环境。
 
 ### 学习路径
 
