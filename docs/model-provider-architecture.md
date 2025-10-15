@@ -1,6 +1,6 @@
 # AI 模型和服务提供商架构设计
 
-- source: [model.ts](../src/model.ts)
+- source: [src/model.ts](../src/model.ts)
 
 ## 概述
 

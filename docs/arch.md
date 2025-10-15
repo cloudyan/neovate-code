@@ -478,9 +478,9 @@ graph LR
     F --> K[返回结果]
     K --> L[退出进程]
 
-    style A fill:#e1f5fe
-    style F fill:#fce4ec
-    style K fill:#e8f5e9
+    style A fill:#e1f5fe,color:#000
+    style F fill:#fce4ec,color:#000
+    style K fill:#e8f5e9,color:#000
 ```
 
 ### 配置加载流程图
@@ -505,9 +505,9 @@ graph TD
     H --> I[触发 initialized 钩子]
     I --> J[Context 创建完成]
 
-    style A fill:#e1f5fe
-    style G fill:#fff3e0
-    style J fill:#e8f5e9
+    style A fill:#e1f5fe,color:#000
+    style G fill:#fff3e0,color:#000
+    style J fill:#e8f5e9,color:#000
 ```
 
 ---
@@ -587,9 +587,9 @@ graph TD
     E5 --> F
     E6 --> F
 
-    style A fill:#e1f5fe
-    style D fill:#fff3e0
-    style F fill:#e8f5e9
+    style A fill:#e1f5fe,color:#000
+    style D fill:#fff3e0,color:#000
+    style F fill:#e8f5e9,color:#000
 ```
 
 ### 2. Context 创建流程
@@ -615,9 +615,9 @@ graph TD
     F --> G[触发 initialized 钩子]
     G --> H[返回 Context 实例]
 
-    style A fill:#e1f5fe
-    style E fill:#fff3e0
-    style H fill:#e8f5e9
+    style A fill:#e1f5fe,color:#000
+    style E fill:#fff3e0,color:#000
+    style H fill:#e8f5e9,color:#000
 ```
 
 ### 3. 消息发送流程
@@ -648,9 +648,9 @@ graph TD
     L --> M
     M --> N[返回结果]
 
-    style A fill:#e1f5fe
-    style G fill:#fce4ec
-    style N fill:#e8f5e9
+    style A fill:#e1f5fe,color:#000
+    style G fill:#fce4ec,color:#000
+    style N fill:#e8f5e9,color:#000
 ```
 
 ### 4. 工具执行流程
@@ -672,9 +672,9 @@ graph TD
     E2 --> J[中止循环]
     I --> K[继续 AI 循环]
 
-    style A fill:#e1f5fe
-    style D fill:#fff3e0
-    style K fill:#e8f5e9
+    style A fill:#e1f5fe,color:#000
+    style D fill:#fff3e0,color:#000
+    style K fill:#e8f5e9,color:#000
 ```
 
 ### 5. 模型解析流程
@@ -702,9 +702,9 @@ graph TD
     J --> P[返回结果]
     O --> P
 
-    style A fill:#e1f5fe
-    style I fill:#f3e5f5
-    style P fill:#e8f5e9
+    style A fill:#e1f5fe,color:#000
+    style I fill:#f3e5f5,color:#000
+    style P fill:#e8f5e9,color:#000
 ```
 
 ---
