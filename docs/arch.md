@@ -854,6 +854,7 @@ src/
 - [入口函数详解](./runNeovate.md)
 - [模型架构](./model-provider-architecture.md)
 - [工具架构](./tool-architecture.md)
+- [智能路由](./smart-routing.md)
 - [源码学习](./learn.md)
 
 ---

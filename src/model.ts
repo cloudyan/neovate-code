@@ -33,6 +33,19 @@ interface ModelLimit {
   output: number; // 最大输出长度(令牌数)
 }
 
+// 模型能力标签枚举，用于描述模型适用场景
+export type ModelCapability =
+  | 'fast' // 快速响应
+  | 'reasoning' // 推理能力
+  | 'coding' // 编程能力
+  | 'chat' // 对话能力
+  | 'creative' // 创造性任务
+  | 'precise' // 精确性任务
+  | 'long_context' // 长上下文处理
+  | 'multimodal' // 多模态处理
+  | 'low_cost' // 低成本
+  | 'high_performance'; // 高性能
+
 export interface Model {
   id: string; // 模型唯一标识符
   name: string; // 模型显示名称
@@ -48,6 +61,7 @@ export interface Model {
   open_weights: boolean; // 是否使用开源权重
   cost: ModelCost; // 模型使用成本
   limit: ModelLimit; // 模型限制(上下文长度、输出长度等)
+  capabilities?: ModelCapability[]; // 模型能力标签
 }
 
 export interface Provider {
@@ -90,6 +104,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 128000, output: 8192 },
+    capabilities: ['reasoning', 'coding', 'high_performance'],
   },
   'deepseek-v3-1': {
     name: 'DeepSeek V3.1',
@@ -104,6 +119,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 163840, output: 163840 },
+    capabilities: ['reasoning', 'coding', 'long_context', 'high_performance'],
   },
   'deepseek-v3-1-terminus': {
     name: 'DeepSeek V3.1 Terminus',
@@ -117,6 +133,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 131072, output: 65536 },
+    capabilities: ['reasoning', 'coding', 'long_context'],
   },
   'deepseek-v3-2-exp': {
     name: 'DeepSeek V3.2 Exp',
@@ -130,6 +147,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 131072, output: 65536 },
+    capabilities: ['reasoning', 'coding', 'long_context'],
   },
   'deepseek-r1-0528': {
     name: 'DeepSeek-R1-0528',
@@ -144,6 +162,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 65536, output: 8192 },
+    capabilities: ['reasoning', 'coding', 'high_performance'],
   },
   'doubao-seed-1.6': {
     name: 'Doubao Seed 1.6',
@@ -157,6 +176,7 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: true,
     limit: { context: 163840, output: 163840 },
+    capabilities: ['reasoning', 'creative', 'multimodal'],
   },
   'kimi-k2': {
     name: 'Kimi K2',
@@ -170,6 +190,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 131072, output: 16384 },
+    capabilities: ['chat', 'fast'],
   },
   'kimi-k2-turbo-preview': {
     name: 'Kimi K2 Turbo',
@@ -183,6 +204,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 131072, output: 16384 },
+    capabilities: ['chat', 'fast'],
   },
   'kimi-k2-0905': {
     name: 'Kimi K2 Instruct 0905',
@@ -197,6 +219,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 262144, output: 16384 },
+    capabilities: ['chat', 'long_context'],
   },
   'qwen3-coder-480b-a35b-instruct': {
     name: 'Qwen3 Coder 480B A35B Instruct',
@@ -211,6 +234,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 262144, output: 66536 },
+    capabilities: ['coding', 'long_context'],
   },
   'qwen3-235b-a22b-07-25': {
     name: 'Qwen3 235B A22B Instruct 2507',
@@ -225,6 +249,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 262144, output: 131072 },
+    capabilities: ['chat', 'long_context'],
   },
   'qwen3-max': {
     name: 'Qwen3 Max',
@@ -238,6 +263,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: false,
     limit: { context: 262144, output: 32768 },
+    capabilities: ['reasoning', 'long_context'],
   },
   'gemini-2.5-flash': {
     name: 'Gemini 2.5 Flash',
@@ -254,6 +280,7 @@ export const models: ModelMap = {
     },
     open_weights: false,
     limit: { context: 1048576, output: 65536 },
+    capabilities: ['reasoning', 'multimodal', 'fast'],
   },
   'gemini-2.5-flash-preview-09-2025': {
     name: 'Gemini 2.5 Flash Preview 2025 09',
@@ -270,6 +297,7 @@ export const models: ModelMap = {
     },
     open_weights: false,
     limit: { context: 1048576, output: 65536 },
+    capabilities: ['reasoning', 'multimodal', 'fast'],
   },
   'gemini-2.5-flash-lite-preview-06-17': {
     name: 'Gemini 2.5 Flash Lite Preview 06-17',
@@ -287,6 +315,7 @@ export const models: ModelMap = {
     },
     open_weights: false,
     limit: { context: 65536, output: 65536 },
+    capabilities: ['reasoning', 'multimodal', 'fast', 'low_cost'],
   },
   'gemini-2.5-pro': {
     name: 'Gemini 2.5 Pro',
@@ -303,6 +332,7 @@ export const models: ModelMap = {
     },
     open_weights: false,
     limit: { context: 1048576, output: 65536 },
+    capabilities: ['reasoning', 'multimodal', 'high_performance'],
   },
   'grok-4': {
     name: 'Grok 4',
@@ -316,6 +346,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: false,
     limit: { context: 256000, output: 64000 },
+    capabilities: ['reasoning', 'high_performance'],
   },
   'grok-code-fast-1': {
     name: 'Grok Code Fast 1',
@@ -329,6 +360,7 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 256000, output: 32000 },
+    capabilities: ['reasoning', 'coding', 'fast'],
   },
   'grok-4-fast': {
     name: 'Grok 4 Fast',
@@ -342,6 +374,7 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 2000000, output: 2000000 },
+    capabilities: ['reasoning', 'high_performance', 'long_context'],
   },
   'claude-3-5-sonnet-20241022': {
     name: 'Claude Sonnet 3.5 v2',
@@ -356,6 +389,7 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 200000, output: 8192 },
+    capabilities: ['chat', 'multimodal'],
   },
   'claude-3-7-sonnet': {
     name: 'Claude Sonnet 3.7',
@@ -370,6 +404,7 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 200000, output: 64000 },
+    capabilities: ['reasoning', 'multimodal'],
   },
   'claude-4-sonnet': {
     name: 'Claude Sonnet 4',
@@ -384,6 +419,7 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 200000, output: 64000 },
+    capabilities: ['reasoning', 'multimodal'],
   },
   'claude-4-opus': {
     name: 'Claude Opus 4',
@@ -398,6 +434,7 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 200000, output: 32000 },
+    capabilities: ['reasoning', 'multimodal', 'high_performance'],
   },
   'gpt-oss-120b': {
     name: 'GPT OSS 120B',
@@ -412,6 +449,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 131072, output: 32768 },
+    capabilities: ['reasoning', 'coding'],
   },
   'gpt-5': {
     name: 'GPT-5',
@@ -428,6 +466,7 @@ export const models: ModelMap = {
     },
     open_weights: false,
     limit: { context: 400000, output: 128000 },
+    capabilities: ['reasoning', 'multimodal', 'high_performance'],
   },
   'gpt-5-mini': {
     name: 'GPT-5 Mini',
@@ -441,6 +480,7 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 272000, output: 128000 },
+    capabilities: ['reasoning', 'multimodal', 'high_performance'],
   },
   'gpt-5-codex': {
     name: 'GPT-5-Codex',
@@ -454,6 +494,7 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 128000, output: 64000 },
+    capabilities: ['reasoning', 'coding'],
   },
   'gpt-4.1': {
     name: 'GPT-4.1',
@@ -467,6 +508,7 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 1047576, output: 32768 },
+    capabilities: ['chat', 'multimodal'],
   },
   'gpt-4': {
     name: 'GPT-4',
@@ -480,6 +522,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: false,
     limit: { context: 8192, output: 8192 },
+    capabilities: ['chat'],
   },
   'gpt-4o': {
     name: 'GPT-4o',
@@ -493,6 +536,7 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 128000, output: 16384 },
+    capabilities: ['chat', 'multimodal'],
   },
   o3: {
     name: 'o3',
@@ -506,6 +550,7 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 200000, output: 100000 },
+    capabilities: ['reasoning', 'multimodal'],
   },
   'o3-pro': {
     name: 'o3-pro',
@@ -519,6 +564,7 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 200000, output: 100000 },
+    capabilities: ['reasoning', 'multimodal'],
   },
   'o3-mini': {
     name: 'o3-mini',
@@ -532,6 +578,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: false,
     limit: { context: 200000, output: 100000 },
+    capabilities: ['reasoning', 'fast'],
   },
   'o4-mini': {
     name: 'o4-mini',
@@ -545,6 +592,7 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 200000, output: 100000 },
+    capabilities: ['reasoning', 'multimodal'],
   },
   'glm-4.5': {
     name: 'GLM 4.5',
@@ -558,6 +606,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 131072, output: 98304 },
+    capabilities: ['reasoning'],
   },
   'glm-4.5-air': {
     name: 'GLM-4.5-Air',
@@ -571,6 +620,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 131072, output: 98304 },
+    capabilities: ['reasoning'],
   },
   'glm-4.5-flash': {
     name: 'GLM-4.5-Flash',
@@ -584,6 +634,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 131072, output: 98304 },
+    capabilities: ['reasoning', 'fast'],
   },
   'glm-4.5v': {
     name: 'GLM 4.5V',
@@ -597,6 +648,7 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image', 'video'], output: ['text'] },
     open_weights: true,
     limit: { context: 64000, output: 16384 },
+    capabilities: ['reasoning', 'multimodal'],
   },
   'glm-4.6': {
     name: 'GLM-4.6',
@@ -610,6 +662,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 204800, output: 131072 },
+    capabilities: ['reasoning', 'long_context'],
   },
   'sonoma-dusk-alpha': {
     name: 'Sonoma Dusk Alpha',
@@ -675,6 +728,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: false,
     limit: { context: 128000, output: 32000 },
+    capabilities: ['chat'],
   },
   'ring-1t': {
     name: 'InclusionAI Ring-1T',
@@ -688,6 +742,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: false,
     limit: { context: 128000, output: 32000 },
+    capabilities: ['reasoning'],
   },
   'ring-flash-2.0': {
     name: 'InclusionAI Ring-flash-2.0',
@@ -701,6 +756,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: false,
     limit: { context: 128000, output: 32000 },
+    capabilities: ['reasoning', 'fast'],
   },
   'ling-flash-2.0': {
     name: 'InclusionAI Ling-flash-2.0',
@@ -714,6 +770,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: false,
     limit: { context: 128000, output: 32000 },
+    capabilities: ['chat', 'fast'],
   },
   'ring-mini-2.0': {
     name: 'InclusionAI Ring-mini-2.0',
@@ -727,6 +784,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: false,
     limit: { context: 128000, output: 32000 },
+    capabilities: ['reasoning', 'fast'],
   },
   'ling-mini-2.0': {
     name: 'InclusionAI Ling-mini-2.0',
@@ -740,6 +798,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: false,
     limit: { context: 128000, output: 32000 },
+    capabilities: ['chat', 'fast'],
   },
 };
 

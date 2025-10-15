@@ -45,6 +45,8 @@ Then you can start to use Neovate Code, describe what you want to do in the comm
 "Optimize this database query"
 ```
 
+Neovate Code features an intelligent routing system that automatically selects the most appropriate AI model based on task requirements and model capabilities. For more information, see our [Smart Routing documentation](./docs/smart-routing.md).
+
 Visit our [quickstart](https://neovateai.dev/en/docs/quickstart) documentation for detailed installation and setup instructions.
 
 ## Contributing
