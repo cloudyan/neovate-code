@@ -18,9 +18,9 @@ export type LoopResult =
       success: true;
       data: Record<string, any>;
       metadata: {
-        turnsCount: number;
-        toolCallsCount: number;
-        duration: number;
+        turnsCount: number; // 交互论数
+        toolCallsCount: number; // 工具调用次数
+        duration: number; // 执行时长
       };
     }
   | {
@@ -61,14 +61,18 @@ type RunLoopOpts = {
   onMessage?: OnMessage; // 消息处理回调，当 AI 生成新消息时触发
 };
 
+// 核心函数，实现了一个完整的 AI 交互循环
 // TODO: support retry
 export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
+  // 1. 初始化阶段
   const startTime = Date.now();
   let turnsCount = 0;
   let toolCallsCount = 0;
   let finalText = '';
   let lastUsage = Usage.empty();
-  const totalUsage = Usage.empty();
+  const totalUsage = Usage.empty(); // 用量统计
+
+  // 创建消息历史管理器
   const history = new History({
     messages: Array.isArray(opts.input)
       ? opts.input
@@ -98,7 +102,10 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
   });
 
   let shouldAtNormalize = true;
+
+  // 主循环逻辑
   while (true) {
+    // 检查取消信号
     // Must use separate abortController to prevent ReadStream locking
     if (opts.signal?.aborted && !abortController.signal.aborted) {
       abortController.abort();
@@ -108,6 +115,7 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
     const startTime = new Date();
     turnsCount++;
 
+    // 检查最大轮数限制
     if (turnsCount > maxTurns) {
       return {
         success: false,
@@ -122,6 +130,8 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
         },
       };
     }
+
+    // 压缩历史消息（如果启用）
     if (opts.autoCompact) {
       const compressed = await history.compress(opts.model);
       if (compressed.compressed) {
@@ -129,6 +139,8 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
       }
     }
     lastUsage.reset();
+
+    // 创建 AI 代理和运行器
     const runner = new Runner({
       modelProvider: {
         getModel() {
@@ -144,6 +156,8 @@ ${opts.systemPrompt || ''}
 ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
       `,
     });
+
+    // 构建输入上下文
     const llmsContexts = opts.llmsContexts || [];
     const llmsContextMessages = llmsContexts.map((llmsContext) => {
       return {
@@ -161,6 +175,8 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
       shouldAtNormalize = false;
     }
     const requestId = randomUUID();
+
+    // 执行 AI 调用
     const result = await runner.run(agent, agentInput, {
       stream: true,
       signal: abortController.signal,
@@ -170,6 +186,7 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
     let textBuffer = '';
     let hasToolUse = false;
 
+    // 处理流式响应
     try {
       for await (const chunk of result.toStream()) {
         if (opts.signal?.aborted) {
@@ -185,18 +202,23 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
         ) {
           switch (chunk.data.event.type) {
             case 'text-delta': {
-              const textDelta = chunk.data.event.textDelta;
-              textBuffer += textDelta;
+              const textDelta = chunk.data.event.textDelta; // 当前单个文本增量
+              textBuffer += textDelta; // 缓冲区中的完整累积文本
               text += textDelta;
+
+              // 在流式处理中，检查 XML 标签完整性，避免解析错误
               // Check if the current text has incomplete XML tags
               if (hasIncompleteXmlTag(text)) {
-                continue;
+                continue; // 标签不完整，继续等待(文本会被累积到 textBuffer)
               }
+
+              // 推送文本增量
               // If we have buffered content, process it
               if (textBuffer) {
                 await pushTextDelta(textBuffer, text, opts.onTextDelta);
                 textBuffer = '';
               } else {
+                // TODO: why textBuffer is falsy ?
                 await pushTextDelta(textDelta, text, opts.onTextDelta);
               }
               break;
@@ -320,11 +342,15 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
       },
       requestId,
     );
+
+    // 查找工具调用
     let toolUse = parsed.find((item) => item.type === 'tool_use') as ToolUse;
     if (toolUse) {
+      // 1. 工具使用前处理
       if (opts.onToolUse) {
         toolUse = await opts.onToolUse(toolUse as ToolUse);
       }
+      // 2. 工具审批
       const approved = opts.onToolApprove
         ? await opts.onToolApprove(toolUse as ToolUse)
         : true;
@@ -334,9 +360,11 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
           toolUse.name,
           JSON.stringify(toolUse.params),
         );
+        // 3. 工具结果处理
         if (opts.onToolResult) {
           toolResult = await opts.onToolResult(toolUse, toolResult, approved);
         }
+        // 更新历史
         await history.addMessage({
           role: 'user',
           content: [
@@ -352,6 +380,7 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
         // Prevent normal turns from being terminated due to exceeding the limit
         turnsCount--;
       } else {
+        // 5. 拒绝使用工具
         const message = 'Error: Tool execution was denied by user.';
         let toolResult: ToolResult = {
           llmContent: message,
@@ -407,6 +436,7 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
   };
 }
 
+// 定义不完整标签模式
 const INCOMPLETE_PATTERNS = [
   '<use_tool',
   '<tool_name',
@@ -416,12 +446,18 @@ const INCOMPLETE_PATTERNS = [
   '</arguments',
 ];
 
+// 检查文本末尾是否存在未闭合的 XML 标签
 function hasIncompleteXmlTag(text: string): boolean {
+  // 截取末尾文本（15 个字符）
   text = text.slice(-15);
+
+  // 多层次匹配检测
   for (const pattern of INCOMPLETE_PATTERNS) {
+    // 1. 完全匹配：文本末尾完全匹配某个不完整模式
     if (text.endsWith(pattern)) {
       return true;
     }
+    // 2. 前缀匹配：当文本比模式短时，检查是否为模式的开头部分
     if (text.length < pattern.length) {
       if (
         pattern.startsWith(text.slice(-Math.min(text.length, pattern.length)))
@@ -429,6 +465,7 @@ function hasIncompleteXmlTag(text: string): boolean {
         return true;
       }
     } else {
+      // 3. 部分匹配：逐字符检查是否存在部分匹配
       const maxCheck = Math.min(pattern.length - 1, text.length);
       for (let i = 1; i <= maxCheck; i++) {
         if (text.slice(-i) === pattern.slice(0, i)) {
@@ -440,12 +477,16 @@ function hasIncompleteXmlTag(text: string): boolean {
   return false;
 }
 
+// 有条件地推送文本增量
+// 只在特定条件下将文本片段推送给回调函数，避免推送不合适的文本内容
 async function pushTextDelta(
-  content: string,
-  text: string,
-  onTextDelta?: (text: string) => Promise<void>,
+  content: string, // 要推送的文本内容
+  text: string, // 完整的当前文本
+  onTextDelta?: (text: string) => Promise<void>, // 文本增量回调
 ): Promise<void> {
   const parsed = parseMessage(text);
+
+  // 只有当解析结果为文本类型且标记为部分文本(流式输出中)时才推送
   if (parsed[0]?.type === 'text' && parsed[0].partial) {
     await onTextDelta?.(content);
   }
