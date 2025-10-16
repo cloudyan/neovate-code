@@ -34,6 +34,13 @@ export class Upgrade extends EventEmitter {
     this.files = opts.files;
   }
 
+  /**
+   * 检查是否有新版本可用
+   * @returns 包含最新版本信息和更新状态的 Promise
+   *   - latestVersion: 最新版本号
+   *   - hasUpdate: 是否有更新
+   *   - tarballUrl: 更新包下载地址（如果有更新）
+   */
   async check(): Promise<{
     latestVersion: string;
     hasUpdate: boolean;
@@ -90,6 +97,22 @@ export class Upgrade extends EventEmitter {
     }
   }
 
+  /**
+   * 执行应用程序更新
+   * @param opts 包含 tarballUrl 的选项对象
+   * @returns 更新完成的 Promise
+   *
+   * 该方法会：
+   * 1. 下载指定 URL 的 tarball 包
+   * 2. 解压到临时目录
+   * 3. 将指定文件复制到安装目录
+   *
+   * 在执行过程中会通过 EventEmitter 发送状态更新事件：
+   * - downloading: 正在下载
+   * - saving: 正在保存到临时文件
+   * - extracting: 正在解压
+   * - copying: 正在复制文件
+   */
   async upgrade(opts: { tarballUrl: string }): Promise<void> {
     const tempDir = os.tmpdir();
     const timestamp = Date.now();
