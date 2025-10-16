@@ -185,6 +185,20 @@ async function runQuiet(argv: Argv, context: Context) {
       sessionId = context.paths.getLatestSessionId();
     }
 
+    await context.apply({
+      hook: 'telemetry',
+      args: [
+        {
+          name: 'send',
+          payload: {
+            message: input,
+            sessionId,
+          },
+        },
+      ],
+      type: PluginHookType.Parallel,
+    });
+
     // 4. 创建项目实例并发送消息
     const project = new Project({
       context,
