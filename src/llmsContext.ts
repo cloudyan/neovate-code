@@ -76,7 +76,7 @@ export class LlmsContext {
   /**
    * 创建 LlmsContext 实例
    * @param opts - 创建选项
-   * @returns LlmsContext 实例
+   * @returns LlmsContext 实例, 包含 llmsContextStr, llmsEnvStr
    */
   static async create(opts: LlmsContextCreateOpts) {
     const gitStatus = await getGitStatus({ cwd: opts.context.cwd });

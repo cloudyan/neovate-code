@@ -69,7 +69,7 @@ graph TB
     end
 
     subgraph "AI 处理层"
-        Loop[Loop<br/>AI交互循环]
+        AILoop[AILoop<br/>AI交互循环]
         Model[Model<br/>模型管理]
         Tool[Tool<br/>工具系统]
     end
@@ -90,9 +90,9 @@ graph TB
     Commands --> Project
     Project --> Session
     Project --> Query
-    Query --> Loop
-    Loop --> Model
-    Loop --> Tool
+    Query --> AILoop
+    AILoop --> Model
+    AILoop --> Tool
     Context --> Config
     Context --> Plugin
     Context --> MCP
@@ -102,7 +102,7 @@ graph TB
     style Entry fill:#e1f5fe,color:#000
     style Context fill:#fff3e0,color:#000
     style Project fill:#f3e5f5,color:#000
-    style Loop fill:#fce4ec,color:#000
+    style AILoop fill:#fce4ec,color:#000
     style Config fill:#e8f5e9,color:#000
 ```
 

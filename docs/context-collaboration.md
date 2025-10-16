@@ -297,27 +297,68 @@ export class LlmsContext {
 
 ## 协作流程详解
 
+在项目中有两处 `new Project({` 调用，除了在 `runQuiet` 函数中的调用外，另一处在 `NodeBridge` 类的 `session.send` 消息处理器中。
+
+`NodeBridge` 中的 `new Project({` 调用流程如下：
+
+1. 消息触发：当用户在交互模式下发送消息时，UI 层通过 `MessageBus` 发送 `session.send` 消息
+2. 上下文获取：`NodeHandlerRegistry` 接收到消息后，调用 `getContext(cwd)` 获取指定工作目录的 `Context`
+
+实例（如果不存在则创建）
+
+1. 项目实例创建：使用获取到的 `context` 和 `sessionId` 创建 `Project` 实例：`new Project({ sessionId, context })`
+2. 消息处理：调用 `project.send()` 或 `project.plan()` 方法处理用户消息
+3. 结果返回：将处理结果通过 `MessageBus` 返回给 UI 层
+
+与 `runQuiet` 中的调用主要区别：
+
+* `NodeBridge` 中的调用是响应式触发的，而 `runQuiet` 是在程序启动时直接调用
+* `NodeBridge` 支持多工作目录的上下文管理，会缓存不同目录的 `Context` 实例
+* `NodeBridge` 中的调用支持会话取消功能，通过 `AbortController` 实现
+* `NodeBridge` 中的调用通过消息总线与 UI 层通信，而 `runQuiet` 是直接的函数调用
+
+在交互模式下每次发送消息都会创建新的 `Project` 实例。具体流转过程如下：
+
+1. 用户在 UI 中输入消息并发送
+2. `UIBridge` 通过 `MessageBus` 发送 `'session.send'` 消息
+   1. 流程: uiBridge 交互输入: `onSubmit` -> `useAppStore.send` -> `useAppStore.sendMessage` -> `bridge.request('session.send')` -> nodeBridge: `registerHandler('session.send'` -> `new Project`
+3. `NodeBridge` 接收消息，在 `session.send` 处理器中执行：
+    * 调用 `getContext(cwd)` 获取当前工作目录的 `Context` 实例（复用已创建的）
+    * 使用 `new Project({ sessionId, context })` 创建新的 `Project` 实例
+    * 调用 `project.send()` 或 `project.plan()` 处理消息
+4. 处理完成后通过 `MessageBus` 将结果发送回 UI 层
+
+关键点：
+
+  * `Context` 实例会被缓存复用（通过 `NodeHandlerRegistry` 的 `contexts` Map）
+  * 但 `Project` 实例每次都会重新创建
+  * `Session` 实例在 `Project` 构造函数中根据 `sessionId` 恢复或创建
+
+这种设计使得每次交互都基于最新的上下文状态，同时保持了会话的连续性。
+
 ### 完整的消息发送流程
 
 > 在 Mermaid 的 sequenceDiagram 中，rect 块本身不支持直接修改内部字体的颜色。rect 只能设置背景色（如 rgb(255, 235, 205)），字体颜色默认继承主题或浏览器样式。可以通过 CSS 注入 或 主题覆盖 的方式间接改变字体颜色，通过 `%%{init: {}}` 注入 CSS（推荐）
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'rectTextColor': '#000' }}}%%
+%%{init: {'theme': 'base', 'themeVariables': { 'rectTextColor': '#000', 'signalTextColor': '#f00', 'signalColor': '#f00' }}}%%
+
 sequenceDiagram
     participant User
     participant Entry as runNeovate
     participant Context
     participant Project
     participant LlmsContext
-    participant Loop
+    participant AILoop
     participant AI
     participant Tools
 
     User->>Entry: 执行命令
     Entry->>Context: Context.create()
-    Note over Context: 加载配置、插件、路径等
 
-    Entry->>Project: new Project({ context })
+    Note over Context: 1. 初始化 Paths<br/>2. 加载配置<br/>3. 扫描插件<br/>4. 规范化插件<br/>5. 创建 PluginManager<br/>6. 触发 config 钩子<br/>7. 创建 MCPManager<br/>8. Context.create 创建实例
+
+    Entry->>Project: new Project({ context, sessionId })
     Note over Project: 持有 context 引用
 
     User->>Project: send(message)
@@ -717,7 +758,7 @@ graph LR
     end
 
     subgraph "Loop 层"
-        Loop[runLoop]
+        AILoop[runLoop]
         AI[AI Model]
         ToolExec[Tool Execution]
     end
@@ -742,17 +783,17 @@ graph LR
     Plugin -.扩展.-> Tools
     MCP -.提供.-> Tools
 
-    Tools --> Loop
-    Prompt --> Loop
-    LlmsCtx --> Loop
+    Tools --> AILoop
+    Prompt --> AILoop
+    LlmsCtx --> AILoop
 
-    Loop --> AI
+    AILoop --> AI
     AI --> ToolExec
     ToolExec --> AI
 
     style Context fill:#fff3e0,color:#000
     style LlmsCtx fill:#e1f5fe,color:#000
-    style Loop fill:#f3e5f5,color:#000
+    style AILoop fill:#f3e5f5,color:#000
 ```
 
 ---
