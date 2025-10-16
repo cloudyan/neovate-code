@@ -29,6 +29,9 @@ function escapeShellArg(arg: string): string {
   return JSON.stringify(arg);
 }
 
+/**
+ * 根据提供的差异和上下文生成提交信息
+ */
 async function generateCommitMessage(opts: GenerateCommitMessageOpts) {
   const language = opts.language ?? 'English';
   const result = await query({
@@ -43,6 +46,9 @@ async function generateCommitMessage(opts: GenerateCommitMessageOpts) {
   return message;
 }
 
+/**
+ * 根据提交信息生成合适的分支名称
+ */
 async function generateBranchName(opts: GenerateBranchNameOpts) {
   const result = await query({
     userPrompt: opts.commitMessage,
@@ -56,6 +62,9 @@ async function generateBranchName(opts: GenerateBranchNameOpts) {
   return branchName.trim();
 }
 
+/**
+ * 打印 commit 命令的帮助信息
+ */
 function printHelp(p: string) {
   console.log(
     `
@@ -90,6 +99,9 @@ Examples:
   );
 }
 
+/**
+ * 运行 commit 命令的主要函数，处理 git 提交的完整流程
+ */
 export async function runCommit(context: Context) {
   const { default: yargsParser } = await import('yargs-parser');
   const argv = yargsParser(process.argv.slice(2), {
@@ -282,11 +294,17 @@ ${repoStyle}
   process.exit(0);
 }
 
+/**
+ * 将提交信息复制到剪贴板
+ */
 function copyToClipboard(message: string) {
   clipboardy.writeSync(message);
   logger.logResult('Commit message copied to clipboard');
 }
 
+/**
+ * 创建并切换到新的分支
+ */
 async function checkoutNewBranch(branchName: string): Promise<void> {
   try {
     // Check if branch already exists
@@ -342,6 +360,9 @@ async function checkoutNewBranch(branchName: string): Promise<void> {
   }
 }
 
+/**
+ * 提交更改到 Git 仓库
+ */
 async function commitChanges(message: string, skipHooks = false) {
   const noVerify = skipHooks ? '--no-verify' : '';
   logger.logAction({ message: 'Commit the changes.' });
@@ -399,6 +420,9 @@ async function commitChanges(message: string, skipHooks = false) {
   }
 }
 
+/**
+ * 推送更改到远程仓库
+ */
 async function pushChanges() {
   const hasRemote = execSync('git remote').toString().trim().length > 0;
   if (!hasRemote) {
@@ -494,6 +518,9 @@ async function pushChanges() {
   }
 }
 
+/**
+ * 处理交互模式，让用户选择如何处理生成的提交信息
+ */
 // Handle interactive mode
 async function handleInteractiveMode(
   message: string,
@@ -603,6 +630,9 @@ async function handleInteractiveMode(
   }
 }
 
+/**
+ * 检查提交信息是否符合规范
+ */
 function checkCommitMessage(message: string, hasAiSuffix = false) {
   // make length check a litter more lenient
   // since sometimes it needs a little more informations
@@ -702,6 +732,9 @@ async function getStagedDiff() {
   }
 }
 
+/**
+ * 创建用于生成提交信息的系统提示
+ */
 function createCommitSystemPrompt(language: string) {
   return `
 You are an expert software engineer that generates concise, one-line Git commit messages based on the provided diffs.
@@ -732,6 +765,9 @@ or line breaks.
   `;
 }
 
+/**
+ * 创建用于生成分支名称的系统提示
+ */
 function createBranchSystemPrompt() {
   return `
 You are an expert software engineer that generates meaningful Git branch names based on commit messages and code changes.
