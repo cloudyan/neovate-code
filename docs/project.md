@@ -212,7 +212,6 @@ async send(
 **流程**：
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'rectTextColor': '#000' }}}%%
 sequenceDiagram
     participant Caller
     participant Project

@@ -56,7 +56,6 @@ graph LR
 ### 整体流程图
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'rectTextColor': '#000' }}}%%
 sequenceDiagram
     participant Project
     participant AILoop as runLoop
