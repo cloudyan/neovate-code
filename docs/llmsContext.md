@@ -123,6 +123,9 @@ LlmsContext.create() 是一个动态创建过程，每次对话都会重新生�
 ### 1. 组装 Context 部分
 
 ```xml
+# Context
+As you answer the user's questions, you can use the following context:
+
 <context name="gitStatus">
 Current branch: main
 Status:
@@ -131,13 +134,24 @@ M docs/arch.md
 </context>
 
 <context name="directoryStructure">
-- src/
-  - context.ts
-  - project.ts
-  ...
+Listed 120 files/directories
+<directory_structure>
+- /path/to/project/
+  - AGENTS.md
+  - package.json
+  - src/
+    - browser.ts
+    - cli.ts
+    - commands/
+      - commit.ts
+      - config.ts
+</directory_structure>
 </context>
 
 <context name="rules">
+The codebase follows strict style guidelines shown below. All code changes must strictly adhere to these guidelines to maintain consistency and quality.
+
+<!-- getLlmsRules: 每个 rule 文件读取后(AGENTS.md, CLAUDE.md, <ProductName>.md)，间隔一行 -->
 - Always use TypeScript strict mode
 - Follow existing code style
 ...
@@ -149,6 +163,8 @@ Project description...
 </context>
 ```
 
+在 `directoryStructure` 中，第一行是 `returnDisplay`（工具执行的简要说明），后面是包含在 `<directory_structure>` 标签中的 `llmContent`（实际的目录结构内容）。
+
 Context 部分包含以下信息：
 - `gitStatus`: Git 仓库状态（分支、修改文件等）
 - `directoryStructure`: 目录结构（项目文件树）
@@ -159,6 +175,8 @@ Context 部分包含以下信息：
 ### 2. 组装 Environment 部分
 
 ```xml
+# Environment
+Here is useful information about the environment you are running in.
 <env name="Working directory">/path/to/project</env>
 <env name="Is directory a git repo">YES</env>
 <env name="Platform">darwin</env>
