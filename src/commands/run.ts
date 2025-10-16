@@ -13,7 +13,7 @@ async function executeShell(
   try {
     logger.logAction({ message: `Executing command: ${command}` });
     const output = execSync(command, {
-      cwd,
+      cwd, // 在指定工作目录(cwd)中执行命令，限制影响范围
       encoding: 'utf-8',
       stdio: ['ignore', 'inherit', 'inherit'],
     });
@@ -60,7 +60,7 @@ export async function runRun(context: Context) {
     alias: {
       model: 'm',
       help: 'h',
-      yes: 'y',
+      yes: 'y', // 直接执行模式
     },
     boolean: ['help', 'yes'],
     string: ['model'],
@@ -88,6 +88,7 @@ export async function runRun(context: Context) {
     message: `AI is converting natural language to shell command...`,
   });
 
+  // 自然语言转 shell 命令
   const result = await query({
     userPrompt: prompt,
     systemPrompt: SHELL_COMMAND_SYSTEM_PROMPT,
@@ -96,6 +97,7 @@ export async function runRun(context: Context) {
   let command = result.success ? result.data.text : null;
   assert(command, 'Command is not a string');
 
+  // 使用彩色输出显示 AI 生成的 shell 命令
   // Display the generated command and request confirmation
   logger.logInfo(
     `
@@ -104,6 +106,7 @@ ${command}
 `.trim(),
   );
 
+  // 直接执行模式（--yes 参数）
   // If --yes mode is enabled, execute the command without confirmation
   if (argv.yes) {
     const result = await executeShell(command, process.cwd());
@@ -116,6 +119,7 @@ ${command}
     return;
   }
 
+  // 交互执行，提供三个选项：执行、编辑、取消
   // Default behavior: request confirmation
   const execution = await p.select({
     message: 'Confirm execution',
