@@ -15,7 +15,7 @@ export const writePlanCommand = {
 
 ## Overview
 
-Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give them the whole plan as bite-sized tasks. DRY. YAGNI. TDD. Frequent commits.
+Write comprehensive implementation plans assuming the engineer has zero context for our codebase and questionable taste. Document everything they need to know: which files to touch for each task, code, testing, docs they might need to check, how to test it. Give them the whole plan as bite-sized tasks. DRY. YAGNI.
 
 Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well.
 
@@ -82,13 +82,6 @@ def function(input):
 
 Run: \`pytest tests/path/test.py::test_name -v\`
 Expected: PASS
-
-**Step 5: Commit**
-
-\`\`\`bash
-git add tests/path/test.py src/path/file.py
-git commit -m "feat: add specific feature"
-\`\`\`
 
 ## Remember
 - Exact file paths always
