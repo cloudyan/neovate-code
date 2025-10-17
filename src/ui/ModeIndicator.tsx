@@ -11,6 +11,15 @@ export function ModeIndicator() {
   if (planResult) {
     return null;
   }
+
+  // prompt 模式
+  //   默认模式 default mode
+  //   自动接受编辑 accepting edits
+  //   YOLO模式 YOLO mode
+  //   计划模式 plan mode
+  // shell 模式已启用 (esc 禁用) shell mode enabled (esc to disable)
+  // memory 模式已启用
+
   const text = planMode ? (
     <>
       <Text color={UI_COLORS.MODE_INDICATOR_TEXT}>plan mode</Text>

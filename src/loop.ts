@@ -56,7 +56,7 @@ type RunLoopOpts = {
     usage: Usage;
     startTime: Date;
     endTime: Date;
-  }) => Promise<void>; // 每轮交互结束回调，当一次完整交互回合结束时触发，包含使用统计信息
+  }) => Promise<void>; // 每轮交互结束回调，包含用量统计
   onToolApprove?: (toolUse: ToolUse) => Promise<boolean>; // 工具审批回调，当需要审批工具调用时触发，返回是否批准
   onMessage?: OnMessage; // 消息处理回调，当 AI 生成新消息时触发
 };
@@ -131,7 +131,7 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
       };
     }
 
-    // 压缩历史消息（如果启用）
+    // compress 自动压缩历史消息（如果启用）
     if (opts.autoCompact) {
       const compressed = await history.compress(opts.model);
       if (compressed.compressed) {
@@ -140,7 +140,7 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
     }
     lastUsage.reset();
 
-    // 创建 AI 代理和运行器
+    // 创建 Runner 实例, 作为模型提供者的包装器
     const runner = new Runner({
       modelProvider: {
         getModel() {
@@ -148,16 +148,17 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
         },
       },
     });
+    // Agent 实例, 配置了系统提示词和工具描述
     const agent = new Agent({
       name: 'code',
-      model: opts.model.model.id,
+      model: opts.model.model.id, // 如: qwen-coder
       instructions: `
 ${opts.systemPrompt || ''}
 ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
       `,
     });
 
-    // 构建输入上下文
+    // 构建完整的输入上下文
     const llmsContexts = opts.llmsContexts || [];
     const llmsContextMessages = llmsContexts.map((llmsContext) => {
       return {
@@ -165,6 +166,7 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
         content: llmsContext,
       } as SystemMessageItem;
     });
+    // 包含: LLM 上下文消息 && 历史对话记录
     let agentInput = [...llmsContextMessages, ...history.toAgentInput()];
     if (shouldAtNormalize) {
       // add file and directory contents for the last user prompt
@@ -178,17 +180,18 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
 
     // 执行 AI 调用
     const result = await runner.run(agent, agentInput, {
-      stream: true,
-      signal: abortController.signal,
+      stream: true, // 启用流式响应
+      signal: abortController.signal, // 支持取消操作
     });
 
     let text = '';
     let textBuffer = '';
     let hasToolUse = false;
 
-    // 处理流式响应
+    // 采用事件流模式处理 AI 响应
     try {
       for await (const chunk of result.toStream()) {
+        // 检查取消信号
         if (opts.signal?.aborted) {
           return createCancelError();
         }
@@ -200,19 +203,20 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
           chunk.type === 'raw_model_stream_event' &&
           chunk.data.type === 'model'
         ) {
+          // 处理不同类型的事件
           switch (chunk.data.event.type) {
             case 'text-delta': {
+              // 文本增量: 实时显示生成内容
               const textDelta = chunk.data.event.textDelta; // 当前单个文本增量
               textBuffer += textDelta; // 缓冲区中的完整累积文本
               text += textDelta;
 
-              // 在流式处理中，检查 XML 标签完整性，避免解析错误
+              // XML 标签完整性检查，避免解析错误
               // Check if the current text has incomplete XML tags
               if (hasIncompleteXmlTag(text)) {
-                continue; // 标签不完整，继续等待(文本会被累积到 textBuffer)
+                continue; // 等待完整标签(文本会被累积到 textBuffer)
               }
 
-              // 推送文本增量
               // If we have buffered content, process it
               if (textBuffer) {
                 await pushTextDelta(textBuffer, text, opts.onTextDelta);
@@ -224,9 +228,11 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
               break;
             }
             case 'reasoning':
+              // 推理过程: 展示 AI 思考过程
               await opts.onReasoning?.(chunk.data.event.textDelta);
               break;
             case 'finish':
+              // 完成事件: 收集使用统计
               lastUsage = Usage.fromEventUsage(chunk.data.event.usage);
               totalUsage.add(lastUsage);
               break;

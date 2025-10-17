@@ -345,7 +345,7 @@ export async function runNeovate(opts: {
   // sub commands
   const command = argv._[0]; // 获取第一个位置参数
 
-  // 一. Server Next 模式
+  // 一. Server Next 模式 neo servernext
   if (command === 'servernext') {
     await runServerNext({
       contextCreateOpts,
