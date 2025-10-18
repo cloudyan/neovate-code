@@ -437,7 +437,7 @@ export function createCodeReviewTool(opts: { cwd: string }) {
   return createTool({
     name: 'code_review',
     description: `
-Comprehensive multi-agent code review system that analyzes code for security vulnerabilities, performance issues, code quality problems, and architectural inconsistencies.
+Comprehensive code review system that analyzes code for security vulnerabilities, performance issues, code quality problems, and architectural inconsistencies.
 
 Features:
 - Security vulnerability detection (injection, XSS, authentication, cryptography)
