@@ -40,18 +40,18 @@ export type LlmsContextCreateOpts = {
  *
  * 上下文信息包括：
  *
- * ## Context 部分
+ * ## Context 部分: 包含项目相关信息
  * - gitStatus: Git 仓库状态（分支、修改文件等）
  * - directoryStructure: 目录结构（项目文件树）
  * - rules: 项目规则（代码规范、约定等）
  * - readme: README.md 内容
  * - 自定义上下文（通过 context 钩子扩展）
  *
- * ## Environment 部分
+ * ## Environment 部分: 包含运行环境信息
  * - Working directory: 工作目录
- * - Is directory a git repo: 是否为 Git 仓库
- * - Platform: 操作系统平台
- * - Today's date: 当前日期
+ * - Is directory a git repo: 是否为 Git 仓库 YES/NO
+ * - Platform: 操作系统平台 darwin/linux/win32/...
+ * - Today's date: 当前日期 2025/10/18
  * - 自定义环境信息（通过 env 钩子扩展）
  *
  * 使用示例：
@@ -81,6 +81,7 @@ export class LlmsContext {
   static async create(opts: LlmsContextCreateOpts) {
     const gitStatus = await getGitStatus({ cwd: opts.context.cwd });
 
+    // 一. llmsContext: 包含项目相关信息
     let llmsContext: Record<string, string> = {};
     // 1. git status
     const llmsGitStatus = await getLlmGitStatus(gitStatus);
@@ -138,6 +139,7 @@ ${Object.entries(llmsContext)
   .join('\n')}
     `.trim();
 
+    // 二. llmsEnv: 包含运行环境信息
     let llmsEnv = {
       'Working directory': opts.context.cwd,
       'Is directory a git repo': gitStatus ? 'YES' : 'NO',
