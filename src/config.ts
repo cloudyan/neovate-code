@@ -37,6 +37,18 @@ export type CommitConfig = {
 
 export type ProviderConfig = Partial<Omit<Provider, 'createModel'>>;
 
+export type CodeReviewConfig = {
+  enabled: boolean;
+  autoRunOnCommit: boolean;
+  severityThreshold: 'low' | 'medium' | 'high' | 'critical';
+  categories: ('security' | 'performance' | 'quality' | 'architecture')[];
+  excludePatterns: string[];
+  outputFormat: 'json' | 'markdown' | 'summary';
+  autoFix: boolean;
+  maxFilesPerReview: number;
+  cacheResults: boolean;
+};
+
 export type Config = {
   model: string;
   planModel: string;
@@ -48,6 +60,7 @@ export type Config = {
   provider?: Record<string, ProviderConfig>;
   systemPrompt?: string;
   todo?: boolean;
+  codeReview?: CodeReviewConfig;
   /**
    * Controls whether automatic conversation compression is enabled.
    * When set to false, conversation history will accumulate and context limit will be exceeded.

@@ -12,10 +12,13 @@ import { createGlobTool } from './tools/glob';
 import { createGrepTool } from './tools/grep';
 import { createLSTool } from './tools/ls';
 import { createReadTool } from './tools/read';
-import { createDocumentTool } from './tools/document';
-import { createEvaluateTool } from './tools/evaluate';
 import { createTodoTool, type TodoItem } from './tools/todo';
 import { createWriteTool } from './tools/write';
+
+// WIP
+import { createDocumentTool } from './tools/document';
+import { createEvaluateTool } from './tools/evaluate';
+import { createCodeReviewTool } from './tools/code-review';
 
 type ResolveToolsOpts = {
   context: Context;
@@ -38,6 +41,7 @@ export async function resolveTools(opts: ResolveToolsOpts) {
     createFetchTool({ model }),
     createDocumentTool({ cwd }),
     createEvaluateTool({ cwd }),
+    createCodeReviewTool({ cwd }),
   ];
   const writeTools = opts.write
     ? [

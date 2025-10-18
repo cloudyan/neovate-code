@@ -1,0 +1,23 @@
+{
+  "enabled": true,
+  "severityThreshold": "medium",
+  "categories": ["security", "performance", "quality", "architecture"],
+  "excludePatterns": [
+    "node_modules/**",
+    "dist/**",
+    "build/**",
+    "**/*.test.*",
+    "**/*.spec.*",
+    "**/*.d.ts",
+    "coverage/**",
+    "*.min.js",
+    "*.bundle.js",
+    "vendor/**"
+  ],
+  "failOnHigh": true,
+  "failOnCritical": true,
+  "maxFilesPerReview": 20,
+  "outputFormat": "summary",
+  "autoFix": false,
+  "cacheResults": true
+}
