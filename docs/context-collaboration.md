@@ -321,7 +321,7 @@ export class LlmsContext {
 
 1. 用户在 UI 中输入消息并发送
 2. `UIBridge` 通过 `MessageBus` 发送 `'session.send'` 消息
-   1. 流程: uiBridge 交互输入: `onSubmit` -> `useAppStore.send` -> `useAppStore.sendMessage` -> `bridge.request('session.send')` -> nodeBridge: `registerHandler('session.send'` -> `new Project`
+   1. 流程: uiBridge 交互输入: ChatInput -> `onSubmit: handlers.handleSubmit` -> `useInputHandlers` ->  `useAppStore.send` -> `useAppStore.sendMessage` -> `bridge.request('session.send')` -> nodeBridge: `registerHandler('session.send'` -> `new Project`
 3. `NodeBridge` 接收消息，在 `session.send` 处理器中执行：
     * 调用 `getContext(cwd)` 获取当前工作目录的 `Context` 实例（复用已创建的）
     * 使用 `new Project({ sessionId, context })` 创建新的 `Project` 实例
