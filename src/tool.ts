@@ -270,6 +270,37 @@ export type ToolResult = {
   isError?: boolean;
 };
 
+/**
+ *
+ */
+/**
+ * 创建一个新的工具，可以被 AI 代理使用。
+ *
+ * 工具是 AI 与文件系统、shell 和其他系统交互的主要方式。
+ * 它们遵循模型上下文协议 (MCP) 规范，以确保与外部工具的兼容性。
+ *
+ * @template TSchema 工具参数的 Zod 模式类型
+ * @param config - 工具配置
+ * @param config.name - 工具的唯一标识符
+ * @param config.description - 工具功能的人类可读描述
+ * @param config.parameters - 定义工具输入参数的 Zod 模式
+ * @param config.execute - 实现工具行为的函数
+ * @param config.approval - 工具的可选审批要求
+ * @param config.getDescription - 可选函数，用于生成工具调用的人类可读描述
+ * @returns 可以被代理使用的 Tool 对象
+ *
+ * @example
+ * const readTool = createTool({
+ *   name: 'read',
+ *   description: '从本地文件系统读取文件',
+ *   parameters: z.object({
+ *     file_path: z.string(),
+ *   }),
+ *   execute: async ({ file_path }) => {
+ *     // 实现代码
+ *   }
+ * });
+ */
 export function createTool<TSchema extends z.ZodTypeAny>(config: {
   name: string;
   description: string;
