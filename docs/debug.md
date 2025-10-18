@@ -36,3 +36,16 @@
     然后在浏览器中打开 `http://localhost:3000`
 
 项目的调试配置已经在 `package.json` 和 VSCode 的默认配置中设置好了，无需额外操作。
+
+## 开发
+
+```bash
+pnpm i
+
+npm run dev
+
+# 改变工作目录
+npm run dev -- --cwd /path/to/your/directory
+# or
+bun ./src/cli.ts --cwd /path/to/your/directory
+```

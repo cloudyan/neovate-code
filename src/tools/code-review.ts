@@ -17,18 +17,19 @@ async function glob(
   options: { cwd?: string } = {},
 ): Promise<string[]> {
   const { cwd = process.cwd() } = options;
-  const { execSync } = require('child_process');
+  const { execFile } = require('child_process');
   const rgPath = path.join(__dirname, '../../vendor/ripgrep/bin/rg');
 
   try {
-    const output = execSync(`${rgPath} --files --glob "${pattern}"}`, {
+    // 将execSync替换为execFileSync，以防止glob函数中的命令注入
+    const { execFileSync } = require('child_process');
+    const output = execFileSync(rgPath, ['--files', '--glob', pattern], {
       cwd,
       encoding: 'utf-8',
     });
     return output.trim().split('\n').filter(Boolean);
   } catch (error) {
     // Fallback to simple file system traversal
-    const path = require('path');
     const fs = require('fs');
     const results: string[] = [];
 
@@ -189,6 +190,8 @@ async function analyzeSecurity(
           matches.forEach((match) => {
             const lineNum =
               lines.findIndex((line) => line.includes(match[0])) + 1;
+            // Skip matches in comments
+            if (lines[lineNum - 1]?.trim().startsWith('//')) return;
             vulnerabilities.push({
               type: 'injection',
               severity: 'high',
