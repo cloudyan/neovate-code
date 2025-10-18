@@ -97,6 +97,7 @@ export function useInputHandlers() {
       return;
     }
     // 4. submit (pasted text expansion is handled in store.send)
+    // 包含 shell 模式前缀的内容也直接发送，这不是真的 shell 模式，无法处理所有 shell 命令
     inputState.setValue('');
     resetTabTrigger();
     await send(value);

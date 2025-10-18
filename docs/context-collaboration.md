@@ -336,6 +336,32 @@ export class LlmsContext {
 
 这种设计使得每次交互都基于最新的上下文状态，同时保持了会话的连续性。
 
+## shell 模式流程
+
+输入 `!` 开启 `shell 模式`并执行 shell 命令的流程：
+
+1. 在 `ChatInput.tsx` 中，当用户输入以 `!` 开头的内容时，会被识别为 bash 模式：
+    1. `getInputMode` 函数检测到 `!` 前缀时返回 `'bash'` 模式
+    2. 显示时会去掉 `!` 前缀（通过 `displayValue` 处理）
+    3. 提交时会将 `!` 前缀加回（通过 `handleDisplayChange` 处理）
+2. 在 `useInputHandlers.ts` 中：
+    1. `getInputMode` 函数确定输入模式，`!` 开头为 bash 模式
+    2. `handleSubmit` 函数处理提交逻辑，但 `bash` 模式不会在这里特殊处理，而是作为**普通消息**发送
+3. 在 `store.ts`（虽然未展示文件内容，但从 `grep` 结果可知）中，消息会被发送到后端处理
+4. 在 `bash.ts` 中实现了 `bash` 工具：
+    1.  创建了一个 `createBashTool` 函数，用于执行 `shell` 命令
+    2.  包含安全检查，禁止危险命令（如 `rm`、`curl` 等）
+    3.  使用 `shellExecute` 函数执行命令
+    4.  有超时控制（默认 30 分钟，最大 10 分钟）
+    5.  有输出截断机制（最多显示 5 行）
+5.  在 `shell-execution.ts` 中：
+    1.  `shellExecute` 函数实际执行 `shell` 命令
+    2.  使用 `child_process.spawn` 创建子进程执行命令
+    3.  支持 `Windows` 和 `Unix` 系统（使用 `cmd.exe` 或 `bash`）
+    4.  有内存保护机制（最大 `100MB` 输出限制）
+    5.  有二进制检测和处理
+    6.  有超时控制和进程终止机制
+
 ### 完整的消息发送流程
 
 > 在 Mermaid 的 sequenceDiagram 中，rect 块本身不支持直接修改内部字体的颜色。rect 只能设置背景色（如 rgb(255, 235, 205)），字体颜色默认继承主题或浏览器样式。可以通过 CSS 注入 或 主题覆盖 的方式间接改变字体颜色，通过 `%%{init: {}}` 注入 CSS（推荐）
