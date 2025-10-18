@@ -12,6 +12,8 @@ import { createGlobTool } from './tools/glob';
 import { createGrepTool } from './tools/grep';
 import { createLSTool } from './tools/ls';
 import { createReadTool } from './tools/read';
+import { createDocumentTool } from './tools/document';
+import { createEvaluateTool } from './tools/evaluate';
 import { createTodoTool, type TodoItem } from './tools/todo';
 import { createWriteTool } from './tools/write';
 
@@ -34,6 +36,8 @@ export async function resolveTools(opts: ResolveToolsOpts) {
     createGlobTool({ cwd }),
     createGrepTool({ cwd }),
     createFetchTool({ model }),
+    createDocumentTool({ cwd }),
+    createEvaluateTool({ cwd }),
   ];
   const writeTools = opts.write
     ? [
