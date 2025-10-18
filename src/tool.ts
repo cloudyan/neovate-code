@@ -16,9 +16,9 @@ import { createTodoTool, type TodoItem } from './tools/todo';
 import { createWriteTool } from './tools/write';
 
 // WIP
-import { createDocumentTool } from './tools/document';
-import { createEvaluateTool } from './tools/evaluate';
-import { createCodeReviewTool } from './tools/code-review';
+// import { createDocumentTool } from './tools/document';
+// import { createEvaluateTool } from './tools/evaluate';
+// import { createCodeReviewTool } from './tools/code-review';
 
 type ResolveToolsOpts = {
   context: Context;
@@ -39,9 +39,9 @@ export async function resolveTools(opts: ResolveToolsOpts) {
     createGlobTool({ cwd }),
     createGrepTool({ cwd }),
     createFetchTool({ model }),
-    createDocumentTool({ cwd }),
-    createEvaluateTool({ cwd }),
-    createCodeReviewTool({ cwd }),
+    // createDocumentTool({ cwd }),
+    // createEvaluateTool({ cwd }),
+    // createCodeReviewTool({ cwd }),
   ];
   const writeTools = opts.write
     ? [
