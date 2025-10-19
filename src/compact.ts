@@ -10,7 +10,7 @@ type CompactOptions = {
 export const COMPACT_MESSAGE = `Chat history compacted successfully.`;
 
 // 压缩对话历史记录
-export async function compact(opts: CompactOptions): Promise<string> {
+export async function compact(opts: CompactOptions): Promise<any> {
   const result = await query({
     messages: opts.messages,
     userPrompt: COMPACT_USER_PROMPT,
@@ -18,7 +18,10 @@ export async function compact(opts: CompactOptions): Promise<string> {
     model: opts.model,
   });
   if (result.success) {
-    return result.data.text;
+    return {
+      summary: result.data.text,
+      usage: result.data.usage,
+    };
   }
   throw new Error(`Failed to compact: ${result.error.message}`);
 }

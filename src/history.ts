@@ -243,10 +243,12 @@ export class History {
     debug('compressing...');
     let summary: string | null = null;
     try {
-      summary = await compact({
+      const result = await compact({
         messages: this.messages,
         model,
       });
+      summary = result.summary; // 提取摘要文本
+      debug('autoCompact usage:', result.usage);
     } catch (error) {
       debug('Compact failed:', error);
       throw new Error(

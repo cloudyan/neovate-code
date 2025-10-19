@@ -44,6 +44,7 @@ export const compactCommand: LocalJSXCommand = {
         const run = async () => {
           try {
             log('compacting...');
+            // 触发压缩，返回摘要
             const result = await bridge.request('session.compact', {
               cwd,
               messages,
@@ -55,14 +56,14 @@ export const compactCommand: LocalJSXCommand = {
             }
 
             // 将摘要作为新消息添加到历史记录中
-            log(`compacted${JSON.stringify(result)}`);
+            log(`compacted ${JSON.stringify(result)}`);
             await bridge.request('session.addMessages', {
               cwd,
               sessionId,
               messages: [
                 {
                   parentUuid: null,
-                  role: 'user',
+                  role: 'user', // user 改为 assistant?
                   content: [
                     {
                       type: 'text',
