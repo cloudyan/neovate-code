@@ -54,7 +54,24 @@ Examples:
   );
 }
 
+/**
+ * 运行自定义指令
+ *
+ * 该函数将自然语言转换为 shell 命令并执行
+ * 支持交互式确认和直接执行两种模式
+ *
+ * 设计原理：
+ * 1. 参数解析：使用 yargs-parser 解析命令行参数，支持 prompt、model、yes 等选项
+ * 2. AI 转换：通过 query 函数调用 AI 模型，将自然语言转换为 shell 命令
+ * 3. 安全执行：提供交互式确认机制，用户可选择执行、编辑或取消命令
+ * 4. 直接执行：支持 --yes 参数跳过确认，直接执行生成的命令
+ * 5. 错误处理：捕获命令执行异常并记录日志
+ *
+ * @param context - 应用上下文对象
+ * @returns Promise<void>
+ */
 export async function runRun(context: Context) {
+  // 1. 解析命令行参数
   const { default: yargsParser } = await import('yargs-parser');
   const argv = yargsParser(process.argv.slice(2), {
     alias: {
@@ -88,7 +105,7 @@ export async function runRun(context: Context) {
     message: `AI is converting natural language to shell command...`,
   });
 
-  // 自然语言转 shell 命令
+  // 2. 自然语言转 shell 命令
   const result = await query({
     userPrompt: prompt,
     systemPrompt: SHELL_COMMAND_SYSTEM_PROMPT,
@@ -106,7 +123,7 @@ ${command}
 `.trim(),
   );
 
-  // 直接执行模式（--yes 参数）
+  // 3. 直接执行模式（--yes 参数）
   // If --yes mode is enabled, execute the command without confirmation
   if (argv.yes) {
     const result = await executeShell(command, process.cwd());
@@ -119,7 +136,7 @@ ${command}
     return;
   }
 
-  // 交互执行，提供三个选项：执行、编辑、取消
+  // 4. 交互执行，提供三个选项：执行、编辑、取消
   // Default behavior: request confirmation
   const execution = await p.select({
     message: 'Confirm execution',
@@ -167,6 +184,7 @@ ${command}
   if (executeResult.success) {
     logger.logOutro();
   } else {
+    // 5. 错误处理
     logger.logError({
       error: `Command execution failed: ${executeResult.output}`,
     });
