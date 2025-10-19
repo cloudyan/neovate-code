@@ -43,7 +43,7 @@ export class Project {
       parentUuid?: string;
     } = {},
   ) {
-    // 解析工具
+    // 解析可用的工具
     let tools = await resolveTools({
       context: this.context,
       sessionId: this.session.id,
