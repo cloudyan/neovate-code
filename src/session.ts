@@ -8,30 +8,60 @@ import { randomUUID } from './utils/randomUUID';
 
 export type SessionId = string;
 
+/**
+ * 会话类，用于管理Neovate的会话状态
+ * 负责会话的创建、恢复和状态管理
+ */
 export class Session {
-  id: SessionId;
-  usage: Usage;
-  history: History;
+  id: SessionId; // 会话唯一标识符
+  usage: Usage; // 会话使用统计
+  history: History; // 会话消息历史
+
+  /**
+   * 创建会话实例
+   * @param opts - 会话选项
+   * @param opts.id - 会话ID
+   * @param opts.history - 消息历史，可选
+   */
   constructor(opts: { id: SessionId; history?: History }) {
     this.id = opts.id;
     this.usage = Usage.empty();
     this.history = opts.history || new History({ messages: [] });
   }
 
+  /**
+   * 更新会话历史
+   * @param history - 新的历史记录
+   */
   updateHistory(history: History) {
     this.history = history;
   }
 
+  /**
+   * 创建新会话
+   * @returns 新的会话实例
+   */
   static create() {
     return new Session({
       id: Session.createSessionId(),
     });
   }
 
+  /**
+   * 创建会话ID
+   * @returns 8位随机UUID作为会话ID
+   */
   static createSessionId() {
     return randomUUID().slice(0, 8);
   }
 
+  /**
+   * 从日志文件恢复会话
+   * @param opts - 恢复选项
+   * @param opts.id - 会话ID
+   * @param opts.logPath - 日志文件路径
+   * @returns 恢复的会话实例
+   */
   static resume(opts: { id: SessionId; logPath: string }) {
     const messages = loadSessionMessages({ logPath: opts.logPath });
     const history = new History({
@@ -59,14 +89,29 @@ const DEFAULT_SESSION_CONFIG: SessionConfig = {
   pastedImageMap: {},
 };
 
+/**
+ * 会话配置管理器，用于管理会话级别的配置
+ * 包括审批模式、工具白名单等会话特定设置
+ */
 export class SessionConfigManager {
-  logPath: string;
-  config: SessionConfig;
+  logPath: string; // 日志文件路径
+  config: SessionConfig; // 会话配置
+
+  /**
+   * 创建会话配置管理器实例
+   * @param opts - 配置选项
+   * @param opts.logPath - 日志文件路径
+   */
   constructor(opts: { logPath: string }) {
     this.logPath = opts.logPath;
     this.config = this.load(opts.logPath);
   }
 
+  /**
+   * 从日志文件加载会话配置
+   * @param logPath - 日志文件路径
+   * @returns 会话配置
+   */
   load(logPath: string): SessionConfig {
     if (!fs.existsSync(logPath)) {
       return DEFAULT_SESSION_CONFIG;
@@ -87,6 +132,11 @@ export class SessionConfigManager {
       return DEFAULT_SESSION_CONFIG;
     }
   }
+
+  /**
+   * 将会话配置写入日志文件
+   * 会将会话配置保存为JSONL格式，type为'config'
+   */
   write() {
     // TODO: add write lock
     const configLine = JSON.stringify({ type: 'config', config: this.config });
@@ -117,6 +167,7 @@ export class SessionConfigManager {
   }
 }
 
+// 过滤消息，只保留当前活动路径上的消息
 export function filterMessages(
   messages: NormalizedMessage[],
 ): NormalizedMessage[] {
@@ -159,6 +210,7 @@ export function filterMessages(
   return messageTypeOnly.filter((message) => activePath.has(message.uuid));
 }
 
+// 从日志文件加载会话消息
 export function loadSessionMessages(opts: {
   logPath: string;
 }): NormalizedMessage[] {

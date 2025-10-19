@@ -232,9 +232,9 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
               await opts.onReasoning?.(chunk.data.event.textDelta);
               break;
             case 'finish':
-              // 完成事件: 收集使用统计
+              // 完成事件: 收集本轮用量使用统计
               lastUsage = Usage.fromEventUsage(chunk.data.event.usage);
-              totalUsage.add(lastUsage);
+              totalUsage.add(lastUsage); // 将本轮用量累加到总用量
               break;
             default:
               // console.log('Unknown event:', chunk.data.event);
@@ -303,7 +303,7 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
 
     const endTime = new Date();
     opts.onTurn?.({
-      usage: lastUsage,
+      usage: lastUsage, // 本轮用量数据
       startTime,
       endTime,
     });
