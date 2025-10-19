@@ -2,6 +2,7 @@ import React from 'react';
 import { useAppStore } from '../../ui/store';
 import type { LocalJSXCommand } from '../types';
 
+// 显示系统状态
 export const statusCommand: LocalJSXCommand = {
   type: 'local-jsx',
   name: 'status',

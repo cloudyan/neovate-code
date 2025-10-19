@@ -154,6 +154,7 @@ export const LogoutSelect: React.FC<LogoutSelectProps> = ({ onExit }) => {
   );
 };
 
+// 登出模型提供商
 export function createLogoutCommand(): LocalJSXCommand {
   return {
     type: 'local-jsx',

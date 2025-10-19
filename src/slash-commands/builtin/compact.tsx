@@ -9,6 +9,7 @@ import type { LocalJSXCommand } from '../types';
 
 const debug = createDebug('neovate:slash-commands:compact');
 
+// 压缩对话历史记录
 export const compactCommand: LocalJSXCommand = {
   type: 'local-jsx',
   name: 'compact',
@@ -53,6 +54,7 @@ export const compactCommand: LocalJSXCommand = {
               return;
             }
 
+            // 将摘要作为新消息添加到历史记录中
             log(`compacted${JSON.stringify(result)}`);
             await bridge.request('session.addMessages', {
               cwd,

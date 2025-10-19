@@ -408,6 +408,7 @@ export const LoginSelect: React.FC<LoginSelectProps> = ({ onExit }) => {
   );
 };
 
+// 登录模型提供商
 export function createLoginCommand(): LocalJSXCommand {
   return {
     type: 'local-jsx',

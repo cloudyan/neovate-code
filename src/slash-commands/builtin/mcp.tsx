@@ -348,6 +348,7 @@ const McpManagerComponent: React.FC<McpManagerProps> = ({ onExit }) => {
   );
 };
 
+// 管理 MCP 服务器
 export function createMcpCommand(_opts: { productName: string }) {
   return {
     type: 'local-jsx',

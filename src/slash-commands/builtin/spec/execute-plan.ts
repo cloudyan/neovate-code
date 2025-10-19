@@ -1,5 +1,6 @@
 import type { PromptCommand } from '../../types';
 
+// 执行计划
 export const executePlanCommand = {
   type: 'prompt',
   name: 'spec:execute-plan',

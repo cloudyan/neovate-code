@@ -150,6 +150,7 @@ const ResumeSelect: React.FC<ResumeSelectProps> = ({ onExit, onSelect }) => {
   );
 };
 
+// 恢复之前的会话
 export function createResumeCommand(): LocalJSXCommand {
   return {
     type: 'local-jsx',

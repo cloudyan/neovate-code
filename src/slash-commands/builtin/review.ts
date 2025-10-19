@@ -1,5 +1,6 @@
 import type { PromptCommand } from '../types';
 
+// 代码审查功能
 export function createReviewCommand() {
   return {
     type: 'prompt',

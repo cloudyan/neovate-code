@@ -2,6 +2,7 @@ import React from 'react';
 import { useAppStore } from '../../ui/store';
 import type { LocalJSXCommand } from '../types';
 
+// 清空聊天历史记录
 export const clearCommand: LocalJSXCommand = {
   type: 'local-jsx',
   name: 'clear',

@@ -1,6 +1,7 @@
 import { SlashCommandManager } from '../../slashCommand';
 import { CommandSource, type LocalCommand } from '../types';
 
+// 显示帮助信息
 export const helpCommand: LocalCommand = {
   type: 'local',
   name: 'help',

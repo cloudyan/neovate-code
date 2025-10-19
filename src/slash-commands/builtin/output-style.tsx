@@ -90,6 +90,7 @@ const OutputStyleSelect: React.FC<OutputStyleSelectProps> = ({
   );
 };
 
+// 配置输出样式
 export function createOutputStyleCommand(): LocalJSXCommand {
   return {
     type: 'local-jsx',

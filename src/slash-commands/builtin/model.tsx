@@ -78,6 +78,7 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({
   );
 };
 
+// 选择和配置 AI 模型
 export function createModelCommand(opts: {
   argvConfig: Record<string, any>;
 }): LocalJSXCommand {

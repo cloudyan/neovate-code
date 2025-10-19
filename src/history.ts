@@ -257,6 +257,7 @@ export class History {
       throw new Error('Generated summary is empty');
     }
 
+    // 会清除原始消息并用摘要替换
     // Clear original messages and replace with summary
     this.messages = [];
 

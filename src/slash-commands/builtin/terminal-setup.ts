@@ -14,6 +14,7 @@ type VSCodeKeybinding = {
 const terminal = process.env.TERM_PROGRAM;
 const isVSCode = terminal === 'vscode';
 
+// 终端设置向导
 export function createTerminalSetupCommand(): LocalCommand {
   return {
     type: 'local',

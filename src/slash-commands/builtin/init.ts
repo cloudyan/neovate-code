@@ -1,5 +1,6 @@
 import type { PromptCommand } from '../types';
 
+// 初始化项目配置
 export function createInitCommand(opts: { productName: string }) {
   const productName = opts.productName;
   const ruleFile = 'AGENTS.md';

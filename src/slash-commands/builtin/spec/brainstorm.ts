@@ -1,5 +1,6 @@
 import type { PromptCommand } from '../../types';
 
+// 头脑风暴功能
 export const brainstormCommand = {
   type: 'prompt',
   name: 'spec:brainstorm',

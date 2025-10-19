@@ -29,6 +29,15 @@ export class SlashCommandManager {
   commands: Map<string, CommandEntry>;
   constructor(opts: SlashCommandManagerOpts) {
     const productName = opts.productName;
+
+    // 按优先级加载四类命令：
+    // - 内置命令(builtin): 通过 createBuiltinCommands 静态加载
+    // - 插件命令(plugin): 通过插件系统的 slashCommand 钩子动态加载
+    // - 全局命令(global)、项目命令(project): 从 Markdown 文件动态加载并转换为 PromptCommand
+    // 命令类型：
+    // - LocalCommand: 执行本地函数逻辑
+    // - LocalJSXCommand: 渲染 React JSX 组件界面
+    // - PromptCommand: 生成提示词发送给 AI 模型处理
     const commands = new Map<string, CommandEntry>();
     // 1. builtin
     const builtin = createBuiltinCommands({
@@ -42,6 +51,7 @@ export class SlashCommandManager {
     (opts.slashCommands || []).forEach((command) => {
       commands.set(command.name, { command, source: CommandSource.Plugin });
     });
+    // Markdown 文件命令
     // 3. global
     const global = this.#loadGlobal(
       path.join(opts.paths.globalConfigDir, 'commands'),
@@ -96,6 +106,7 @@ export class SlashCommandManager {
     return this.commands.has(name);
   }
 
+  // 命令匹配与过滤
   getMatchingCommands(prefix: string): SlashCommand[] {
     const lowerPrefix = prefix.toLowerCase();
     return Array.from(this.commands.values())
@@ -132,6 +143,7 @@ export class SlashCommandManager {
     });
   }
 
+  // Markdown 命令解析，将 Markdown 文件转换为 PromptCommand
   #fileToPromptCommand(
     file: NormalizedMarkdownFile,
     descriptionPostfix: string,
@@ -178,6 +190,7 @@ function isFilePath(input: string): boolean {
   return input.startsWith('/') && input.indexOf('/', 1) !== -1;
 }
 
+// 解析命令和参数
 export function parseSlashCommand(input: string): {
   command: string;
   args: string;
@@ -196,6 +209,7 @@ export function parseSlashCommand(input: string): {
   };
 }
 
+// 替换参数占位符
 export function replaceParameterPlaceholders(
   prompt: string,
   args: string,
@@ -213,6 +227,7 @@ export function replaceParameterPlaceholders(
   return result;
 }
 
+// 是否斜杠命令
 export function isSlashCommand(input: string): boolean {
   const trimmed = input.trim();
   if (!trimmed.startsWith('/')) return false;

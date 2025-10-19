@@ -2,6 +2,7 @@ import React from 'react';
 import { useAppStore } from '../../ui/store';
 import type { LocalJSXCommand } from '../types';
 
+// 退出应用程序
 export const exitCommand: LocalJSXCommand = {
   type: 'local-jsx',
   name: 'exit',

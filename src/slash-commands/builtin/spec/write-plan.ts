@@ -1,5 +1,6 @@
 import type { PromptCommand } from '../../types';
 
+// 编写执行计划
 export const writePlanCommand = {
   type: 'prompt',
   name: 'spec:write-plan',

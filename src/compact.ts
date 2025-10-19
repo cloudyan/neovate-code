@@ -9,6 +9,7 @@ type CompactOptions = {
 
 export const COMPACT_MESSAGE = `Chat history compacted successfully.`;
 
+// 压缩对话历史记录
 export async function compact(opts: CompactOptions): Promise<string> {
   const result = await query({
     messages: opts.messages,
