@@ -13,7 +13,7 @@ export function createCommitSystemPrompt(language: string) {
   return `
 你是一个专业的软件工程师，根据提供的差异生成简洁的一行 Git 提交信息。
 
-请仔细审查提供的上下文和即将提交到 Git 仓库的差异，为这些更改生成符合规范的提交信息；若差异为空，请直接返回 chore: empty commit
+请仔细审查提供的上下文和即将提交到 Git 仓库的差异，为这些更改生成符合规范的提交信息。
 
 ## 格式
 - 结构：<type>: <description>
@@ -25,6 +25,7 @@ ${language ? `- 语言：${language}` : ''}
 
 ## 输出
 仅回复一行提交信息，**不要包含引号、反引号或任何额外解释/换行符**。
+特殊情况：若差异为空，请直接返回 chore: empty commit
 
 保持简洁直接，描述更改内容，严格遵守以上标准。
   `.trim();
