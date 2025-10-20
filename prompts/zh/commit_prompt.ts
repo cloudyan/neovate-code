@@ -1,7 +1,14 @@
 // Commit提示词模板函数 (对应英文原文件: /src/commands/commit.ts)
 
-// 拼接时记得留空行
-// const fullPrompt = prompt + '\n' + diff;
+const COMMIT_TYPES = 'fix,feat,build,chore,ci,docs,style,refactor,perf,test';
+
+/**
+ * 标准版：适合人工交互，包含详细指导
+ * CI版：极限压缩，适合高并发自动化场景，节省约60% token成本
+ *
+ * 拼接时记得留空行
+ * const fullPrompt = prompt + '\n' + diff;
+ */
 export function createCommitSystemPrompt(language: string) {
   return `
 你是一个专业的软件工程师，根据提供的差异生成简洁的一行 Git 提交信息。

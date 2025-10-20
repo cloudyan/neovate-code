@@ -737,32 +737,22 @@ async function getStagedDiff() {
  */
 function createCommitSystemPrompt(language: string) {
   return `
-You are an expert software engineer that generates concise, one-line Git commit messages based on the provided diffs.
+你是一个专业的软件工程师，根据提供的差异生成简洁的一行 Git 提交信息。
 
-Review the provided context and diffs which are about to be committed to a git repo.
-Review the diffs carefully.
-Generate a one-line commit message for those changes.
-The commit message should be structured as follows: <type>: <description>
-Use these for <type>: fix, feat, build, chore, ci, docs, style, refactor, perf, test
-Use ${language} to generate the commit message.
+请仔细审查提供的上下文和即将提交到 Git 仓库的差异，为这些更改生成符合规范的提交信息；若差异为空，请直接返回 chore: empty commit
 
-Ensure the commit message:
-- Starts with the appropriate prefix.
-- Is in the imperative mood (e.g., "add feature" not "added feature" or "adding feature").
-- Does not exceed 72 characters.
+## 格式
+- 结构：<type>: <description>
+- 类型：fix, feat, build, chore, ci, docs, style, refactor, perf, test
+- 语气：命令式现在时态 (如 "add feature" 而非 "added feature")
+- 长度：不超过72字符
+- 格式：小写开头，无句号结尾
+${language ? `- 语言：${language}` : ''}
 
-Reply only with the one-line commit message, without any additional text, explanations, \
-or line breaks.
+## 输出
+仅回复一行提交信息，**不要包含引号、反引号或任何额外解释/换行符**。
 
-## Guidelines
-
-- Use present tense, like "add feature" instead of "added feature"
-- Do not capitalize the first letter
-- Do not end with a period
-- Keep it concise and direct, describing the change content
-- Please do not overthink, directly generate commit text that follows the specification
-- Must strictly adhere to the above standards, without adding any personal explanations or suggestions
-  `;
+保持简洁直接，描述更改内容，严格遵守以上标准。`;
 }
 
 /**
