@@ -12,6 +12,8 @@ export function Debug() {
   const { log, debugMode, toggleDebugMode } = useAppStore();
   const [lastKeyPress, setLastKeyPress] = useState(0);
 
+  // 按 Ctrl+L 或 Cmd+L 两次（在1秒内）来切换 debug 模式的开启/关闭状态
+  // TODO: 在 MacOS 下 Cmd+L 无法触发
   useInput((input, key) => {
     if (input === 'l' && (key.meta || key.ctrl)) {
       const now = Date.now();
