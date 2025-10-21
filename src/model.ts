@@ -4,7 +4,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { createXai } from '@ai-sdk/xai';
 import {
   createOpenRouter,
-  type LanguageModelV1,
+  type LanguageModelV2,
 } from '@openrouter/ai-sdk-provider';
 import assert from 'assert';
 import defu from 'defu';
@@ -13,8 +13,7 @@ import type { ProviderConfig } from './config';
 import type { Context } from './context';
 import { PluginHookType } from './plugin';
 import { GithubProvider } from './providers/githubCopilot';
-import type { AiSdkModel } from './utils/ai-sdk';
-import { aisdk } from './utils/ai-sdk';
+import { type AiSdkModel, aisdk } from './utils/ai-sdk';
 
 export interface ModelModalities {
   input: ('text' | 'image' | 'audio' | 'video' | 'pdf')[];
@@ -77,7 +76,7 @@ export interface Provider {
     name: string,
     provider: Provider,
     globalConfigDir: string,
-  ): Promise<LanguageModelV1> | LanguageModelV1;
+  ): Promise<LanguageModelV2> | LanguageModelV2;
   // 额外配置选项
   options?: {
     baseURL?: string; // 基础 API 地址
@@ -842,7 +841,10 @@ function getProviderApiKey(provider: Provider) {
   return '';
 }
 
-export const defaultModelCreator = (name: string, provider: Provider) => {
+export const defaultModelCreator = (
+  name: string,
+  provider: Provider,
+): LanguageModelV2 => {
   if (provider.id !== 'openai') {
     assert(provider.api, `Provider ${provider.id} must have an api`);
   }
@@ -851,7 +853,7 @@ export const defaultModelCreator = (name: string, provider: Provider) => {
   return createOpenAI({
     baseURL,
     apiKey,
-  })(name);
+  }).chat(name);
 };
 
 // 预定义的所有提供商映射表
@@ -902,7 +904,7 @@ export const providers: ProvidersMap = {
         },
         // fix Failed: OpenAI API key is missing
         apiKey: '',
-      })(name);
+      }).chat(name);
     },
   },
   openai: {
@@ -977,7 +979,7 @@ export const providers: ProvidersMap = {
       return createXai({
         baseURL: api,
         apiKey,
-      })(name);
+      }).chat(name);
     },
   },
   anthropic: {
@@ -1002,7 +1004,7 @@ export const providers: ProvidersMap = {
       return createAnthropic({
         apiKey,
         baseURL,
-      })(name);
+      }).chat(name);
     },
   },
   aihubmix: {
@@ -1080,7 +1082,7 @@ export const providers: ProvidersMap = {
       return createOpenRouter({
         apiKey,
         baseURL,
-      })(name);
+      }).chat(name);
     },
   },
   iflow: {
@@ -1120,9 +1122,7 @@ export const providers: ProvidersMap = {
       return createOpenAI({
         baseURL,
         apiKey,
-        // include usage information in streaming mode
-        compatibility: 'strict',
-      })(name);
+      }).chat(name);
     },
   },
   'moonshotai-cn': {
@@ -1143,8 +1143,7 @@ export const providers: ProvidersMap = {
         baseURL,
         apiKey,
         // include usage information in streaming mode why? https://platform.moonshot.cn/docs/guide/migrating-from-openai-to-kimi#stream-模式下的-usage-值
-        compatibility: 'strict',
-      })(name);
+      }).chat(name);
     },
   },
   groq: {
@@ -1484,10 +1483,10 @@ export async function resolveModel(
   return {
     provider,
     model,
-    aisdk: aisdk(m as LanguageModelV1),
+    aisdk: aisdk(m as LanguageModelV2),
   };
 }
 
-function isPromise(m: any): m is Promise<LanguageModelV1> {
+function isPromise(m: any): m is Promise<LanguageModelV2> {
   return m instanceof Promise;
 }

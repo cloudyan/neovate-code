@@ -207,7 +207,7 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
           switch (chunk.data.event.type) {
             case 'text-delta': {
               // 文本增量: 实时显示生成内容
-              const textDelta = chunk.data.event.textDelta; // 当前单个文本增量
+              const textDelta = chunk.data.event.delta; // 当前单个文本增量
               textBuffer += textDelta; // 缓冲区中的完整累积文本
               text += textDelta;
 
@@ -229,7 +229,7 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
             }
             case 'reasoning':
               // 推理过程: 展示 AI 思考过程
-              await opts.onReasoning?.(chunk.data.event.textDelta);
+              await opts.onReasoning?.(chunk.data.event.delta);
               break;
             case 'finish':
               // 完成事件: 收集本轮用量使用统计
