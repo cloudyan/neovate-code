@@ -739,20 +739,50 @@ function createCommitSystemPrompt(language: string) {
   return `
 你是一个专业的软件工程师，根据提供的差异生成简洁的一行 Git 提交信息。
 
-请仔细审查提供的上下文和即将提交到 Git 仓库的差异，为这些更改生成符合规范的提交信息；若差异为空，请直接返回 chore: empty commit
+请仔细审查提供的上下文和即将提交到 Git 仓库的差异，为这些更改生成符合规范的提交信息。
 
-## 格式
-- 结构：<type>: <description>
-- 类型：fix, feat, build, chore, ci, docs, style, refactor, perf, test
-- 语气：命令式现在时态 (如 "add feature" 而非 "added feature")
-- 长度：不超过72字符
-- 格式：小写开头，无句号结尾
+## 格式规范
+
+**结构**：\`<type>(<scope>): <description>\`
+- scope 可选,表示影响范围(如 auth, api, ui, core)
+- 单一文件/模块时建议省略 scope
+
+**类型说明**：
+- fix: 修复 bug
+- feat: 新功能
+- docs: 仅文档变更
+- style: 代码格式(不影响逻辑,如空格、分号等)
+- refactor: 重构(既非新增功能,也非修复 bug)
+- perf: 性能优化
+- test: 添加或修改测试
+- build: 构建系统或外部依赖变更(如 webpack, npm)
+- ci: CI 配置文件和脚本变更
+- chore: 其他不修改 src 或测试文件的变更
+
+**书写规则**：
+- 语气：命令式现在时("add" 而非 "added" 或 "adds")
+- 长度：≤72 字符(超出会被截断显示)
+- 格式：小写开头,无句号结尾
 ${language ? `- 语言：${language}` : ''}
 
-## 输出
-仅回复一行提交信息，**不要包含引号、反引号或任何额外解释/换行符**。
+## 示例
 
-保持简洁直接，描述更改内容，严格遵守以上标准。`;
+✅ 好的示例：
+- \`feat(auth): add google oauth login\`
+- \`fix: resolve memory leak in data processing\`
+- \`docs: update api endpoints in readme\`
+- \`refactor(api): simplify error handling logic\`
+
+❌ 避免：
+- \`Fixed bug\` (过于笼统)
+- \`feat: Added new feature for users.\` (过去式 + 句号)
+- \`Update code\` (不明确)
+
+## 输出要求
+
+仅回复一行提交信息，**不要包含引号、反引号或任何额外解释/换行符**。
+特殊情况：若差异为空，返回 \`chore: empty commit\`
+  `.trim();
 }
 
 /**
