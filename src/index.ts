@@ -2,7 +2,7 @@ import { setTraceProcessors } from '@openai/agents';
 import assert from 'assert';
 import { render } from 'ink';
 import React from 'react';
-import { runServerNext } from './commands/servernext/server';
+import { runServer } from './commands/server/server';
 import { Context } from './context';
 import { GlobalData } from './globalData';
 import { parseMcpConfig } from './mcp';
@@ -345,9 +345,10 @@ export async function runNeovate(opts: {
   // sub commands
   const command = argv._[0]; // 获取第一个位置参数
 
-  // 一. Server Next 模式 neo servernext
-  if (command === 'servernext') {
-    await runServerNext({
+  // 一. Server 模式 neo server
+  if (command === 'server') {
+    await runServer({
+      cwd,
       contextCreateOpts,
     });
     return;

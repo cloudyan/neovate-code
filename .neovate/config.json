@@ -1,3 +1,7 @@
 {
+  "language": "zh-CN",
+  "commit": {
+    "language": "en"
+  },
   "approvalMode": "autoEdit"
 }
