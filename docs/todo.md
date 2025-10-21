@@ -1,5 +1,13 @@
 # TODO
 
+- [x] commit
+- [ ] review
+- [ ] wiki
+- [ ] evaluate
+
+
+## 小提示
+
 ```bash
 入门提示：
 1. 提问、编辑文件或运行命令。
