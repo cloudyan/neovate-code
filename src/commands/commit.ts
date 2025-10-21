@@ -688,6 +688,8 @@ async function getStagedDiff() {
     encoding: 'utf-8',
   };
 
+  // git diff --cached：旧版语法
+  // git diff --staged：新版推荐语法，语义更清晰（推荐）
   try {
     const diff = execSync(
       `git diff --cached -- ${excludePatterns}`,
