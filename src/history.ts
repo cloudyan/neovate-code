@@ -72,9 +72,14 @@ export class History {
     return this.messages.filter((msg) => pathUuids.has(msg.uuid));
   }
 
+  // 将历史消息转换为 AI 模型可以理解的输入格式
+  // 1. 格式转换：将内部的 NormalizedMessage 格式转换为 @openai/agents 库要求的 AgentInputItem 格式
+  // 2. 角色映射：将消息按角色（user、assistant、system）转换为对应的输入项类型
+  // 3. 内容处理
   toAgentInput(): AgentInputItem[] {
     return this.messages.map((message) => {
       if (message.role === 'user') {
+        // 1. 对于用户消息，处理工具结果、文本和图像内容
         const content = (() => {
           let content: any = message.content;
           if (!Array.isArray(content)) {
@@ -87,6 +92,7 @@ export class History {
           }
           content = content.flatMap((part: any) => {
             if (part.type === 'tool_result') {
+              // 工具结果格式化：将工具调用结果包装成特定的 XML 格式，便于 AI 理解
               const result = part.result as ToolResult;
               const llmContent = result.llmContent;
               const formatText = (text: string) => {
@@ -131,6 +137,7 @@ export class History {
           content,
         } as UserMessageItem;
       } else if (message.role === 'assistant') {
+        // 2. 对于助手消息，提取文本内
         return {
           role: 'assistant',
           content: [
@@ -141,6 +148,7 @@ export class History {
           ],
         } as AssistantMessageItem;
       } else if (message.role === 'system') {
+        // 3. 对于系统消息，直接使用内容
         return {
           role: 'system',
           content: message.content,
