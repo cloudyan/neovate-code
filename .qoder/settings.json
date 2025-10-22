@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "ask": [
+      "Read(!/Volumes/data/code/github.com/cloudyan/neovate-code/**)",
+      "Edit(!/Volumes/data/code/github.com/cloudyan/neovate-code/**)"
+    ],
+    "allow": [
+      "Read(/Volumes/data/code/github.com/cloudyan/neovate-code/**)",
+      "Edit(/Volumes/data/code/github.com/cloudyan/neovate-code/**)"
+    ]
+  },
+  "memoryImport": {},
+  "monitoring": {}
+}
