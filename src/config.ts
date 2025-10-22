@@ -3,6 +3,7 @@ import fs from 'fs';
 import { homedir } from 'os';
 import path from 'pathe';
 import { mergeBrowserMcpServers } from './browser';
+import { DEFAULT_LANGUAGE } from './constants/languages';
 import type { Provider } from './model';
 
 export type McpStdioServerConfig = {
@@ -77,7 +78,7 @@ export type Config = {
 };
 
 const DEFAULT_CONFIG: Partial<Config> = {
-  language: 'English',
+  language: DEFAULT_LANGUAGE,
   quiet: false,
   approvalMode: 'default',
   plugins: [],

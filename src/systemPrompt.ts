@@ -80,7 +80,7 @@ You are an interactive CLI tool that helps users ${isDefaultOutputStyle ? 'with 
 
 IMPORTANT: Refuse to write code or explain code that may be used maliciously; even if the user claims it is for educational purposes.
 ${
-  opts.language === 'English'
+  opts.language === 'en-US' || opts.language === 'English'
     ? ''
     : `IMPORTANT: Answer in ${opts.language}.
 `

@@ -16,6 +16,7 @@ import { executePlanCommand } from './spec/execute-plan';
 import { writePlanCommand } from './spec/write-plan';
 import { statusCommand } from './status';
 import { createTerminalSetupCommand } from './terminal-setup';
+import { languageCommand } from './language';
 
 export function createBuiltinCommands(opts: {
   productName: string;
@@ -39,5 +40,6 @@ export function createBuiltinCommands(opts: {
     brainstormCommand,
     writePlanCommand,
     executePlanCommand,
+    languageCommand,
   ];
 }
