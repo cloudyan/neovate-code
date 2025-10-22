@@ -12,13 +12,16 @@ export function ModeIndicator() {
     return null;
   }
 
-  // prompt 模式
-  //   默认模式 default mode (shift + tab to cycle)
-  //   自动接受编辑 accepting edits
-  //   YOLO模式 YOLO mode
-  //   计划模式 plan mode
-  // ! shell 模式已启用 (esc 禁用) shell mode enabled (esc to disable)
-  // # memory 模式已启用
+  // > 对话模式（默认）
+  // > Bash 模式（按 Esc 键退出）
+  //     默认模式 default mode (shift + tab to cycle)
+  //     自动接受编辑 accepting edits
+  //     YOLO模式 YOLO mode
+  //     计划模式 plan mode（按 Shift + Tab 切换）
+  // / 斜杠模式 slash mode
+  // ! shell 模式已启用 (按 Esc 键退出) shell mode enabled (esc to disable)
+  // # memory 记忆模式已启用
+  // $ agents 模式
 
   const text = planMode ? (
     <>

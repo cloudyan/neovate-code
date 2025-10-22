@@ -1,7 +1,7 @@
 // 代码审查提示词模板函数 (对应英文原文件: /src/slash-commands/builtin/review.ts)
-// 基于高质量版本，提供4步专业审查流程
+// 优势：专业性、结构化和易用性
 
-export interface CodeReviewData {
+export interface OptimizedCodeReviewData {
   // 审查员专业领域
   specialty?:
     | '前端'
@@ -16,33 +16,25 @@ export interface CodeReviewData {
 
   // 技术信息
   programmingLanguage?: string;
-  framework?: string; // 框架信息
+  framework?: string;
 
   // 统计数据
   added?: number;
   deleted?: number;
-  filesChanged?: number; // 变更文件数
+  filesChanged?: number;
 
   // PR信息
   prNumber?: string;
-  author?: string; // 作者信息
-  reviewers?: string[]; // 审查者列表
-
-  // 质量指标
-  coverageReport?: string;
-  testCoverage?: number; // 覆盖率百分比
-  complexityScore?: number; // 复杂度评分
 
   // 配置选项
-  language?: '中文' | '英文';
-  severityThreshold?: '低' | '中' | '高'; // 严重程度阈值
-  maxIssues?: number; // 最大问题数
+  severityThreshold?: '低' | '中' | '高';
+  maxIssues?: number;
 
-  // 风格指南
-  styleGuideUrl?: string;
+  // 审查模式
+  reviewMode?: 'quick' | 'standard' | 'deep';
 }
 
-export function codeReviewPrompt(data: CodeReviewData) {
+export function optimizedCodeReviewPrompt(data: OptimizedCodeReviewData) {
   // 参数解构和默认值
   const {
     specialty = '全栈',
@@ -52,23 +44,19 @@ export function codeReviewPrompt(data: CodeReviewData) {
     deleted = 0,
     filesChanged = 0,
     prNumber,
-    author,
-    reviewers = [],
-    coverageReport,
-    testCoverage,
-    complexityScore,
-    language = '中文',
     severityThreshold = '中',
     maxIssues = 10,
-    styleGuideUrl,
+    reviewMode = 'standard',
   } = data;
 
   return `
 # 📋 代码审查任务 - ${specialty}专家
 
 ## 🚨 重要指令
-- **严格按照4步执行，不得跳过或调整顺序**
-- **每步完成后必须确认再进行下一步**
+- **根据审查模式调整严格程度**：
+  * 快速模式(quick)：只关注严重安全问题和明显错误
+  * 标准模式(standard)：全面审查代码质量、安全性和性能
+  * 深度模式(deep)：详细分析架构设计、扩展性和最佳实践
 - **安全红线触发时立即停止，输出"## 🚨 安全阻断"**
 - **仅输出指定格式，禁止任何额外解释或格式**
 
@@ -123,8 +111,7 @@ ${
 - **变更规模**: ${added} 增 / ${deleted} 删 (涉及 ${filesChanged} 个文件)
 - **风险等级**: 低 | 中 | 高 | 严重
 - **评审结论**: ✅ 通过 | ⚠️ 要求修改 | ❌ 安全阻断
-- **测试覆盖**: ${testCoverage ? `${testCoverage}%` : coverageReport ? '已提供' : '未提供'}
-- **复杂度评分**: ${complexityScore || '未评估'}
+
 
 ## 🚨 问题列表
 | 文件路径 | 行号 | 严重程度 | 问题类型 | 问题描述 | 修改建议 |
@@ -159,18 +146,14 @@ ${
 ## 🎯 审查标准
 ${programmingLanguage ? `- **技术栈**: ${programmingLanguage}` : ''}
 ${framework ? `- **框架**: ${framework}` : ''}
-${styleGuideUrl ? `- **风格指南**: ${styleGuideUrl}` : ''}
-${testCoverage ? `- **覆盖率要求**: ≥80% (当前: ${testCoverage}%)` : '- **覆盖率要求**: ≥80%'}
-- **审查语言**: ${language}
 - **严重程度阈值**: ${severityThreshold}
 - **最大问题数**: ${maxIssues}
+- **审查模式**: ${reviewMode}
 
 ---
 
 ## 📝 项目信息
 - **PR编号**: ${prNumber || '本地提交'}
-- **作者**: ${author || '未知'}
-- **审查者**: ${reviewers.length > 0 ? reviewers.join(', ') : '未指定'}
 - **生成时间**: ${new Date().toISOString()}
   `.trim();
 }
