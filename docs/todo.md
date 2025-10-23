@@ -1,10 +1,12 @@
 # TODO
 
 - [x] commit
+  - [ ] 增强意图识别
 - [ ] review
 - [ ] wiki
 - [ ] evaluate
-
+- [ ] language
+- [ ] config 支持多层级
 
 ## 小提示
 
