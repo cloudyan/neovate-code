@@ -1,14 +1,14 @@
 import fs from 'fs';
 import path from 'pathe';
 import { z } from 'zod';
-import { createTool } from '../tool';
-import { safeStringify } from '../utils/safeStringify';
+import { createTool } from '../../src/tool';
+import { safeStringify } from '../../src/utils/safeStringify';
 import {
   positionDetectionPrompt,
   positionKeywords,
-} from '../prompts/position-detection';
-import { evaluationPrompts } from '../prompts/evaluation-prompts';
-import type { JobPosition } from '../prompts/evaluation-prompts';
+} from '../../src/prompts/position-detection';
+import { evaluationPrompts } from '../../src/prompts/evaluation-prompts';
+import type { JobPosition } from '../../src/prompts/evaluation-prompts';
 
 interface PositionDetectionResult {
   position: JobPosition;

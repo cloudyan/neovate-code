@@ -1,7 +1,7 @@
 import type { Plugin } from '../plugin';
-import { createDocumentTool } from '../tools/document';
-import { createEvaluateTool } from '../tools/evaluate';
-import { createPositionDetectTool } from '../tools/position-detect';
+import { createDocumentTool } from '../../old/tools/document';
+import { createEvaluateTool } from '../../old/tools/evaluate';
+import { createPositionDetectTool } from '../../old/tools/position-detect';
 import type { Tool } from '../tool';
 
 export default {

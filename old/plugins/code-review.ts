@@ -1,7 +1,8 @@
-import type { Plugin } from '../plugin';
+import type { Plugin } from '../../src/plugin';
 import { createCodeReviewTool } from '../tools/code-review';
-import type { Tool } from '../tool';
-import type { CodeReviewConfig } from '../config';
+import { createMultiAgentCodeReviewTool } from '../multi-agent-code-review';
+import type { Tool } from '../../src/tool';
+import type { CodeReviewConfig } from '../../src/config';
 import path from 'pathe';
 import fs from 'fs';
 
@@ -23,6 +24,20 @@ const defaultConfig: CodeReviewConfig = {
   autoFix: false,
   maxFilesPerReview: 50,
   cacheResults: true,
+  // 多代理配置
+  multiAgent: {
+    enabled: true,
+    agents: [
+      'security-analyst',
+      'performance-optimizer',
+      'quality-assessor',
+      'architect-reviewer',
+    ],
+    parallelExecution: true,
+    failOnCritical: true,
+    failOnHigh: true,
+    preCommitIntegration: true,
+  },
 };
 
 export default {
@@ -56,6 +71,15 @@ export default {
   tool: function ({ isPlan, sessionId }): Tool[] {
     if (isPlan) return [];
 
+    const codeReviewConfig = (this as any).config
+      .codeReview as CodeReviewConfig;
+
+    // 如果启用了多代理模式，使用多代理工具
+    if (codeReviewConfig.multiAgent?.enabled) {
+      return [createMultiAgentCodeReviewTool({ cwd: process.cwd() })];
+    }
+
+    // 否则使用传统的单代理工具
     return [createCodeReviewTool({ cwd: process.cwd() })];
   },
 
@@ -75,20 +99,46 @@ export default {
       console.log('\n🔍 Running automatic code review...');
 
       try {
-        const codeReviewTool = createCodeReviewTool({ cwd: process.cwd() });
-        const reviewResult = await codeReviewTool.execute({
-          include_patterns: [
-            'src/**/*.ts',
-            'src/**/*.js',
-            'src/**/*.tsx',
-            'src/**/*.jsx',
-          ],
-          categories: codeReviewConfig.categories,
-          severity_threshold: codeReviewConfig.severityThreshold,
-          output_format: codeReviewConfig.outputFormat,
-          auto_fix: codeReviewConfig.autoFix,
-          exclude_patterns: codeReviewConfig.excludePatterns,
-        });
+        let codeReviewTool;
+        let executeParams;
+
+        // 根据配置选择工具和参数
+        if (codeReviewConfig.multiAgent?.enabled) {
+          codeReviewTool = createMultiAgentCodeReviewTool({
+            cwd: process.cwd(),
+          });
+          executeParams = {
+            include_patterns: [
+              'src/**/*.ts',
+              'src/**/*.js',
+              'src/**/*.tsx',
+              'src/**/*.jsx',
+            ],
+            agents: codeReviewConfig.multiAgent.agents,
+            severity_threshold: codeReviewConfig.severityThreshold,
+            output_format: codeReviewConfig.outputFormat,
+            auto_fix: codeReviewConfig.autoFix,
+            exclude_patterns: codeReviewConfig.excludePatterns,
+            parallel_execution: codeReviewConfig.multiAgent.parallelExecution,
+          };
+        } else {
+          codeReviewTool = createCodeReviewTool({ cwd: process.cwd() });
+          executeParams = {
+            include_patterns: [
+              'src/**/*.ts',
+              'src/**/*.js',
+              'src/**/*.tsx',
+              'src/**/*.jsx',
+            ],
+            categories: codeReviewConfig.categories,
+            severity_threshold: codeReviewConfig.severityThreshold,
+            output_format: codeReviewConfig.outputFormat,
+            auto_fix: codeReviewConfig.autoFix,
+            exclude_patterns: codeReviewConfig.excludePatterns,
+          };
+        }
+
+        const reviewResult = await codeReviewTool.execute(executeParams);
 
         if (reviewResult.isError) {
           console.warn('Code review failed:', reviewResult.llmContent);
@@ -111,9 +161,16 @@ export default {
   },
 
   status: function () {
+    const codeReviewConfig = (this as any).config
+      .codeReview as CodeReviewConfig;
+    const isMultiAgent = codeReviewConfig.multiAgent?.enabled;
+
     return {
       'code-review': {
-        description: 'Multi-agent code review system',
+        description: isMultiAgent
+          ? 'Multi-agent code review system'
+          : 'Traditional code review system',
+        mode: isMultiAgent ? 'multi-agent' : 'single-agent',
         items: [
           'Security vulnerability detection',
           'Performance issue identification',
@@ -121,7 +178,18 @@ export default {
           'Architectural consistency checking',
           'Priority-based recommendations',
           'Pre-commit integration',
+          ...(isMultiAgent
+            ? [
+                'Parallel agent execution',
+                'Specialized agent analysis',
+                'Comprehensive reporting',
+              ]
+            : []),
         ],
+        ...(isMultiAgent && {
+          agents: codeReviewConfig.multiAgent.agents,
+          parallelExecution: codeReviewConfig.multiAgent.parallelExecution,
+        }),
       },
     };
   },

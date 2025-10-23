@@ -1,9 +1,9 @@
 import fs from 'fs';
 import path from 'pathe';
 import { z } from 'zod';
-import { createTool } from '../tool';
-import { positionDetectionPrompt } from '../prompts/position-detection';
-import type { JobPosition } from '../prompts/evaluation-prompts';
+import { createTool } from '../../src/tool';
+import { positionDetectionPrompt } from '../../src/prompts/position-detection';
+import type { JobPosition } from '../../src/prompts/evaluation-prompts';
 
 interface PositionDetectionResult {
   position: JobPosition;

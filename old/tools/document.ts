@@ -1,8 +1,8 @@
 import fs from 'fs';
 import path from 'pathe';
 import { z } from 'zod';
-import { createTool } from '../tool';
-import { safeStringify } from '../utils/safeStringify';
+import { createTool } from '../../src/tool';
+import { safeStringify } from '../../src/utils/safeStringify';
 
 // 目标: 实现文档的内容读取，支持 '.pdf', '.doc', '.docx' 等格式
 
