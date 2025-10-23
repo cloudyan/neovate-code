@@ -3,7 +3,7 @@ import fs from 'fs';
 import { homedir } from 'os';
 import path from 'pathe';
 import { mergeBrowserMcpServers } from './browser';
-import { DEFAULT_LANGUAGE } from './constants/languages';
+import { DEFAULT_LANGUAGE } from './constants';
 import type { Provider } from './model';
 
 export type McpStdioServerConfig = {

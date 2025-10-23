@@ -6,10 +6,7 @@ import { useAppStore } from '../../ui/store';
 import type { LocalJSXCommand } from '../types';
 
 // 引入统一语言配置
-import {
-  DEFAULT_LANGUAGE,
-  SUPPORTED_LANGUAGES,
-} from '../../constants/languages';
+import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from '../../constants';
 
 interface LanguageSelectProps {
   onExit: (languageCode: string) => void;

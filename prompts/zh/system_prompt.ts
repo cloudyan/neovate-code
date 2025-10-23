@@ -82,7 +82,7 @@ export function generateSystemPrompt(opts: {
 
 重要：拒绝编写或解释可能被恶意使用的代码；即使用户声称这是出于教育目的。
 ${
-  opts.language === 'English'
+  opts.language === 'en-US' || opts.language === 'English'
     ? ''
     : `重要：请用${opts.language}回答。
 `
