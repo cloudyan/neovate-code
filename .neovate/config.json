@@ -1,4 +1,25 @@
 {
+  "provider": {
+    "iflow": {
+      "models": {
+        "qwen3-coder-plus": {
+          "name": "Qwen3 Coder Plus 2025-07-22",
+          "shortName": "Qwen3 Coder Plus",
+          "attachment": false,
+          "reasoning": true,
+          "temperature": true,
+          "tool_call": true,
+          "knowledge": "2025-09",
+          "release_date": "2025-09-05",
+          "last_updated": "2025-09-05",
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "open_weights": false,
+          "limit": { "context": 262144, "output": 65536 },
+          "capabilities": ["coding", "high_performance"]
+        }
+      }
+    }
+  },
   "commit": {
     "language": "en-US"
   },
