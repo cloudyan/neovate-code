@@ -264,6 +264,21 @@ export const models: ModelMap = {
     limit: { context: 262144, output: 32768 },
     capabilities: [],
   },
+  'qwen3-coder-plus': {
+    name: 'Qwen3 Coder Plus 2025-07-22',
+    shortName: 'Qwen3 Coder Plus',
+    attachment: false,
+    reasoning: true,
+    temperature: true,
+    tool_call: true,
+    knowledge: '2025-09',
+    release_date: '2025-09-05',
+    last_updated: '2025-09-05',
+    modalities: { input: ['text'], output: ['text'] },
+    open_weights: false,
+    limit: { context: 262144, output: 65536 },
+    capabilities: ['coding', 'high_performance'],
+  },
   'gemini-2.5-flash': {
     name: 'Gemini 2.5 Flash',
     attachment: true,
@@ -1092,6 +1107,7 @@ export const providers: ProvidersMap = {
     api: 'https://apis.iflow.cn/v1/',
     doc: 'https://iflow.cn/',
     models: {
+      'qwen3-coder-plus': models['qwen3-coder-plus'],
       'qwen3-coder': models['qwen3-coder-480b-a35b-instruct'],
       'kimi-k2': models['kimi-k2'],
       'kimi-k2-0905': models['kimi-k2-0905'],
@@ -1290,6 +1306,7 @@ export const providers: ProvidersMap = {
   },
 };
 
+// 推荐模型
 // value format: provider/model
 export type ModelAlias = Record<string, string>;
 // 模型别名映射表，用于简化模型引用，对应 Provider 下的 models 的 key
@@ -1312,6 +1329,12 @@ export const modelAlias: ModelAlias = {
   k2: 'moonshotai-cn/kimi-k2-0711-preview',
   'k2-turbo': 'moonshotai-cn/kimi-k2-turbo-preview',
 };
+
+// 推荐模型
+// 1. Qwen3-Coder-Plus(推荐)
+// 2. DeepSeek-V3.2
+// 3. GLM-4.6
+// 4. Kimi-K2-0905
 
 export type ModelInfo = {
   provider: Provider;
