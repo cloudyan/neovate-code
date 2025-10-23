@@ -37,6 +37,9 @@ export const SUPPORTED_LANGUAGES: Record<string, string> = {
 } as const;
 
 export type LanguageCode = keyof typeof SUPPORTED_LANGUAGES;
+export type LanguageName = (typeof SUPPORTED_LANGUAGES)[LanguageCode];
 
 // 默认语言代码
-export const DEFAULT_LANGUAGE: LanguageCode = 'en-US';
+export const DEFAULT_LANGUAGE_CODE: LanguageCode = 'en-US';
+export const DEFAULT_LANGUAGE: LanguageName =
+  SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE_CODE];

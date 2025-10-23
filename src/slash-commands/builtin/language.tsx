@@ -13,11 +13,17 @@ interface LanguageSelectProps {
   onSelect: (languageCode: string, languageName: string) => void;
 }
 
+const getLanguageName = (language: string): string => {
+  return language || DEFAULT_LANGUAGE;
+};
+
 const LanguageSelect: React.FC<LanguageSelectProps> = ({
   onExit,
   onSelect,
 }) => {
-  const [currentLanguage, setCurrentLanguage] = useState<string | null>(null);
+  const [currentLanguage, setCurrentLanguage] = useState<string | null>(
+    DEFAULT_LANGUAGE,
+  );
   const { bridge, cwd } = useAppStore();
   const [selectItems, setSelectItems] = useState<
     {
@@ -31,7 +37,7 @@ const LanguageSelect: React.FC<LanguageSelectProps> = ({
     bridge
       .request('config.get', { cwd, key: 'language' })
       .then((result) => {
-        setCurrentLanguage(result.data.value || DEFAULT_LANGUAGE);
+        setCurrentLanguage(getLanguageName(result.data.value));
       })
       .catch((error) => {
         console.error('Failed to get language config:', error);
@@ -41,14 +47,14 @@ const LanguageSelect: React.FC<LanguageSelectProps> = ({
     // 构建语言选择项
     const items = Object.entries(SUPPORTED_LANGUAGES).map(([code, name]) => ({
       label: `${code}: (${name})`,
-      value: code,
+      value: name,
     }));
     setSelectItems(items);
   }, [cwd]);
 
   const initialIndex = useMemo(() => {
     if (!currentLanguage) return 0;
-    // 直接使用语言代码查找索引
+    // 直接使用语言查找索引
     return selectItems.findIndex((item) => item.value === currentLanguage);
   }, [selectItems, currentLanguage]);
 
@@ -73,11 +79,7 @@ const LanguageSelect: React.FC<LanguageSelectProps> = ({
         <Text color="gray">
           Current language:{' '}
           <Text bold color="cyan">
-            {currentLanguage
-              ? SUPPORTED_LANGUAGES[
-                  currentLanguage as keyof typeof SUPPORTED_LANGUAGES
-                ]
-              : 'Unknown'}
+            {currentLanguage || DEFAULT_LANGUAGE}
           </Text>
         </Text>
       </Box>
@@ -94,15 +96,10 @@ const LanguageSelect: React.FC<LanguageSelectProps> = ({
                 cwd,
                 isGlobal: true, // 全局配置
                 key: 'language',
-                value: item.value, // 存储语言代码而不是名称
+                value: item.value, // 存储语言代码 vs 语言名称?
               })
               .then(() => {
-                onSelect(
-                  item.value,
-                  SUPPORTED_LANGUAGES[
-                    item.value as keyof typeof SUPPORTED_LANGUAGES
-                  ],
-                );
+                onSelect(item.value, item.label);
               })
               .catch((error) => {
                 console.error('Failed to set language config:', error);
@@ -123,16 +120,12 @@ export const languageCommand: LocalJSXCommand = {
     const LanguageComponent = () => {
       return (
         <LanguageSelect
-          onExit={(languageCode) => {
-            const languageName =
-              SUPPORTED_LANGUAGES[
-                languageCode as keyof typeof SUPPORTED_LANGUAGES
-              ] || 'Unknown';
-            onDone(`Kept language as ${languageName} (${languageCode})`);
+          onExit={(languageName) => {
+            onDone(`Kept language as ${languageName}`);
           }}
-          onSelect={(languageCode, languageName) => {
+          onSelect={(languageName, languageCode) => {
             onDone(
-              `Language changed to ${languageName} (${languageCode})\nAll subsequent AI responses will be in ${languageName}.`,
+              `Language changed to ${languageName}\nAll subsequent AI responses will be in ${languageName}.`,
             );
           }}
         />
