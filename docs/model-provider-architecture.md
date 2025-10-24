@@ -388,10 +388,11 @@ graph TD
    - 使用 `SeriesLast` 类型，以内置 `providers` 为基础
    - 传入工具函数：`models`、`defaultModelCreator`、`createOpenAI`
 
-2. **配置合并**
+2. **配置合并 (mergeConfigProviders)**
    - 如果存在 `context.config.provider`，则合并配置到已钩子处理的提供商
    - 使用 `mergeConfigProviders` 函数深度合并
    - 支持覆盖现有提供商或添加新提供商
+   - 详见下方 [mergeConfigProviders 详解](#mergeconfigproviders-详解)
 
 3. **插件钩子处理 - ModelAlias**
    - 通过 `modelAlias` 钩子允许插件自定义别名映射
@@ -449,6 +450,377 @@ const { providers, modelAlias, model } = await resolveModelWithContext(
      type: PluginHookType.SeriesLast,
    })
    ```
+
+### mergeConfigProviders 详解
+
+`mergeConfigProviders` 是配置合并的核心函数，负责将用户配置与内置提供商定义进行深度合并。
+
+#### 函数签名
+
+**代码位置**: `src/model.ts:1345-1375`
+
+```typescript
+function mergeConfigProviders(
+  hookedProviders: ProvidersMap,      // 经过插件钩子处理的提供商
+  configProviders: Record<string, ProviderConfig>,  // 用户配置的提供商
+): ProvidersMap
+```
+
+#### 核心逻辑
+
+```typescript
+function mergeConfigProviders(hookedProviders, configProviders) {
+  const mergedProviders = { ...hookedProviders };
+  
+  Object.entries(configProviders).forEach(([providerId, config]) => {
+    // 1. 获取或创建提供商对象
+    let provider = mergedProviders[providerId] || {};
+    
+    // 2. 深度合并配置（使用 defu 库）
+    //    配置优先级：config > provider
+    provider = defu(config, provider) as Provider;
+    
+    // 3. 补充默认 createModel 方法
+    if (!provider.createModel) {
+      provider.createModel = defaultModelCreator;
+    }
+    
+    // 4. 处理模型引用（字符串 -> 实际模型对象）
+    if (provider.models) {
+      for (const modelId in provider.models) {
+        const model = provider.models[modelId];
+        if (typeof model === 'string') {
+          // 字符串引用，查找内置模型
+          const actualModel = models[model];
+          assert(actualModel, `Model ${model} not exists.`);
+          provider.models[modelId] = actualModel;
+        }
+      }
+    }
+    
+    // 5. 补充 id 和 name（如果缺失）
+    if (!provider.id) {
+      provider.id = providerId;
+    }
+    if (!provider.name) {
+      provider.name = providerId;
+    }
+    
+    // 6. 更新到合并结果
+    mergedProviders[providerId] = provider;
+  });
+  
+  return mergedProviders;
+}
+```
+
+#### 处理步骤详解
+
+##### 1. 获取基础提供商
+
+```typescript
+let provider = mergedProviders[providerId] || {};
+```
+
+- 如果 `providerId` 已存在于 `hookedProviders`，使用现有定义
+- 如果不存在，创建新的空对象（支持添加全新提供商）
+
+##### 2. 深度合并配置
+
+```typescript
+provider = defu(config, provider) as Provider;
+```
+
+使用 `defu` 库进行深度合并，优先级规则：
+- **用户配置优先** - `config` 中的值覆盖 `provider` 中的值
+- **递归合并** - 嵌套对象也会深度合并
+- **数组替换** - 数组不合并，直接替换
+
+**示例**:
+
+```typescript
+// 内置提供商
+const provider = {
+  id: 'openai',
+  env: ['OPENAI_API_KEY'],
+  api: 'https://api.openai.com/v1',
+  models: {
+    'gpt-4o': { /* ... */ },
+  },
+};
+
+// 用户配置
+const config = {
+  api: 'https://custom-proxy.com/v1',  // 覆盖 API 地址
+  options: {
+    baseURL: 'https://custom-proxy.com/v1',
+  },
+  models: {
+    'gpt-4-turbo': 'gpt-4-turbo',  // 添加新模型
+  },
+};
+
+// 合并结果
+// {
+//   id: 'openai',
+//   env: ['OPENAI_API_KEY'],
+//   api: 'https://custom-proxy.com/v1',  // ← 已覆盖
+//   options: {
+//     baseURL: 'https://custom-proxy.com/v1',  // ← 新增
+//   },
+//   models: {
+//     'gpt-4o': { /* ... */ },
+//     'gpt-4-turbo': { /* ... */ },  // ← 新增
+//   },
+// }
+```
+
+##### 3. 补充默认 createModel
+
+```typescript
+if (!provider.createModel) {
+  provider.createModel = defaultModelCreator;
+}
+```
+
+- 如果配置中没有提供 `createModel` 方法，使用默认创建器
+- `defaultModelCreator` 是通用的模型实例化函数
+- 适用于大多数标准 OpenAI 兼容的 API
+
+##### 4. 处理模型引用
+
+```typescript
+if (provider.models) {
+  for (const modelId in provider.models) {
+    const model = provider.models[modelId];
+    if (typeof model === 'string') {
+      const actualModel = models[model];
+      assert(actualModel, `Model ${model} not exists.`);
+      provider.models[modelId] = actualModel;
+    }
+  }
+}
+```
+
+**字符串引用机制**:
+
+用户可以使用字符串引用内置模型，而不需要完整定义模型元数据：
+
+```typescript
+// 配置文件中
+{
+  "provider": {
+    "my-custom-provider": {
+      "models": {
+        "gpt-4o": "gpt-4o",  // ← 字符串引用
+        "claude-3-5-sonnet-20241022": "claude-3-5-sonnet-20241022"
+      }
+    }
+  }
+}
+```
+
+转换后：
+
+```typescript
+{
+  models: {
+    "gpt-4o": {  // ← 完整的模型对象
+      name: "GPT-4o",
+      attachment: true,
+      reasoning: false,
+      // ... 所有元数据
+    },
+    "claude-3-5-sonnet-20241022": { /* ... */ }
+  }
+}
+```
+
+**优点**:
+- 避免重复定义模型元数据
+- 确保元数据一致性
+- 简化配置文件
+
+##### 5. 补充 ID 和 Name
+
+```typescript
+if (!provider.id) {
+  provider.id = providerId;
+}
+if (!provider.name) {
+  provider.name = providerId;
+}
+```
+
+- 使用键名作为默认 ID 和 Name
+- 确保每个提供商都有完整的身份信息
+
+#### 使用场景
+
+##### 场景 1: 覆盖 API 地址
+
+```typescript
+// config.json
+{
+  "provider": {
+    "openai": {
+      "api": "https://openai-proxy.example.com/v1",
+      "options": {
+        "baseURL": "https://openai-proxy.example.com/v1"
+      }
+    }
+  }
+}
+```
+
+##### 场景 2: 添加新提供商
+
+```typescript
+// config.json
+{
+  "provider": {
+    "my-llm-provider": {
+      "env": ["MY_API_KEY"],
+      "api": "https://api.my-llm.com/v1",
+      "models": {
+        "gpt-4o": "gpt-4o",  // 复用内置模型定义
+        "my-custom-model": {
+          // 自定义模型定义
+          "name": "My Custom Model",
+          "attachment": false,
+          "tool_call": true,
+          // ...
+        }
+      }
+    }
+  }
+}
+```
+
+##### 场景 3: 扩展现有提供商
+
+```typescript
+// config.json
+{
+  "provider": {
+    "openai": {
+      "models": {
+        "gpt-4-turbo": "gpt-4-turbo",  // 添加新模型
+        "o1-mini": "o1-mini"
+      }
+    }
+  }
+}
+```
+
+#### 配置优先级
+
+完整的配置优先级（从高到低）：
+
+```
+1. 用户配置文件 (config.json 中的 provider 字段)
+   ↓
+2. 插件钩子 (context.apply({ hook: 'provider' }))
+   ↓
+3. 内置提供商定义 (src/model.ts 中的 providers)
+```
+
+**执行流程**:
+
+```typescript
+// 1. 从内置定义开始
+let providers = builtinProviders;
+
+// 2. 应用插件钩子
+providers = await context.apply({
+  hook: 'provider',
+  memo: providers,
+  type: PluginHookType.SeriesLast,
+});
+
+// 3. 合并用户配置
+if (context.config.provider) {
+  providers = mergeConfigProviders(providers, context.config.provider);
+}
+```
+
+#### 实际示例
+
+**内置定义**:
+
+```typescript
+// src/model.ts
+const providers = {
+  openai: {
+    id: 'openai',
+    env: ['OPENAI_API_KEY'],
+    api: 'https://api.openai.com/v1',
+    models: {
+      'gpt-4o': { /* 完整定义 */ },
+    },
+    createModel: defaultModelCreator,
+  },
+};
+```
+
+**插件扩展**:
+
+```typescript
+// 在插件中
+api.addHook('provider', (providers) => {
+  return {
+    ...providers,
+    openai: {
+      ...providers.openai,
+      models: {
+        ...providers.openai.models,
+        'gpt-4-turbo': models['gpt-4-turbo'],
+      },
+    },
+  };
+});
+```
+
+**用户配置**:
+
+```json
+{
+  "provider": {
+    "openai": {
+      "api": "https://my-proxy.com/v1",
+      "models": {
+        "o1-preview": "o1-preview"
+      }
+    }
+  }
+}
+```
+
+**最终结果**:
+
+```typescript
+{
+  openai: {
+    id: 'openai',
+    env: ['OPENAI_API_KEY'],
+    api: 'https://my-proxy.com/v1',  // ← 用户配置覆盖
+    models: {
+      'gpt-4o': { /* ... */ },       // ← 内置
+      'gpt-4-turbo': { /* ... */ },  // ← 插件添加
+      'o1-preview': { /* ... */ },   // ← 用户配置添加
+    },
+    createModel: defaultModelCreator,
+  },
+}
+```
+
+#### 注意事项
+
+1. **defu 合并行为** - 对象深度合并，数组直接替换
+2. **字符串引用必须存在** - 引用的模型名必须在 `models` 对象中有定义
+3. **createModel 是可选的** - 如果不提供，会使用 `defaultModelCreator`
+4. **支持添加新提供商** - 配置中的新 ID 会创建全新提供商
+5. **配置覆盖原则** - 用户配置 > 插件钩子 > 内置定义
 
 ### 流式事件处理
 

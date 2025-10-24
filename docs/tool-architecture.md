@@ -143,6 +143,408 @@ class Tools {
 5. **超时控制** - 限制命令执行时间
 6. **内容截断** - 限制返回内容大小
 
+## 工具审批流程
+
+工具审批是 Neovate 安全机制的核心，确保 AI 代理不会执行危险操作。审批流程基于 **7 条规则** 的优先级链，按顺序检查，任何一条规则通过即自动批准。
+
+### 审批流程图
+
+```mermaid
+flowchart TD
+    Start[工具调用请求] --> Rule1{规则1: YOLO模式?}
+    Rule1 -->|是| Approve[✅ 自动批准]
+    Rule1 -->|否| Rule2{规则2: 工具不存在?}
+    Rule2 -->|是| Approve
+    Rule2 -->|否| Rule3{规则3: 只读工具?}
+    Rule3 -->|是| Approve
+    Rule3 -->|否| Rule4{规则4: 工具自定义逻辑<br/>返回false?}
+    Rule4 -->|是| Approve
+    Rule4 -->|否| Rule5{规则5: autoEdit模式<br/>且为写入工具?}
+    Rule5 -->|是| Approve
+    Rule5 -->|否| Rule6{规则6: 在会话白名单?}
+    Rule6 -->|是| Approve
+    Rule6 -->|否| Rule7[规则7: 请求用户审批]
+    Rule7 --> UserDecision{用户决策}
+    UserDecision -->|批准| Approve
+    UserDecision -->|拒绝| Reject[❌ 拒绝执行]
+    
+    style Rule1 fill:#fff3e0,color:#000
+    style Rule2 fill:#e8f5e9,color:#000
+    style Rule3 fill:#e1f5fe,color:#000
+    style Rule4 fill:#f3e5f5,color:#000
+    style Rule5 fill:#fce4ec,color:#000
+    style Rule6 fill:#fff9c4,color:#000
+    style Rule7 fill:#ffccbc,color:#000
+    style Approve fill:#c8e6c9,color:#000
+    style Reject fill:#ffcdd2,color:#000
+```
+
+### 7 条审批规则详解
+
+**代码位置**: `src/project.ts:332-398`
+
+#### 规则 1: YOLO 模式
+
+**触发条件**: `approvalMode === 'yolo'`
+
+**行为**: 自动批准所有工具调用
+
+**使用场景**:
+- 开发/测试环境
+- 完全信任 AI 的决策
+- 自动化脚本执行
+
+**代码**:
+```typescript
+const approvalMode = this.context.config.approvalMode;
+if (approvalMode === 'yolo') {
+  return true;
+}
+```
+
+**设置方法**:
+```bash
+# 全局配置
+neo config set approvalMode yolo
+
+# 会话级配置
+neo --approval-mode yolo
+```
+
+**⚠️ 警告**: YOLO 模式会跳过所有审批，包括危险命令。仅在可控环境下使用。
+
+---
+
+#### 规则 2: 工具不存在
+
+**触发条件**: `toolsManager.get(toolUse.name) === undefined`
+
+**行为**: 自动批准（让后续的 `invoke` 方法处理错误）
+
+**设计理由**:
+- 避免审批流程中出现异常
+- 错误信息由工具调用层统一处理
+- 简化审批逻辑
+
+**代码**:
+```typescript
+const tool = toolsManager.get(toolUse.name);
+if (!tool) {
+  return true; // 让 invoke 处理"工具不存在"错误
+}
+```
+
+**错误处理**:
+```typescript
+// src/tool.ts:95-102
+async invoke(toolName: string, args: string): Promise<ToolResult> {
+  const tool = this.tools[toolName];
+  if (!tool) {
+    return {
+      llmContent: `Tool ${toolName} not found`,
+      isError: true,
+    };
+  }
+  // ...
+}
+```
+
+---
+
+#### 规则 3: 只读工具
+
+**触发条件**: `tool.approval?.category === 'read'`
+
+**行为**: 自动批准
+
+**只读工具列表**:
+- `read` - 读取文件
+- `ls` - 列出目录
+- `glob` - 文件模式匹配
+- `grep` - 搜索文件内容
+- `fetch` - 获取 URL 内容
+- `todoRead` - 读取任务列表
+
+**设计理由**:
+- 只读操作不会修改系统状态
+- 安全风险低
+- 频繁使用，无需每次审批
+
+**代码**:
+```typescript
+if (tool.approval?.category === 'read') {
+  return true;
+}
+```
+
+**工具定义示例**:
+```typescript
+// src/tools/read.ts
+export function createReadTool(opts) {
+  return createTool({
+    name: 'read',
+    // ...
+    approval: {
+      category: 'read',  // 标记为只读工具
+    },
+  });
+}
+```
+
+---
+
+#### 规则 4: 工具自定义审批逻辑
+
+**触发条件**: 工具定义了 `needsApproval` 函数，且返回 `false`
+
+**行为**: 自动批准
+
+**使用场景**:
+- 工具需要根据参数动态判断是否需要审批
+- 某些特定操作是安全的，可以自动批准
+
+**代码**:
+```typescript
+const needsApproval = tool.approval?.needsApproval;
+if (needsApproval) {
+  const needsApprovalResult = await needsApproval({
+    toolName: toolUse.name,
+    params: toolUse.params,
+    approvalMode: this.context.config.approvalMode,
+    context: this.context,
+  });
+  if (!needsApprovalResult) {
+    return true; // 工具决定不需要审批
+  }
+}
+```
+
+**工具定义示例**:
+```typescript
+export function createBashTool(opts) {
+  return createTool({
+    name: 'bash',
+    // ...
+    approval: {
+      category: 'command',
+      needsApproval: async (context) => {
+        const { params } = context;
+        // 自动批准无害命令
+        const safeCommands = ['ls', 'pwd', 'echo', 'cat'];
+        const command = params.command.trim().split(' ')[0];
+        if (safeCommands.includes(command)) {
+          return false; // 不需要审批
+        }
+        return true; // 需要审批
+      },
+    },
+  });
+}
+```
+
+---
+
+#### 规则 5: autoEdit 模式
+
+**触发条件**: 
+- `approvalMode === 'autoEdit'` 或 `sessionConfigManager.config.approvalMode === 'autoEdit'`
+- **且** `tool.approval?.category === 'write'`
+
+**行为**: 自动批准写入工具
+
+**写入工具列表**:
+- `write` - 写入文件
+- `edit` - 编辑文件
+- `bash` - 执行命令
+
+**使用场景**:
+- 允许 AI 自由修改代码
+- 快速迭代开发
+- 信任 AI 的编辑操作
+
+**代码**:
+```typescript
+const sessionConfigManager = new SessionConfigManager({
+  logPath: this.context.paths.getSessionLogPath(this.session.id),
+});
+if (tool.approval?.category === 'write') {
+  if (
+    sessionConfigManager.config.approvalMode === 'autoEdit' ||
+    approvalMode === 'autoEdit'
+  ) {
+    return true;
+  }
+}
+```
+
+**设置方法**:
+```bash
+# 全局配置
+neo config set approvalMode autoEdit
+
+# 会话级配置（在交互中通过ApprovalModal设置）
+> [在审批弹窗中选择 "Allow edits for this session"]
+```
+
+**⚠️ 注意**: autoEdit 模式只自动批准写入工具，不包括其他危险操作。
+
+---
+
+#### 规则 6: 会话级别的审批白名单
+
+**触发条件**: `sessionConfigManager.config.approvalTools.includes(toolUse.name)`
+
+**行为**: 自动批准白名单中的工具
+
+**使用场景**:
+- 在当前会话中频繁使用某个工具
+- 避免重复审批
+- 仅在当前会话生效，不影响其他会话
+
+**代码**:
+```typescript
+if (sessionConfigManager.config.approvalTools.includes(toolUse.name)) {
+  return true;
+}
+```
+
+**如何添加到白名单**:
+
+在 ApprovalModal 中选择 "Allow bash for this session"：
+
+```typescript
+// src/ui/ApprovalModal.tsx
+const options = [
+  { label: 'Yes, run once', value: 'once' },
+  { label: 'Allow bash for this session', value: 'session' },  // 添加到白名单
+  { label: 'Allow all write tools for this session', value: 'autoEdit' },
+];
+```
+
+**白名单管理**:
+
+```typescript
+// 添加工具到白名单
+sessionConfigManager.config.approvalTools.push('bash');
+sessionConfigManager.write();
+
+// 查看白名单
+console.log(sessionConfigManager.config.approvalTools); // ['bash', 'edit']
+```
+
+**⚠️ 注意**: 白名单仅在当前会话有效，新会话需要重新设置。
+
+---
+
+#### 规则 7: 请求用户审批
+
+**触发条件**: 前 6 条规则都未通过
+
+**行为**: 弹出 ApprovalModal，等待用户决策
+
+**用户选项**:
+1. **Yes, run once** - 仅批准本次调用
+2. **Allow \{toolName\} for this session** - 添加到会话白名单
+3. **Allow all write tools for this session** - 启用 autoEdit 模式
+4. **No** - 拒绝执行
+
+**代码**:
+```typescript
+return (
+  (await opts.onToolApprove?.({
+    toolUse,
+    category: tool.approval?.category,
+  })) ?? false
+);
+```
+
+**审批流程时序图**:
+
+```mermaid
+sequenceDiagram
+    participant Loop as runLoop
+    participant Project
+    participant UIBridge
+    participant ApprovalModal
+    participant User as 用户
+    
+    Loop->>Project: onToolApprove(toolUse)
+    Project->>Project: 检查规则 1-6
+    Note over Project: 所有规则未通过
+    Project->>UIBridge: request('toolApproval', {...})
+    UIBridge->>ApprovalModal: 显示审批弹窗
+    ApprovalModal->>User: 展示工具信息和选项
+    User->>ApprovalModal: 选择操作
+    ApprovalModal->>UIBridge: 返回用户决策
+    UIBridge->>Project: 返回审批结果
+    Project->>Loop: 返回 true/false
+    
+    alt 批准
+        Loop->>Loop: 执行工具
+    else 拒绝
+        Loop->>Loop: 跳过工具，返回错误
+    end
+```
+
+---
+
+### 审批模式对比
+
+| 模式 | 只读工具 | 写入工具 | 命令工具 | 网络工具 | 使用场景 |
+|------|---------|---------|---------|---------|---------|
+| **default** | ✅ 自动 | ❓ 需审批 | ❓ 需审批 | ❓ 需审批 | 生产环境，平衡安全性和效率 |
+| **autoEdit** | ✅ 自动 | ✅ 自动 | ❓ 需审批 | ❓ 需审批 | 开发环境，允许 AI 自由编辑 |
+| **yolo** | ✅ 自动 | ✅ 自动 | ✅ 自动 | ✅ 自动 | 测试环境，完全信任 AI |
+
+### 审批统计
+
+**查看审批历史**:
+
+```typescript
+// 统计会话中的审批次数
+const sessionConfigManager = new SessionConfigManager({ logPath });
+console.log('审批白名单:', sessionConfigManager.config.approvalTools);
+console.log('审批模式:', sessionConfigManager.config.approvalMode);
+```
+
+**审批日志**:
+
+审批决策不会记录到 JSONL 日志中，但可以通过工具使用记录推断：
+
+```jsonl
+{"uuid":"aaa1","role":"assistant","content":"...","toolUse":{"name":"bash","params":{"command":"ls"}}}
+```
+
+### 最佳实践
+
+1. **生产环境使用 default 模式**
+   - 敏感操作需要审批
+   - 避免意外修改
+
+2. **开发环境使用 autoEdit 模式**
+   - 提高迭代速度
+   - AI 可以自由修改代码
+
+3. **使用会话白名单优化体验**
+   - 频繁使用的安全工具添加到白名单
+   - 避免重复审批
+
+4. **谨慎使用 YOLO 模式**
+   - 仅在隔离环境或测试场景使用
+   - 确保没有敏感数据
+
+5. **工具开发时定义合理的 category**
+   - `read` - 纯读取操作
+   - `write` - 文件修改
+   - `command` - 命令执行
+   - `network` - 网络请求
+
+6. **自定义 needsApproval 逻辑**
+   - 对于复杂工具，根据参数动态判断
+   - 提高审批的精确度
+
+---
+
 ## 扩展机制
 
 1. **MCP 工具集成** - 动态加载 MCP 提供的工具

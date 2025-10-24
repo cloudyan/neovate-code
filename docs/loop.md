@@ -508,6 +508,671 @@ graph TD
 
 ---
 
+## At.normalize 文件引用处理
+
+### 什么是 At.normalize？
+
+`At.normalize` 是一个特殊的文件引用机制，允许用户通过 `@文件路径` 或 `@目录路径` 语法直接在提示词中引用文件内容。这个功能在第一轮循环开始前执行，将引用的文件内容注入到用户消息中。
+
+**代码位置**: `src/at.ts` 和 `src/loop.ts:171-177`
+
+### 使用语法
+
+```bash
+# 引用单个文件
+neo "Review @src/utils/helper.ts"
+
+# 引用带空格的文件路径（使用引号）
+neo "Explain @\"src/my file.ts\""
+
+# 引用带空格的文件路径（使用反斜杠转义）
+neo "Explain @src/my\ file.ts"
+
+# 引用整个目录（自动遍历所有文件）
+neo "Refactor @src/utils"
+
+# 同时引用多个文件/目录
+neo "Compare @src/old.ts and @src/new.ts"
+```
+
+### 工作原理
+
+#### 1. 提取 @ 引用
+
+**代码位置**: `src/at.ts:41-58`
+
+```typescript
+private extractAtPaths(prompt: string): string[] {
+  const paths: string[] = [];
+  const regex = /@("[^"]+"|(?:[^\\ ]|\\ )+)/g;
+  let match: RegExpExecArray | null = regex.exec(prompt);
+  while (match !== null) {
+    let path = match[1];
+    // 移除引号
+    if (path.startsWith('"') && path.endsWith('"')) {
+      path = path.slice(1, -1);
+    } else {
+      // 反转义空格
+      path = path.replace(/\\ /g, ' ');
+    }
+    paths.push(path);
+    match = regex.exec(prompt);
+  }
+  return [...new Set(paths)]; // 去重
+}
+```
+
+**正则表达式解析**:
+- `@` - 匹配 @ 符号
+- `"[^"]+"` - 匹配引号包裹的路径（如 `@"path with spaces"`）
+- `(?:[^\\ ]|\\ )+` - 匹配不带引号的路径（支持 `\` 转义空格）
+
+#### 2. 读取文件内容
+
+**代码位置**: `src/at.ts:18-39`
+
+```typescript
+getContent() {
+  const prompt = this.userPrompt || '';
+  const ats = this.extractAtPaths(prompt);
+  const files: string[] = [];
+  
+  for (const at of ats) {
+    const filePath = path.resolve(this.cwd, at);
+    if (fs.existsSync(filePath)) {
+      if (fs.statSync(filePath).isFile()) {
+        // 单个文件
+        files.push(filePath);
+      } else if (fs.statSync(filePath).isDirectory()) {
+        // 目录：递归获取所有文件
+        const dirFiles = this.getAllFilesInDirectory(filePath);
+        files.push(...dirFiles);
+      }
+    }
+  }
+  
+  if (files.length > 0) {
+    return this.renderFilesToXml(files);
+  }
+  return null;
+}
+```
+
+**目录遍历规则**（`src/at.ts:97-124`）:
+- ✅ 包含所有文件
+- ❌ 跳过隐藏目录（`.git`, `.vscode` 等）
+- ❌ 跳过常见构建目录（`node_modules`, `dist`, `build`）
+
+#### 3. 格式化为 XML
+
+**代码位置**: `src/at.ts:60-95`
+
+```typescript
+renderFilesToXml(files: string[]): string {
+  const processedFiles = files
+    .filter((fc) => !IMAGE_EXTENSIONS.has(path.extname(fc).toLowerCase()))
+    .map((fc) => {
+      // 单个文件大小不能超过 10MB
+      const stat = fs.statSync(fc);
+      if (stat.size > MAX_FILE_SIZE) {
+        return {
+          content: '// File too large to display',
+          metadata: `File size: ${Math.round(stat.size / 1024 / 1024)}MB (skipped)`,
+          file: fc,
+        };
+      }
+      
+      const content = fs.readFileSync(fc, 'utf-8');
+      const result = this.processFileContent(content);
+      return {
+        content: result.content,
+        metadata: result.metadata,
+        file: fc,
+      };
+    });
+
+  const fileContents = processedFiles
+    .map(
+      (result) =>
+        `
+      <file>
+        <path>${path.relative(this.cwd, result.file)}</path>
+        <metadata>${result.metadata}</metadata>
+        <content><![CDATA[${result.content}]]></content>
+      </file>`,
+    )
+    .join('');
+
+  return `<files>This section contains the contents of the repository's files.\n${fileContents}\n</files>`;
+}
+```
+
+**输出示例**:
+
+```xml
+<files>This section contains the contents of the repository's files.
+  <file>
+    <path>src/utils/helper.ts</path>
+    <metadata>Complete file (150 lines)</metadata>
+    <content><![CDATA[
+export function add(a: number, b: number): number {
+  return a + b;
+}
+// ... 完整文件内容
+    ]]></content>
+  </file>
+</files>
+```
+
+#### 4. 注入到用户消息
+
+**代码位置**: `src/at.ts:159-191`
+
+```typescript
+static normalize(opts: {
+  input: AgentInputItem[];
+  cwd: string;
+}): AgentInputItem[] {
+  // 1. 找到最后一条用户消息
+  const reversedInput = [...opts.input].reverse();
+  const lastUserMessage = reversedInput.find((item) => {
+    return 'role' in item && item.role === 'user';
+  }) as UserMessageItem;
+  
+  if (lastUserMessage) {
+    let userPrompt = lastUserMessage.content;
+    if (Array.isArray(userPrompt)) {
+      userPrompt = userPrompt[0]?.type === 'input_text' ? userPrompt[0].text : '';
+    }
+    
+    // 2. 提取并读取文件
+    const at = new At({ userPrompt, cwd: opts.cwd });
+    const content = at.getContent();
+    
+    // 3. 注入文件内容到消息末尾
+    if (content) {
+      if (Array.isArray(lastUserMessage.content)) {
+        if (lastUserMessage.content[0]?.type === 'input_text') {
+          lastUserMessage.content[0].text += `\n\n${content}`;
+        }
+      } else {
+        lastUserMessage.content += `\n\n${content}`;
+      }
+      const input = reversedInput.reverse();
+      return input;
+    }
+  }
+  return opts.input;
+}
+```
+
+### 在 Loop 中的调用
+
+**代码位置**: `src/loop.ts:104` 和 `src/loop.ts:171-177`
+
+```typescript
+// 在 runLoop 函数开始时初始化
+let shouldAtNormalize = true;  // src/loop.ts:104
+
+// 主循环内部
+while (true) {
+  // ... 其他逻辑
+  
+  // =============== 2. 首次循环特殊处理 ===============
+  if (shouldAtNormalize) {
+    agentInput = At.normalize({
+      input: agentInput,
+      cwd: opts.cwd,
+    });
+    shouldAtNormalize = false;  // 标记已执行，不再重复
+  }
+  
+  // ... AI 调用和工具处理
+}
+```
+
+**关键理解：什么是"第一轮"？**
+
+⚠️ **重要澄清**：这里的"第一轮"是指 **每次 `runLoop` 函数调用时的第一个循环迭代**，而不是整个会话的第一次对话。
+
+### 实际行为示例
+
+**场景 1: 连续对话中使用 @**
+
+```bash
+# 第1次用户消息
+你: "分析 @src/utils/helper.ts"
+AI: [At.normalize 执行，文件内容被注入] "这个文件包含..."
+
+# 第2次用户消息
+你: "现在看看 @src/api/user.ts"
+AI: [At.normalize 再次执行，新文件内容被注入] "这个API文件..."
+
+# 第3次用户消息
+你: "对比 @src/old.ts 和 @src/new.ts"
+AI: [At.normalize 再次执行，两个文件都被注入] "对比结果..."
+```
+
+**每次新的用户消息都会触发新的 `runLoop` 调用，所以 `shouldAtNormalize` 会重新初始化为 `true`。**
+
+### 为什么在循环内部只执行一次？
+
+理解这个设计需要知道 `runLoop` 的循环机制：
+
+```typescript
+// 伪代码示例
+function runLoop(opts) {
+  let shouldAtNormalize = true;  // ← 每次调用 runLoop 都重新初始化
+  
+  while (true) {
+    // 第1轮循环迭代
+    if (shouldAtNormalize) {
+      // ✅ 执行 At.normalize，注入文件内容
+      agentInput = At.normalize(...);
+      shouldAtNormalize = false;  // ← 标记已执行
+    }
+    
+    const response = await AI.call(agentInput);
+    
+    if (response.hasToolCall) {
+      // 执行工具
+      const toolResult = await executeTool(...);
+      // 添加工具结果到历史
+      history.add(toolResult);
+      
+      // 第2轮循环迭代（因为有工具调用）
+      continue;  // ← 循环继续，但 shouldAtNormalize 已经是 false
+    }
+    
+    break;  // 没有工具调用，退出循环
+  }
+}
+```
+
+**在同一次 `runLoop` 调用中的多轮循环**：
+
+```
+用户消息: "读取 @config.json 并修改端口为 8080"
+
+第1轮循环: 
+  ├─ shouldAtNormalize = true
+  ├─ 执行 At.normalize (注入 config.json 内容)
+  ├─ shouldAtNormalize = false
+  ├─ AI 响应: "我需要使用 read 工具"
+  └─ 检测到工具调用，继续循环
+
+第2轮循环:
+  ├─ shouldAtNormalize = false (已注入，不再重复)
+  ├─ 执行 read 工具
+  ├─ AI 响应: "我需要使用 edit 工具"
+  └─ 检测到工具调用，继续循环
+
+第3轮循环:
+  ├─ shouldAtNormalize = false
+  ├─ 执行 edit 工具
+  ├─ AI 响应: "已完成修改"
+  └─ 无工具调用，退出循环
+```
+
+### 为什么这样设计？
+
+1. **避免重复注入**
+   - 文件内容在第1轮已经注入到上下文中
+   - 后续轮次（工具调用循环）会继承这个上下文
+   - 重复注入会浪费 Token 且可能导致混乱
+
+2. **@ 语法只用于用户输入**
+   - @ 引用是用户消息的一部分
+   - AI 的响应和工具结果不会包含 @ 语法
+   - 所以只需要在处理用户消息时解析一次
+
+3. **性能优化**
+   - 文件读取和XML格式化有性能开销
+   - 只在需要时执行一次
+
+### 对比：每次用户消息 vs 循环内部
+
+| 维度 | 每次用户消息 | 同一消息的循环内部 |
+|------|------------|-----------------|
+| `runLoop` 调用 | ✅ 新调用 | ❌ 同一调用 |
+| `shouldAtNormalize` 初始化 | ✅ 重新初始化为 `true` | ❌ 保持 `false` |
+| At.normalize 执行 | ✅ 每次都执行 | ❌ 只执行一次 |
+| 文件内容注入 | ✅ 每次都注入 | ❌ 只注入一次 |
+
+### 实际测试验证
+
+你可以通过以下方式验证：
+
+```bash
+# 启动会话
+neo
+
+# 第1次消息
+你> 分析 @src/file1.ts
+AI> [file1.ts 内容被注入] 这个文件...
+
+# 第2次消息（新的 runLoop 调用）
+你> 现在分析 @src/file2.ts
+AI> [file2.ts 内容被注入] 这个文件...
+
+# 第3次消息
+你> 对比一下 @src/file1.ts 和 @src/file2.ts
+AI> [两个文件内容都被注入] 对比结果...
+```
+
+**每次新消息都会重新解析 @ 引用，所以你可以在任何时候引入新文件或目录。**
+
+### 限制和约束
+
+**文件大小限制**:
+- 单个文件最大 10MB（`MAX_FILE_SIZE`）
+- 超过限制的文件会被跳过，显示 "File too large to display"
+
+**行数限制**:
+- 最多读取 2000 行（`MAX_LINES_TO_READ`）
+- 超过限制的文件只读取前 2000 行
+
+**行长度限制**:
+- 单行最长 2000 字符（`MAX_LINE_LENGTH_TEXT_FILE`）
+- 超过限制的行会被截断，末尾添加 `... [truncated]`
+
+**文件类型限制**:
+- 图片文件（`.png`, `.jpg`, `.gif` 等）会被跳过
+- 只处理文本文件
+
+### 使用场景
+
+1. **代码审查**
+   ```bash
+   neo "Review @src/api/user.ts for security issues"
+   ```
+
+2. **重构建议**
+   ```bash
+   neo "Suggest refactoring for @src/utils"
+   ```
+
+3. **对比分析**
+   ```bash
+   neo "Compare @old/impl.ts and @new/impl.ts"
+   ```
+
+4. **文档生成**
+   ```bash
+   neo "Generate API documentation for @src/api"
+   ```
+
+### 注意事项
+
+⚠️ **性能考虑**:
+- 引用大目录（如 `@src`）会读取所有文件，可能消耗大量 Token
+- 建议只引用必要的文件或子目录
+
+⚠️ **路径解析**:
+- 路径相对于当前工作目录（`cwd`）
+- 使用相对路径或绝对路径都可以
+
+⚠️ **安全性**:
+- 只能读取 `cwd` 及其子目录中的文件
+- 无法访问系统敏感路径
+
+---
+
+## onTurn 回调机制
+
+### 什么是 onTurn？
+
+`onTurn` 是一个在每轮 AI 交互结束后触发的回调函数，用于通知上层模块本轮的使用统计（Token 消耗、时间等）。这个机制对于监控、计费和性能分析非常重要。
+
+**代码位置**: `src/loop.ts:305-309`
+
+### 回调时机
+
+```mermaid
+sequenceDiagram
+    participant Loop as runLoop
+    participant AI as AI Model
+    participant Callbacks
+    
+    Loop->>AI: 发送消息
+    AI-->>Loop: 流式响应
+    Loop->>Loop: 解析消息
+    Loop->>Callbacks: onText(text)
+    Loop->>Callbacks: onMessage(message)
+    
+    alt 有工具调用
+        Loop->>Callbacks: onToolUse(toolUse)
+        Loop->>Callbacks: onToolApprove(toolUse)
+        Loop->>Loop: 执行工具
+        Loop->>Callbacks: onToolResult(result)
+    end
+    
+    Note over Loop: 一轮结束
+    Loop->>Callbacks: onTurn({ usage, startTime, endTime })
+    
+    alt 还有工具调用
+        Note over Loop: 继续下一轮
+    else 无工具调用
+        Note over Loop: 结束循环
+    end
+```
+
+### 回调参数
+
+```typescript
+type OnTurn = (turn: {
+  usage: Usage;          // Token 使用统计
+  startTime: Date;       // 本轮开始时间
+  endTime: Date;         // 本轮结束时间
+}) => Promise<void>;
+```
+
+**Usage 结构**:
+
+```typescript
+class Usage {
+  promptTokens: number;      // 输入 Token 数
+  completionTokens: number;  // 输出 Token 数
+  totalTokens: number;       // 总 Token 数
+  
+  // 缓存相关（如果支持）
+  cacheReadTokens?: number;
+  cacheWriteTokens?: number;
+}
+```
+
+### 触发代码
+
+**代码位置**: `src/loop.ts:305-309`
+
+```typescript
+opts.onTurn?.({
+  usage: lastUsage,    // 本轮的 Usage
+  startTime,           // 本轮开始时间
+  endTime,             // 本轮结束时间
+});
+```
+
+**关键点**:
+- 在每轮循环结束时触发
+- 在下一轮循环开始前触发
+- 如果没有工具调用，循环结束前也会触发
+
+### 在 Project 中的使用
+
+**代码位置**: `src/project.ts:313-330`
+
+```typescript
+onTurn: async (turn: {
+  usage: Usage;
+  startTime: Date;
+  endTime: Date;
+}) => {
+  await this.context.apply({
+    hook: 'query',
+    args: [
+      {
+        startTime: turn.startTime,
+        endTime: turn.endTime,
+        usage: turn.usage,
+        sessionId: this.session.id,
+      },
+    ],
+    type: PluginHookType.Series,
+  });
+},
+```
+
+**流程**:
+1. Loop 触发 `onTurn` 回调
+2. Project 接收回调，将数据传递给插件系统
+3. 插件通过 `query` 钩子处理使用统计
+
+### 使用场景
+
+#### 1. Token 计费
+
+```typescript
+let totalCost = 0;
+
+onTurn: async ({ usage }) => {
+  const cost = calculateCost(usage, model);
+  totalCost += cost;
+  console.log(`本轮消耗: ${cost}元，总计: ${totalCost}元`);
+}
+```
+
+#### 2. 性能监控
+
+```typescript
+onTurn: async ({ usage, startTime, endTime }) => {
+  const duration = endTime.getTime() - startTime.getTime();
+  console.log(`本轮耗时: ${duration}ms`);
+  console.log(`Token/秒: ${usage.totalTokens / (duration / 1000)}`);
+  
+  // 发送到监控系统
+  sendMetrics({
+    duration,
+    tokens: usage.totalTokens,
+    timestamp: endTime,
+  });
+}
+```
+
+#### 3. 使用限额控制
+
+```typescript
+let sessionTotalTokens = 0;
+const MAX_TOKENS = 100000;
+
+onTurn: async ({ usage }) => {
+  sessionTotalTokens += usage.totalTokens;
+  
+  if (sessionTotalTokens > MAX_TOKENS) {
+    throw new Error(`超过 Token 限额: ${MAX_TOKENS}`);
+  }
+  
+  console.log(`已使用: ${sessionTotalTokens}/${MAX_TOKENS} tokens`);
+}
+```
+
+#### 4. 日志记录
+
+```typescript
+onTurn: async ({ usage, startTime, endTime }) => {
+  logger.info({
+    event: 'ai_turn_completed',
+    sessionId: session.id,
+    usage: usage.toJSON(),
+    duration: endTime.getTime() - startTime.getTime(),
+    timestamp: endTime.toISOString(),
+  });
+}
+```
+
+### 多轮统计示例
+
+```typescript
+let turns: Array<{ usage: Usage; duration: number }> = [];
+
+onTurn: async ({ usage, startTime, endTime }) => {
+  turns.push({
+    usage,
+    duration: endTime.getTime() - startTime.getTime(),
+  });
+  
+  console.log(`\n=== 第 ${turns.length} 轮统计 ===`);
+  console.log(`输入 Token: ${usage.promptTokens}`);
+  console.log(`输出 Token: ${usage.completionTokens}`);
+  console.log(`总计 Token: ${usage.totalTokens}`);
+  console.log(`耗时: ${turns[turns.length - 1].duration}ms`);
+  
+  // 累计统计
+  const totalTokens = turns.reduce((sum, t) => sum + t.usage.totalTokens, 0);
+  const totalDuration = turns.reduce((sum, t) => sum + t.duration, 0);
+  console.log(`\n累计 Token: ${totalTokens}`);
+  console.log(`累计耗时: ${totalDuration}ms`);
+}
+```
+
+### 与其他回调的区别
+
+| 回调 | 触发时机 | 触发次数 | 用途 |
+|------|---------|---------|------|
+| `onTextDelta` | 收到文本增量 | 多次/轮 | 实时显示 AI 输出 |
+| `onReasoning` | 收到推理过程 | 0-多次/轮 | 显示思考过程 |
+| `onMessage` | 消息完成 | 1次/轮 | 记录完整消息 |
+| `onToolUse` | 检测到工具调用 | 0-1次/轮 | 工具调用前处理 |
+| `onToolResult` | 工具执行完成 | 0-1次/轮 | 工具结果后处理 |
+| **`onTurn`** | **一轮结束** | **1次/轮** | **统计和监控** |
+
+### 最佳实践
+
+1. **异步处理**
+   ```typescript
+   onTurn: async ({ usage }) => {
+     // 使用 await 确保处理完成
+     await saveUsageToDatabase(usage);
+   }
+   ```
+
+2. **错误处理**
+   ```typescript
+   onTurn: async ({ usage }) => {
+     try {
+       await processUsage(usage);
+     } catch (error) {
+       console.error('处理使用统计失败:', error);
+       // 不要抛出错误，避免中断循环
+     }
+   }
+   ```
+
+3. **性能优化**
+   ```typescript
+   onTurn: async ({ usage }) => {
+     // 非关键操作延迟处理
+     setImmediate(() => {
+       sendMetrics(usage);
+     });
+   }
+   ```
+
+4. **数据持久化**
+   ```typescript
+   onTurn: async ({ usage, startTime, endTime }) => {
+     // 及时保存，避免数据丢失
+     await db.insert({
+       sessionId,
+       usage: usage.toJSON(),
+       startTime,
+       endTime,
+     });
+   }
+   ```
+
+---
+
 ## 工具调用处理
 
 ### 解析工具调用
