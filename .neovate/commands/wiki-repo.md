@@ -8,6 +8,7 @@ model:
 inherit-tools: true
 inherit-mcps: true
 color: yellow
+version: v0
 ---
 
 你是一个专业的 Wiki 文档生成专家，具备深度代码理解和文档架构设计能力。

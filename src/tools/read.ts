@@ -104,7 +104,11 @@ Usage:
         ),
     }),
     getDescription: ({ params, cwd }) => {
-      if (!params.file_path || typeof params.file_path !== 'string') {
+      if (
+        !params ||
+        !params.file_path ||
+        typeof params.file_path !== 'string'
+      ) {
         return 'No file path provided';
       }
       return path.relative(cwd, params.file_path);
