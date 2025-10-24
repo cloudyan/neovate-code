@@ -79,6 +79,18 @@ async function generateCommitMessage(opts: GenerateCommitMessageOpts)
 2. 调用 `query` 函数与 AI 模型交互
 3. 验证返回结果的格式
 
+**具体实现**:
+
+```typescript
+// src/commands/commit.ts:35-48
+const result = await query({
+  userPrompt: opts.prompt,        // 代码差异
+  systemPrompt,                   // 提交规范
+  context: opts.context,          // 上下文（含模型配置）
+});
+const message = result.success ? result.data.text : null;
+```
+
 ### 3. 分支名称生成
 
 ```typescript
@@ -90,6 +102,155 @@ async function generateBranchName(opts: GenerateBranchNameOpts)
 1. 构造系统提示词（包含分支命名规范）
 2. 调用 `query` 函数与 AI 模型交互
 3. 验证返回结果的格式
+
+**具体实现**:
+
+```typescript
+// src/commands/commit.ts:53-64
+const result = await query({
+  userPrompt: opts.commitMessage,  // 提交信息
+  systemPrompt: createBranchSystemPrompt(),
+  context: opts.context,
+});
+const branchName = result.success ? result.data.text : null;
+```
+
+### 4. Query 模块交互 ⭐ NEW
+
+**职责**: `query` 是一个简化版的 AI 查询接口，用于**不需要工具调用**的纯文本对话。
+
+**与 Project.send() 的区别**:
+
+| 特性 | query() | Project.send() |
+|------|---------|----------------|
+| **职责** | 简化版 AI 查询 | 完整功能 AI 交互 |
+| **工具调用** | 不支持 | 支持 |
+| **审批流程** | 无 | 完整的 7 规则审批 |
+| **会话管理** | 无 | 持久化和恢复 |
+| **适用场景** | 提交信息、分支名称 | 代码生成、文件操作 |
+| **LlmsContext** | 不包含 | 自动添加 Git/目录 |
+| **性能** | 轻量级 | 完整功能 |
+
+**核心实现**:
+
+```typescript
+// src/query.ts:43-76
+export async function query(opts: {
+  userPrompt: string;              // 用户输入
+  messages?: NormalizedMessage[];  // 历史消息（可选）
+  context?: Context;               // 上下文（用于解析模型）
+  model?: ModelInfo;               // 模型信息（可选）
+  systemPrompt?: string;           // 系统提示词
+  onMessage?: (msg) => Promise<void>; // 消息回调
+}) {
+  // 1. 构造消息列表
+  const messages = [
+    ...(opts.messages || []),
+    {
+      role: 'user',
+      content: opts.userPrompt,
+      // ...
+    },
+  ];
+  
+  // 2. 解析模型
+  const model = opts.model || 
+    (await resolveModelWithContext(null, opts.context!)).model!;
+  
+  // 3. 调用 runLoop（但**不带工具**）
+  return await runLoop({
+    input: messages,
+    model,
+    tools: new Tools([]),          // ← 空工具列表
+    cwd: '',
+    systemPrompt: opts.systemPrompt || '',
+    onMessage: opts.onMessage,
+    autoCompact: false,
+  });
+}
+```
+
+**适用场景**:
+
+✅ **适合**:
+- Git 提交信息生成 (commit.ts)
+- 分支名称生成 (commit.ts)
+- 对话历史压缩 (compact.ts)
+- 轻量级 AI 集成
+- 快速原型开发
+
+❌ **不适合**:
+- 需要文件读写操作
+- 需要执行系统命令
+- 需要工具审批的安全敏感操作
+- 需要会话持久化和恢复
+
+**工作流程图**:
+
+```mermaid
+sequenceDiagram
+    participant Commit as commit.ts
+    participant Query as query()
+    participant ResolveModel as resolveModel
+    participant Loop as runLoop()
+    participant Model as AI Model
+    
+    Commit->>Query: query({ userPrompt, systemPrompt, context })
+    Query->>Query: 构造 messages 数组
+    Query->>ResolveModel: 解析模型
+    ResolveModel-->>Query: ModelInfo
+    Query->>Loop: runLoop({ tools: new Tools([]) })
+    Note right of Loop: 不包含工具<br/>不进行审批
+    Loop->>Model: 调用 AI
+    Model-->>Loop: 返回响应
+    Loop-->>Query: LoopResult
+    Query-->>Commit: { success, data: { text } }
+    Commit->>Commit: 验证和使用结果
+```
+
+## 交互流程
+
+### Commit 命令与 Query 模块的交互
+
+```mermaid
+graph TD
+    A[neo commit] --> B[runCommit]
+    B --> C[git diff --staged]
+    C --> D[generateCommitMessage]
+    D --> E[query]
+    E --> F[runLoop<br/>不带工具]
+    F --> G[AI Model]
+    G --> H[返回提交信息]
+    H --> I[交互式选择]
+    I --> J[复制/提交/推送/分支]
+    
+    I --> K[generateBranchName]
+    K --> L[query]
+    L --> M[runLoop]
+    M --> N[AI Model]
+    N --> O[返回分支名]
+    O --> P[checkout -b]
+    
+    style E fill:#fff3e0,color:#000
+    style F fill:#fce4ec,color:#000
+    style L fill:#fff3e0,color:#000
+    style M fill:#fce4ec,color:#000
+```
+
+### 关键交互点
+
+1. **commit.ts 调用 query()**
+   - 目的: 生成提交信息和分支名称
+   - 特点: 不需要工具调用,只需纯文本响应
+
+2. **query() 调用 runLoop()**
+   - 传入 `tools: new Tools([])` - 空工具列表
+   - 不包含 LlmsContext (不需要 Git 状态/目录结构)
+   - 直接传入 systemPrompt 和 userPrompt
+
+3. **runLoop() 调用 AI Model**
+   - 标准的 AI 交互流程
+   - 但不会触发工具调用(因为 tools 为空)
 
 ## 系统提示词
 

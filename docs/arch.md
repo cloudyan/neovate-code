@@ -103,16 +103,24 @@ graph TB
         Tool[Tool<br/>工具系统]
     end
 
+    subgraph "通信层"
+        MessageBus[MessageBus<br/>消息总线]
+        UIBridge[UIBridge<br/>UI桥接]
+        NodeBridge[NodeBridge<br/>Node桥接]
+    end
+
     subgraph "基础设施层"
         Config[Config<br/>配置管理]
         Plugin[Plugin<br/>插件系统]
         MCP[MCP<br/>协议管理]
-        Bridge[Bridge<br/>桥接层]
         Storage[Storage<br/>存储管理]
     end
 
     CLI --> Entry
-    UI --> Bridge
+    UI --> UIBridge
+    UIBridge --> MessageBus
+    MessageBus --> NodeBridge
+    NodeBridge --> Context
     Entry --> Router
     Router --> Commands
     Router --> Context
@@ -125,7 +133,6 @@ graph TB
     Context --> Config
     Context --> Plugin
     Context --> MCP
-    Bridge --> Context
     Session --> Storage
 
     style Entry fill:#e1f5fe,color:#000
@@ -135,7 +142,60 @@ graph TB
     style Config fill:#e8f5e9,color:#000
 ```
 
-### 数据流向图
+### 数据流向图（完整版）
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant UI
+    participant MessageBus
+    participant NodeBridge
+    participant Context
+    participant Project
+    participant LlmsContext
+    participant AILoop
+    participant Model
+    participant Tool
+    participant OutputFormat
+    participant Storage
+
+    User->>UI: 输入消息
+    UI->>MessageBus: 发送请求
+    MessageBus->>NodeBridge: 转发消息
+    NodeBridge->>Context: 获取上下文
+    NodeBridge->>Project: send(message)
+    
+    Note over Project: 准备 AI 调用
+    Project->>LlmsContext: 创建上下文
+    LlmsContext->>LlmsContext: 收集 Git、目录、规则
+    LlmsContext-->>Project: 返回上下文消息
+    
+    Project->>OutputFormat: 初始化输出格式
+    Project->>AILoop: runLoop(...)
+    
+    Note over AILoop: AI 交互循环
+    AILoop->>Model: 调用 AI 模型
+    Model-->>AILoop: 流式响应
+    AILoop->>OutputFormat: onTextDelta
+    OutputFormat-->>UI: 实时显示
+    
+    AILoop->>AILoop: 解析工具调用
+    AILoop->>Tool: 执行工具
+    Tool-->>AILoop: 返回结果
+    AILoop->>Model: 继续对话
+    Model-->>AILoop: 最终响应
+    
+    AILoop-->>Project: 返回结果
+    Project->>Storage: 保存会话
+    Project->>OutputFormat: onEnd
+    OutputFormat-->>UI: 显示最终结果
+    
+    NodeBridge-->>MessageBus: 返回响应
+    MessageBus-->>UI: 转发响应
+    UI-->>User: 显示结果
+```
+
+### 简化数据流向图
 
 ```mermaid
 sequenceDiagram
@@ -169,34 +229,78 @@ sequenceDiagram
 
 ### 架构分层说明
 
-Neovate Code 采用清晰的分层架构，从用户层到基础设施层共5层：
+Neovate Code 采用清晰的分层架构，从用户层到基础设施层共6层：
 
-**用户层**
-- CLI 命令行接口
-- Ink UI 界面
+#### **用户层**
+- **CLI** - 命令行接口
+- **UI** - Ink + React 终端界面
 
-**应用层**
-- runNeovate 入口
-- 路由分发器
-- 子命令模块
+#### **应用层**
+- **runNeovate** - 入口函数
+- **路由分发器** - 命令路由
+- **子命令模块** - config、commit、review 等
 
-**核心业务层**
-- Context (上下文管理)
-- Project (项目管理)
-- Session (会话管理)
-- Query (查询接口)
+#### **通信层** ⭐ NEW
 
-**AI 处理层**
-- Loop (AI交互循环)
-- Model (模型管理)
-- Tool (工具系统)
+核心职责：实现 UI 进程与业务逻辑进程的双向通信
 
-**基础设施层**
-- Config (配置管理)
-- Plugin (插件系统)
-- MCP (协议管理)
-- Bridge (桥接层)
-- Storage (存储管理)
+- **MessageBus** - 消息总线
+  - 请求-响应协调
+  - 事件订阅分发
+  - 消息ID管理
+  
+- **UIBridge** - UI 桥接
+  - 工具审批处理
+  - UI 事件监听
+  
+- **NodeBridge** - Node 桥接  
+  - 业务逻辑调用
+  - 40+ 消息处理器
+  - Context 缓存管理
+
+详见：[Bridge 架构文档](./bridge-architecture.md)
+
+#### **核心业务层**
+- **Context** - 上下文管理（配置、插件、MCP）
+- **Project** - 项目管理（会话、发送消息）
+- **Session** - 会话管理（历史、恢复）
+- **Query** - 查询接口（统一入口）
+
+#### **AI 处理层**
+
+核心职责：AI 交互和能力扩展
+
+- **Loop** - AI 交互循环
+  - 流式处理
+  - 工具调用循环
+  - 历史管理
+  
+- **Model** - 模型管理
+  - 多提供商支持
+  - 模型解析
+  - 配置合并
+  
+- **Tool** - 工具系统
+  - 内置工具集
+  - 审批机制
+  - 插件扩展
+
+- **LlmsContext** - 上下文组装 ⭐ NEW
+  - Git 状态
+  - 目录结构
+  - 项目规则
+  - 环境信息
+  
+- **OutputFormat** - 输出格式化 ⭐ NEW
+  - 流式输出
+  - 格式转换
+  - 实时显示
+
+#### **基础设施层**
+- **Config** - 配置管理（全局/项目/会话）
+- **Plugin** - 插件系统（钩子机制）
+- **MCP** - 协议管理（Model Context Protocol）
+- **Storage** - 存储管理（JSONL 持久化）
 
 ## 核心架构组件
 
@@ -287,6 +391,168 @@ Neovate Code 采用清晰的分层架构，从用户层到基础设施层共5层
 - 可以组合多个工具
 - 针对特定任务优化
 
+### 6. OutputFormat（输出格式化）
+
+**职责**: 控制 AI 响应的**输出格式**，用于程序化集成
+
+**适用场景**:
+- `--quiet` 模式下的结构化输出
+- CI/CD 管道集成
+- 脚本自动化处理 AI 响应
+
+**支持的格式**:
+
+```typescript
+type Format = 'text' | 'stream-json' | 'json';
+
+// text: 纯文本输出，适合人类阅读
+// stream-json: 流式 JSON，每个事件一行，适合实时处理
+// json: 完整 JSON 数组，包含所有事件，适合批量分析
+```
+
+**核心方法**:
+
+```typescript
+class OutputFormat {
+  onInit(opts) { /* 输出初始化信息 (会话ID、模型、工具列表) */ }
+  onMessage(opts) { /* 输出每条消息 (用户、助手、工具结果) */ }
+  onEnd(opts) { /* 输出最终结果 (Token 用量、成功/失败) */ }
+}
+```
+
+**示例输出**:
+
+```bash
+# text 格式
+neo --quiet -f text "Hello"
+# 输出: "Hello! How can I help you today?"
+
+# stream-json 格式
+neo --quiet -f stream-json "Hello"
+# 输出:
+# {"type":"system","subtype":"init","sessionId":"abc123","model":"openai/gpt-4o"}
+# {"role":"user","content":"Hello","type":"message"}
+# {"role":"assistant","content":"Hello! How can I help?","type":"message"}
+# {"type":"result","subtype":"success","usage":{"input_tokens":10,"output_tokens":8}}
+
+# json 格式
+neo --quiet -f json "Hello"
+# 输出: [{"type":"system",...},{"role":"user",...},{"role":"assistant",...},{"type":"result",...}]
+```
+
+**关键区别**:
+- ✅ **程序化** - 提供结构化数据供其他程序处理
+- ✅ **格式选择** - 通过 `-f` 参数指定输出格式
+- ✅ **安静模式** - 与 `--quiet` 配合使用，不显示交互 UI
+
+### 7. OutputStyle（输出风格）
+
+**职责**: 控制 AI 响应的**内容风格**，影响 AI 的输出方式
+
+**适用场景**:
+- 调整 AI 的说话风格（简洁/详细/解释性）
+- 定制特定场景的输出约定
+- 团队统一 AI 输出规范
+
+**内置风格**:
+
+```typescript
+interface OutputStyle {
+  name: string;              // 风格名称
+  description: string;       // 描述
+  isCodingRelated: boolean;  // 是否与代码相关
+  prompt: string;            // 添加到系统提示词的内容
+}
+
+// 内置风格
+- Default: 默认风格，简洁明确
+- Explanatory: 解释性风格，详细说明
+- Miao: 特殊风格（猫娘语气）
+```
+
+**使用方式**:
+
+```bash
+# 1. 使用内置风格
+neo --output-style Explanatory
+
+# 2. 使用文件定义风格
+neo --output-style ./custom-style.md
+
+# 3. 使用 JSON 定义风格
+neo --output-style '{"prompt":"Be concise and direct."}'
+
+# 4. 通过斜杠命令切换
+> /output-style Miao
+```
+
+**自定义风格示例**:
+
+```markdown
+---
+description: Professional Technical Writer
+isCodingRelated: true
+---
+
+You are a professional technical writer. When responding:
+
+1. Use clear, concise language
+2. Structure information with headings and lists
+3. Provide code examples when relevant
+4. Explain technical concepts simply
+5. Always include practical usage tips
+```
+
+**加载顺序**:
+
+```
+1. 内置风格 (src/output-style/builtin/)
+2. 全局风格 (~/.neovate/output-styles/)
+3. 项目风格 (.neovate/output-styles/)
+4. 插件扩展风格 (outputStyle 钩子)
+```
+
+**关键区别**:
+- ✅ **内容影响** - 通过修改系统提示词影响 AI 输出内容
+- ✅ **用户可见** - 通过 `/output-style` 命令切换
+- ✅ **可扩展** - 支持 Markdown 文件和插件扩展
+
+---
+
+## OutputFormat vs OutputStyle 对比
+
+| 维度 | OutputFormat | OutputStyle |
+|------|--------------|-------------|
+| **职责** | 输出**格式**控制 | 输出**内容风格**控制 |
+| **目的** | 程序化集成 | 人类阅读体验 |
+| **影响对象** | 输出结构 (text/JSON) | AI 生成内容 |
+| **使用场景** | CI/CD、脚本自动化 | 交互式对话 |
+| **设置方式** | `-f` 参数 | `--output-style` 参数 |
+| **示例** | `-f stream-json` | `--output-style Explanatory` |
+| **实现机制** | OutputFormat 类 | 系统提示词修改 |
+| **可见性** | 程序处理结果 | 用户看到的内容 |
+| **优先级** | 命令行 > 配置 | 参数 > 项目 > 全局 > 内置 |
+
+**典型用法组合**:
+
+```bash
+# 1. 交互模式 + 自定义风格
+neo --output-style Professional
+# 效果: 终端 UI + AI 专业风格输出
+
+# 2. 安静模式 + JSON 格式
+neo --quiet -f json "fix bug"
+# 效果: 结构化 JSON 输出，无 UI
+
+# 3. 同时使用两者
+neo --quiet -f stream-json --output-style Concise "analyze code"
+# 效果: JSON 格式 + AI 简洁风格的内容
+```
+
+**记忆法则**:
+- 📊 **OutputFormat** = **HOW** to output (怎么输出) → 结构/格式
+- 🎨 **OutputStyle** = **WHAT** to output (输出什么) → 内容/风格
+
 ### 数据流向
 
 典型的数据流转路径：
@@ -309,13 +575,15 @@ Neovate Code 采用清晰的分层架构，从用户层到基础设施层共5层
 
 1. 入口模块: runNeovate 的路由分发机制
 2. Context: 依赖注入容器和全局管理
-3. Project: 项目级 AI 交互管理
-4. Loop: AI 交互循环的核心逻辑
-5. Model: 两层模型解析架构
-6. Tool: 工具系统的分类和执行
-7. Session: 会话管理和持久化
-8. Plugin: 插件系统和钩子机制
-9. Bridge: UI 与业务逻辑的桥接
+3. MessageBus: 消息总线和通信协议 ⭐ NEW
+4. Bridge: UI 与业务逻辑的桥接 (UIBridge + NodeBridge)
+5. Project: 项目级 AI 交互管理
+6. Loop: AI 交互循环的核心逻辑
+7. LlmsContext: AI 上下文组装 ⭐ NEW
+8. Model: 两层模型解析架构
+9. Tool: 工具系统的分类和执行
+10. Session: 会话管理和持久化
+11. Plugin: 插件系统和钩子机制
 
 ### 1. 入口模块 (index.ts)
 
@@ -358,7 +626,106 @@ Context 是整个应用的依赖注入容器，包含：
 - `Context.create()` - 创建上下文实例
 - `context.apply()` - 触发插件钩子
 
-### 3. Project (project.ts)
+### 3. MessageBus (messageBus.ts) ⭐ NEW
+
+**职责**: 消息总线、进程间通信协议
+
+MessageBus 是整个通信层的核心,负责协调 UI 进程和业务逻辑进程之间的双向通信。
+
+**核心特性**:
+- ✅ **请求-响应模式** - 使用唯一 messageId 匹配请求和响应
+- ✅ **事件订阅** - 支持多个订阅者监听同一事件
+- ✅ **双向通信** - 基于 DirectTransport 实现进程内通信
+- ✅ **超时处理** - 请求自动超时机制
+
+**消息协议**:
+
+```typescript
+// 请求消息
+type RequestMessage = {
+  id: string;          // 唯一消息ID
+  type: 'request';
+  method: string;      // 方法名(如 'send', 'approve')
+  params: any;         // 参数
+};
+
+// 响应消息
+type ResponseMessage = {
+  id: string;          // 对应请求的ID
+  type: 'response';
+  result?: any;        // 成功结果
+  error?: any;         // 错误信息
+};
+
+// 事件消息
+type EventMessage = {
+  type: 'event';
+  event: string;       // 事件名(如 'text_delta', 'tool_use')
+  data: any;           // 事件数据
+};
+```
+
+**核心方法**:
+
+```typescript
+// 发送请求并等待响应
+async request<T>(method: string, params: any): Promise<T>
+
+// 订阅事件
+on(event: string, handler: (data: any) => void): () => void
+
+// 发布事件
+emit(event: string, data: any): void
+```
+
+**关键设计**:
+- 📍 **Transport 抽象** - 支持不同传输方式(DirectTransport、WebSocket等)
+- 🔗 **Pending Requests** - Map 存储待响应请求,超时自动清理
+- 🌿 **事件分发** - 多播模式,一个事件可有多个监听器
+- ⚡ **异步友好** - 所有操作返回 Promise
+
+详见: [Bridge 架构文档](./bridge-architecture.md)
+
+### 4. Bridge (uiBridge.ts / nodeBridge.ts)
+
+**职责**: UI 与业务逻辑的桥接层
+
+**UIBridge** - UI 进程侧
+- 监听用户交互事件
+- 处理工具审批请求
+- 转发 AI 响应到 UI
+
+```typescript
+// 关键方法
+uiBridge.onToolApprove((data) => {
+  // 弹出审批 UI
+  const approved = await showApprovalModal(data);
+  return approved;
+});
+```
+
+**NodeBridge** - 业务逻辑进程侧
+- 管理 40+ 消息处理器
+- Context 缓存管理(避免重复创建)
+- 协调 Project、Session、Model 等模块
+
+```typescript
+// 核心处理器示例
+registerHandler('send', async (params) => {
+  const context = await getOrCreateContext(params.cwd);
+  const project = new Project({ context, sessionId: params.sessionId });
+  return project.send(params.message, params);
+});
+```
+
+**关键特性**:
+- ✅ **Context 缓存** - 同一工作目录复用 Context 实例
+- ✅ **错误隔离** - 业务逻辑错误不影响 UI 进程
+- ✅ **生命周期管理** - 统一管理资源清理
+
+详见: [Bridge 架构文档](./bridge-architecture.md)
+
+### 5. Project (project.ts)
 
 **职责**: 项目级别的 AI 交互管理
 
@@ -374,7 +741,7 @@ Project 管理单个项目的 AI 交互，核心方法：
 **plan(message, opts)**
 - 计划模式：只读工具 + 计划系统提示词
 
-### 4. Loop (loop.ts)
+### 6. Loop (loop.ts)
 
 **职责**: AI 交互循环、工具调用管理
 
@@ -395,7 +762,74 @@ Loop 是 AI 交互的核心循环逻辑：
 - 工具审批机制
 - 错误处理和重试
 
-### 5. Model (model.ts)
+详见: [Loop 详解](./loop.md)
+
+### 7. LlmsContext (llmsContext.ts) ⭐ NEW
+
+**职责**: AI 模型上下文组装
+
+LlmsContext 负责为每次 AI 对话生成完整的运行环境信息,包括:
+
+**Context 部分** (项目信息):
+- Git 状态(分支、修改文件)
+- 目录结构(项目文件树)
+- 项目规则(CLAUDE.md、AGENTS.md)
+- README 内容
+
+**Environment 部分** (环境信息):
+- 工作目录
+- 是否为 Git 仓库
+- 操作系统平台
+- 当前日期
+
+**核心特性**:
+- ✅ **动态生成** - 每次对话都重新创建,确保信息最新
+- ✅ **可扩展** - 通过 context 和 env 钩子支持插件扩展
+- ✅ **结构化** - 使用 XML 标签包装,便于 AI 解析
+
+**创建流程**:
+
+```typescript
+// 在 Project.send() 中创建
+const llmsContext = await LlmsContext.create({
+  context: this.context,
+  sessionId: this.session.id,
+  userPrompt: message,
+});
+
+// 传递给 runLoop
+runLoop({
+  llmsContexts: llmsContext.messages,  // ['# Context\n...', '# Environment\n...']
+  // ...
+});
+```
+
+**输出示例**:
+
+```xml
+# Context
+As you answer the user's questions, you can use the following context:
+<context name="gitStatus">Current branch: main
+Status:
+M src/context.ts
+</context>
+<context name="directoryStructure">Listed 120 files/directories
+<directory_structure>
+- /path/to/project/
+  - package.json
+  - src/
+    - index.ts
+</directory_structure>
+</context>
+<context name="rules">The codebase follows strict style guidelines...
+</context>
+```
+
+**Token 消耗**: 约 1000-5000 tokens/对话,取决于项目规模
+
+详见: [LlmsContext 详解](./llmsContext.md)
+
+### 8. Model (model.ts)
 
 **职责**: AI 模型管理、提供商抽象
 
@@ -420,7 +854,7 @@ Loop 是 AI 交互的核心循环逻辑：
 
 详见: [模型架构文档](./model-provider-architecture.md)
 
-### 6. Tool (tool.ts)
+### 9. Tool (tool.ts)
 
 **职责**: 工具系统、工具执行管理
 
@@ -447,7 +881,7 @@ Loop 是 AI 交互的核心循环逻辑：
 
 详见: [工具架构文档](./tool-architecture.md)
 
-### 7. Session (session.ts)
+### 10. Session (session.ts)
 
 **职责**: 会话管理、消息持久化
 
@@ -468,8 +902,11 @@ Loop 是 AI 交互的核心循环逻辑：
 - 创建新会话
 - 恢复已有会话
 - 消息持久化 (JSONL 格式)
+- Fork 分支机制
 
-### 8. Plugin (plugin.ts)
+详见: [会话管理详解](./session-management.md)
+
+### 11. Plugin (plugin.ts)
 
 **职责**: 插件系统、钩子管理
 
@@ -486,29 +923,9 @@ Loop 是 AI 交互的核心循环逻辑：
 - `modelAlias` - 扩展模型别名
 - `systemPrompt` - 修改系统提示词
 - `tool` - 扩展工具
+- `context` - 扩展 LlmsContext
+- `env` - 扩展环境信息
 - `destroy` - 清理资源
-
-### 9. Bridge (uiBridge.ts / nodeBridge.ts)
-
-**职责**: UI 与业务逻辑解耦、消息总线通信
-
-**桥接模式**:
-```
-UI Bridge ←→ MessageBus ←→ Node Bridge
-```
-
-**优势**:
-- ✅ UI 和业务逻辑完全解耦
-- ✅ 支持不同传输方式
-- ✅ 易于测试和扩展
-- ✅ 统一的消息协议
-
-**消息类型**:
-- `send` - 发送消息
-- `text_delta` - 文本增量
-- `tool_use` - 工具调用
-- `tool_approve` - 工具审批
-- `complete` - 完成
 
 ---
 
@@ -942,6 +1359,10 @@ export default {
 ## 相关文档
 
 - [入口函数详解](./runNeovate.md)
+- [Bridge 架构](./bridge-architecture.md) ⭐ NEW
+- [会话管理详解](./session-management.md) ⭐ NEW
+- [LlmsContext 详解](./llmsContext.md)
+- [Loop 详解](./loop.md)
 - [模型架构](./model-provider-architecture.md)
 - [工具架构](./tool-architecture.md)
 - [智能路由](./smart-routing.md)
@@ -955,12 +1376,13 @@ Neovate Code 采用模块化、可扩展的架构设计：
 
 ### 核心优势
 
-1. ✅ **清晰的分层架构** - 各层职责明确，易于理解和维护
+1. ✅ **清晰的分层架构** - 6层架构，各层职责明确，易于理解和维护
 2. ✅ **强大的插件系统** - 丰富的钩子机制支持功能扩展
 3. ✅ **灵活的模型管理** - 支持多种 AI 服务，易于扩展
 4. ✅ **完善的工具系统** - 内置常用工具，支持 MCP 集成
-5. ✅ **优雅的桥接模式** - UI 与业务逻辑完全解耦
-6. ✅ **会话持久化** - 完整的会话管理和恢复机制
+5. ✅ **优雅的桥接模式** - UI 与业务逻辑完全解耦，基于 MessageBus 通信
+6. ✅ **会话持久化** - 完整的会话管理和恢复机制，Fork 分支支持
+7. ✅ **动态上下文** - 每次对话生成最新 LlmsContext，确保 AI 上下文准确
 
 ### 学习建议
 
@@ -971,4 +1393,4 @@ Neovate Code 采用模块化、可扩展的架构设计：
 5. **实践工具开发** - 创建自己的工具和插件
 
 **建议阅读顺序**:
-runNeovate → Context → Project → Loop → Model → Tool → Plugin
+runNeovate → Context → MessageBus → Bridge → Project → Loop → LlmsContext → Model → Tool → Session → Plugin
