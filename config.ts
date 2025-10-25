@@ -1,0 +1,118 @@
+// https://github.com/musistudio/claude-code-router
+
+const config = {
+  LOG: true,
+  LOG_LEVEL: 'debug',
+  CLAUDE_PATH: '',
+  HOST: '127.0.0.1',
+  PORT: 3456,
+  APIKEY: 'xiaohan',
+  API_TIMEOUT_MS: '600000',
+  PROXY_URL: 'http://127.0.0.1:7890',
+  transformers: [],
+  Providers: [
+    {
+      name: 'modelscope',
+      api_base_url: 'https://api-inference.modelscope.cn/v1/chat/completions',
+      api_key: 'xxx',
+      api_key_desc: '你的魔搭AccessToken（去掉ms-前缀）',
+      models: [
+        'Qwen/Qwen3-Coder-480B-A35B-Instruct',
+        'Qwen/Qwen3-235B-A22B-Thinking-2507',
+        'ZhipuAI/GLM-4.6',
+        'deepseek-ai/DeepSeek-V3.2-Exp',
+        'deepseek-ai/DeepSeek-V3.1',
+      ],
+      transformer: {
+        use: [
+          [
+            'maxtoken',
+            {
+              max_tokens: 65536,
+            },
+          ],
+          'enhancetool',
+        ],
+        'Qwen/Qwen3-235B-A22B-Thinking-2507': {
+          use: ['reasoning'],
+        },
+      },
+    },
+    {
+      name: 'iflow',
+      api_base_url: 'https://apis.iflow.cn/v1/chat/completions',
+      api_key: 'sk-xxx',
+      api_key_desc: 'your iflow api key',
+      models: [
+        'qwen3-coder-plus',
+        'kimi-k2-0905',
+        'glm-4.5',
+        'glm-4.6',
+        'qwen3-max',
+        'deepseek-v3.1',
+        'qwen3-vl-plus',
+      ],
+      transformer: {
+        'deepseek-v3.1': {
+          use: [
+            [
+              'maxtoken',
+              {
+                max_tokens: 8192,
+              },
+            ],
+          ],
+        },
+      },
+    },
+    {
+      name: 'qiniu',
+      api_base_url: 'https://openai.qiniu.com/v1/chat/completions',
+      api_key: 'sk-xxx',
+      api_key_desc: 'your qiniu openai api key',
+      models: [
+        'deepseek-v3.1',
+        'qwen3-coder-480b-a35b-instruct',
+        'z-ai/glm-4.6',
+        'deepseek/deepseek-v3.1-terminus',
+        'x-ai/grok-code-fast-1',
+      ],
+    },
+  ],
+  StatusLine: {
+    enabled: true,
+    currentStyle: 'default',
+    default: {
+      modules: ['qwen3-coder-plus'],
+    },
+    powerline: {
+      modules: [],
+    },
+  },
+  Router: {
+    longContextThreshold: 60000,
+    default: 'iflow,qwen3-coder-plus',
+    background: 'modelscope,Qwen/Qwen3-Coder-480B-A35B-Instruct',
+    think: 'modelscope,Qwen/Qwen3-235B-A22B-Thinking-2507',
+    longContext: 'modelscope,Qwen/Qwen3-Coder-480B-A35B-Instruct',
+    webSearch: 'iflow,glm-4.6',
+  },
+};
+
+/**
+系统会根据以下优先级进行选择：
+
+1. 场景优先：根据任务类型选择对应的配置项
+  - 默认任务 → 使用 default 配置
+  - 后台任务 → 使用 background 配置
+  - 推理任务 → 使用 think 配置
+  - 长文本任务 → 使用 longContext 配置
+  - 搜索任务 → 使用 webSearch 配置
+
+"longContextThreshold": 60000,
+"default": "iflow,qwen3-coder-plus",
+"background": "modelscope,Qwen/Qwen3-Coder-480B-A35B-Instruct",
+"think": "modelscope,Qwen/Qwen3-235B-A22B-Thinking-2507",
+"longContext": "modelscope,Qwen/Qwen3-Coder-480B-A35B-Instruct",
+"webSearch": "iflow,glm-4.6"
+ */
