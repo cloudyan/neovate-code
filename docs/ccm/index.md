@@ -108,6 +108,21 @@ ccm remove myapi
 ```bash
 export ANTHROPIC_BASE_URL="<服务商URL>"
 export ANTHROPIC_AUTH_TOKEN="<访问令牌>"
+
+# Claude Code 环境变量配置
+# 配置鉴权密钥，ANTHROPIC_API_KEY （或 ANTHROPIC_AUTH_TOKEN，二者只能任选一个配置，不可同时配）
+export ANTHROPIC_API_KEY="sk-your-api-key-here"
+# export ANTHROPIC_AUTH_TOKEN ="sk-your-api-key-here"
+# 配置接口地址🪜 服务商URL
+export ANTHROPIC_BASE_URL="https://openai.qiniu.com"
+# 配置默认主要的模型
+export ANTHROPIC_MODEL="deepseek-v3.1"
+# 配置默认的 SONNET 模型
+export ANTHROPIC_DEFAULT_SONNET_MODEL="x-ai/grok-code-fast-1"
+# 新版本针对简单问题的处理模型配置
+export ANTHROPIC_DEFAULT_HAIKU_MODEL="x-ai/grok-code-fast-1"
+# 老版本针对简单问题的处理模型配置，根据测试，建议新版本也配上，减少报错情况
+export ANTHROPIC_SMALL_FAST_MODEL="x-ai/grok-code-fast-1"
 ```
 
 ### --help
