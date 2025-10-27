@@ -152,6 +152,9 @@ output:
 - 支持体积 ≤500MB、文件数 ≤10k 的 Git 仓库；
 - 输出目录固定为 `repowiki-v2/`，含 `index.md`、`sidebar.yaml`、模块子目录；
 - 所有图片/图表统一放 `repowiki-v2/assets/`，使用相对引用。
+- 阶段产物统一写入 `repowiki-v2/.artifacts/phase{n}.json`，schema: `{stage,ts,inputs:{phase{n-1}.json,path,commit},outputs:[files],summary,metrics,hash,params}`
+- 执行阶段N前需加载 `phase{n-1}.json`；缺失自动回填前置阶段，`--no-backfill` 中止，`--strict` 校验 `requiredOutputs`
+- 增量/刷新：`--refresh` 重建指纹失配产物，支持 `--targets` 局部重建；并发以 `repowiki-v2/.lock` 控制，原子写入 `*.tmp` 后 `mv`
 
 ## 异常与重试
 | 错误码 | 场景 | 用户提示 |
