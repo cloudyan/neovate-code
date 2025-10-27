@@ -63,8 +63,8 @@
 - 常见问题解答
 
 输出文件:
-- `wikirepo/00-project-profile.json` - 项目画像数据
-- `wikirepo/00-project-profile.md` - 可读报告
+- `repowiki/00-project-profile.json` - 项目画像数据
+- `repowiki/00-project-profile.md` - 可读报告
 
 ## 阶段1: 智能结构分析 (15-20分钟)
 目标: 基于项目画像进行针对性结构分析
@@ -94,9 +94,9 @@
 - 复杂度 ⭐⭐: 生成 0.5-1 页简要说明
 
 输出文件:
-- `wikirepo/00-analysis-report.md` - 结构分析报告
-- `wikirepo/00-module-priority.md` - 模块优先级列表
-- `wikirepo/00-documentation-plan.md` - 文档生成计划
+- `repowiki/00-analysis-report.md` - 结构分析报告
+- `repowiki/00-module-priority.md` - 模块优先级列表
+- `repowiki/00-documentation-plan.md` - 文档生成计划
 
 ## 阶段2: 深度模块挖掘 (30-40分钟)
 目标: 对核心模块进行深度技术分析
@@ -122,18 +122,18 @@
 - [ ] 绘制架构图 (Mermaid Graph)
 
 输出文件:
-- `wikirepo/analysis/[模块名]-analysis.md` - 模块深度分析
-- `wikirepo/analysis/data-flow-diagrams/` - 数据流图
-- `wikirepo/analysis/architecture-patterns.md` - 架构模式总结
+- `repowiki/analysis/[模块名]-analysis.md` - 模块深度分析
+- `repowiki/analysis/data-flow-diagrams/` - 数据流图
+- `repowiki/analysis/architecture-patterns.md` - 架构模式总结
 
 ## 阶段3: 文档生成 (40-50分钟)
 目标: 生成高质量结构化文档
 
 ### 步骤3.1: 架构文档
 基于阶段2的分析,生成:
-- `wikirepo/architecture/overview.md` - 架构总览
-- `wikirepo/architecture/data-flow.md` - 数据流转
-- `wikirepo/architecture/patterns.md` - 设计模式
+- `repowiki/architecture/overview.md` - 架构总览
+- `repowiki/architecture/data-flow.md` - 数据流转
+- `repowiki/architecture/patterns.md` - 设计模式
 
 每个文档必须包含:
 ✅ Mermaid 图示
@@ -143,7 +143,7 @@
 
 ### 步骤3.2: 模块文档
 为每个核心模块生成独立文档:
-- `wikirepo/core-modules/01-[模块名].md`
+- `repowiki/core-modules/01-[模块名].md`
 
 文档结构:
 1. 概述 (定位、职责、关键指标)
@@ -155,7 +155,7 @@
 
 ### 步骤3.3: 流程文档
 为关键流程生成专门文档:
-- `wikirepo/workflows/[流程名].md`
+- `repowiki/workflows/[流程名].md`
 
 必须包含:
 ✅ Sequence Diagram (完整交互流程)
@@ -165,9 +165,9 @@
 
 ### 步骤3.4: API 文档
 生成 API 参考:
-- `wikirepo/api-reference/classes/[类名].md`
-- `wikirepo/api-reference/functions/[函数名].md`
-- `wikirepo/api-reference/types/[类型名].md`
+- `repowiki/api-reference/classes/[类名].md`
+- `repowiki/api-reference/functions/[函数名].md`
+- `repowiki/api-reference/types/[类型名].md`
 
 ---
 
@@ -216,7 +216,7 @@
 ## 目录结构
 严格按照以下结构组织:
 ```
-wikirepo/
+repowiki/
 ├── README.md                # 导航首页
 ├── 00-project-profile.json      # 项目画像数据
 ├── 00-project-profile.md        # 项目画像报告

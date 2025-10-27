@@ -22,7 +22,7 @@
 
 # 记录当前状态
 CURRENT_COMMIT=$(git rev-parse HEAD)
-LAST_COMMIT=$(cat wikirepo/.last-commit 2>/dev/null || echo "INIT")
+LAST_COMMIT=$(cat repowiki/.last-commit 2>/dev/null || echo "INIT")
 
 # 获取变更文件（支持多种情况）
 if [ "$LAST_COMMIT" = "INIT" ]; then
@@ -57,7 +57,7 @@ echo "变更比例: ${CHANGE_PERCENT}%"
 echo "更新策略: $STRATEGY"
 
 # 保存当前状态
-echo "$CURRENT_COMMIT" > wikirepo/.last-commit
+echo "$CURRENT_COMMIT" > repowiki/.last-commit
 ```
 
 ### 1.2 依赖关系感知更新

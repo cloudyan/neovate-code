@@ -89,7 +89,7 @@
 
 ## 📊 输出要求
 
-在wikirepo/analysis/目录下生成以下文件:
+在 repowiki/analysis/ 目录下生成以下文件:
 
 JSON格式要求:
 ```json

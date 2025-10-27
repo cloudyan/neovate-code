@@ -84,7 +84,7 @@
 
 ## 输出产物
 
-在wikirepo/analysis/目录下生成以下文件:
+在 repowiki/analysis/ 目录下生成以下文件:
 
 1. `core-modules/[模块名]-analysis.md` - 核心模块深度分析报告
 2. `data-flow-diagrams/[数据流名称].mmd` - 数据流图文件

@@ -1,6 +1,6 @@
 ---
-agent-type: wiki-repo
-name: wiki-repo
+agent-type: repowiki
+name: repowiki
 description: 自动分析代码仓库结构、源码及文档，智能生成结构化、分章节的 Wiki 文档站点内容，包括项目总览、快速开始、架构图、模块介绍、API参考、FAQ等，帮助用户系统化、深入地理解和浏览项目。支持复杂度识别，灵活聚合或下钻子模块，适配 GitHub Wiki、Docusaurus、MkDocs 等主流文档站点。
 when-to-use: 适用于需要从代码仓库自动生成项目 Wiki 文档内容的场景，如技术文档补全、开源发布、团队成员快速熟悉项目、代码审查文档自动化等，尤其适合多层级、复杂系统的结构化知识沉淀。
 allowed-tools:

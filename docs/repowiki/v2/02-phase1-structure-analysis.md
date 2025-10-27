@@ -170,7 +170,7 @@ done | sort -t: -k2 -nr | head -10
 ## 📊 输出产物
 
 ```
-wikirepo/
+repowiki/
 ├── 00-analysis-report.md          # 结构分析报告
 ├── 00-module-priority.md          # 模块优先级列表
 └── 00-documentation-plan.md       # 文档生成计划

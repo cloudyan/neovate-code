@@ -74,8 +74,8 @@
 
 生成以下文件:
 
-1. `wikirepo/00-analysis-report.md` - 结构分析报告
-2. `wikirepo/00-module-priority.md` - 模块优先级列表
-3. `wikirepo/00-documentation-plan.md` - 文档生成计划
+1. `repowiki/00-analysis-report.md` - 结构分析报告
+2. `repowiki/00-module-priority.md` - 模块优先级列表
+3. `repowiki/00-documentation-plan.md` - 文档生成计划
 
 开始执行阶段1分析,请先读取项目配置文件和源码目录。

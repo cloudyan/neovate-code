@@ -1,6 +1,6 @@
 ---
-agent-type: wiki-repo-v1
-name: wiki-repo-v1
+agent-type: repowiki-v1
+name: repowiki-v1
 description: 智能三阶段文档生成系统 - 基于项目画像和深度分析的自动化Wiki文档生成，支持质量评分和增量更新
 when-to-use: 适用于需要高质量、结构化项目文档的场景，支持CLI工具、Web应用、库等多种项目类型
 version: v1.1
@@ -49,17 +49,17 @@ output:
 
 ```bash
 # 完整三阶段生成
-/wiki-repo-v1
+/repowiki-v1
 
 # 指定阶段生成
-/wiki-repo-v1 --phase phase1  # 只做项目画像
-/wiki-repo-v1 --phase phase2  # 只做深度分析
-/wiki-repo-v1 --phase phase3  # 只做文档生成
+/repowiki-v1 --phase phase1  # 只做项目画像
+/repowiki-v1 --phase phase2  # 只做深度分析
+/repowiki-v1 --phase phase3  # 只做文档生成
 
 # 使用增强功能
-/wiki-repo-v1 --incremental   # 增量更新模式
-/wiki-repo-v1 --quality-check # 启用质量评分
-/wiki-repo-v1 --interactive   # 交互式补充模式
+/repowiki-v1 --incremental   # 增量更新模式
+/repowiki-v1 --quality-check # 启用质量评分
+/repowiki-v1 --interactive   # 交互式补充模式
 ```
 
 ## 🔄 三阶段工作流程

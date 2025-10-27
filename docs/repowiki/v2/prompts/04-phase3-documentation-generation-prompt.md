@@ -13,7 +13,7 @@
 按照以下结构组织文档:
 
 ```
-wikirepo/
+repowiki-v2/
 ├── README.md                       # 文档导航首页
 ├── index.md                        # 项目总览
 ├── quick-start/                    # 快速开始

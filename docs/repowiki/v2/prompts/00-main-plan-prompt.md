@@ -19,8 +19,8 @@
 5. 领域知识库加载 (最佳实践/反模式/性能优化/安全考虑)
 
 输出:
-- `wikirepo/00-project-profile.json` - 项目画像数据
-- `wikirepo/00-project-profile.md` - 人类可读报告
+- `repowiki/00-project-profile.json` - 项目画像数据
+- `repowiki/00-project-profile.md` - 人类可读报告
 
 ### 阶段1: 智能结构分析 (15-20分钟)
 目标: 快速建立项目全局认知,识别核心模块和优先级
@@ -32,9 +32,9 @@
 4. 复杂度评估与文档规划 (制定文档深度)
 
 输出:
-- `wikirepo/00-analysis-report.md` - 结构分析报告
-- `wikirepo/00-module-priority.md` - 模块优先级列表
-- `wikirepo/00-documentation-plan.md` - 文档生成计划
+- `repowiki/00-analysis-report.md` - 结构分析报告
+- `repowiki/00-module-priority.md` - 模块优先级列表
+- `repowiki/00-documentation-plan.md` - 文档生成计划
 
 ### 阶段2: 深度模块挖掘 (30-40分钟)
 目标: 对核心模块进行深度分析,提取架构设计和关键流程
@@ -46,9 +46,9 @@
 4. 关键流程图生成 (用户操作、核心业务、技术实现、数据流转)
 
 输出:
-- `wikirepo/analysis/[模块名]-analysis.md` - 模块深度分析
-- `wikirepo/analysis/data-flow-diagrams/` - 数据流图
-- `wikirepo/analysis/architecture-patterns.md` - 架构模式总结
+- `repowiki/analysis/[模块名]-analysis.md` - 模块深度分析
+- `repowiki/analysis/data-flow-diagrams/` - 数据流图
+- `repowiki/analysis/architecture-patterns.md` - 架构模式总结
 
 ### 阶段3: 文档生成 (40-50分钟)
 目标: 生成高质量结构化文档
@@ -78,7 +78,7 @@
 
 严格按照以下结构组织文档:
 ```
-wikirepo/
+repowiki/
 ├── README.md
 ├── 00-project-profile.json
 ├── 00-project-profile.md

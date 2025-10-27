@@ -8,14 +8,14 @@
 
 ## 🎯 概述
 
-本文档介绍如何将 `/docs/wiki-repo/v2/` 目录下的文档设计作为 Prompt 提供给大模型，实现智能化的代码仓库文档自动生成。
+本文档介绍如何将 `/docs/repowiki/v2/` 目录下的文档设计作为 Prompt 提供给大模型，实现智能化的代码仓库文档自动生成。
 
 ---
 
 ## 📁 v2 版本文档结构
 
 ```
-/docs/wiki-repo/v2/
+/docs/repowiki/v2/
 ├── 00-main-plan.md                         # 主方案文档 - 四阶段流程总览
 ├── 01-phase0-project-profile.md            # 阶段0: 项目画像与上下文建立
 ├── 02-phase1-structure-analysis.md         # 阶段1: 智能结构分析
@@ -39,7 +39,7 @@
 
 # 参考文档体系
 
-请参考 `/docs/wiki-repo/v2/` 目录下的文档设计规范：
+请参考 `/docs/repowiki/v2/` 目录下的文档设计规范：
 
 ## 阶段0: 项目画像（先执行）
 - `01-phase0-project-profile.md` - 技术栈识别和架构推断
@@ -78,10 +78,10 @@
 
 ```bash
 # 分阶段调用大模型
-neo --prompt @docs/wiki-repo/v2/01-phase0-project-profile.md --target my-project/
-neo --prompt @docs/wiki-repo/v2/02-phase1-structure-analysis.md --input project-profile.json
-neo --prompt @docs/wiki-repo/v2/03-phase2-deep-analysis.md --input analysis-report.md
-neo --prompt @docs/wiki-repo/v2/04-phase3-documentation-generation.md --input deep-analysis/
+neo --prompt @docs/repowiki/v2/01-phase0-project-profile.md --target my-project/
+neo --prompt @docs/repowiki/v2/02-phase1-structure-analysis.md --input project-profile.json
+neo --prompt @docs/repowiki/v2/03-phase2-deep-analysis.md --input analysis-report.md
+neo --prompt @docs/repowiki/v2/04-phase3-documentation-generation.md --input deep-analysis/
 ```
 
 ### 方案3: 配置文件驱动
@@ -89,7 +89,7 @@ neo --prompt @docs/wiki-repo/v2/04-phase3-documentation-generation.md --input de
 ```yaml
 # config.yaml
 version: "v2"
-prompt_dir: "/docs/wiki-repo/v2/"
+prompt_dir: "/docs/repowiki/v2/"
 
 stages:
   - name: "project-profile"
@@ -151,7 +151,7 @@ const result = await wikiGenerator.generate({
 {
   "wikiGeneration": {
     "version": "v2",
-    "promptDirectory": "./docs/wiki-repo/v2/",
+    "promptDirectory": "./docs/repowiki/v2/",
     "stages": [
       {
         "name": "phase0",

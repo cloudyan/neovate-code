@@ -11,6 +11,7 @@
 根据项目类型动态选择文档结构:
 
 ### 1. Next.js 项目结构
+
 ```
 wikirepo/
 ├── 01-overview.md

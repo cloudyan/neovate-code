@@ -710,7 +710,7 @@ function selectDocumentationTemplate(profile: ProjectProfile): string {
 #### 模板 1: frontend-nextjs
 
 ```markdown
-wikirepo/
+repowiki/
 ├── 01-overview.md
 ├── 02-tech-stack.md
 ├── 03-quick-start.md
@@ -750,7 +750,7 @@ wikirepo/
 #### 模板 2: backend-nestjs
 
 ```markdown
-wikirepo/
+repowiki/
 ├── 01-overview.md
 ├── 02-tech-stack.md
 ├── 03-quick-start.md
@@ -785,7 +785,7 @@ wikirepo/
 #### 模板 3: cli-tool
 
 ```markdown
-wikirepo/
+repowiki/
 ├── 01-overview.md
 ├── 02-installation.md             # ⭐ CLI 安装
 ├── 03-quick-start.md
@@ -810,7 +810,7 @@ wikirepo/
 #### 模板 4: monorepo-turborepo
 
 ```markdown
-wikirepo/
+repowiki/
 ├── 00-monorepo-overview.md        # ⭐ Monorepo 总览
 ├── 01-architecture.md
 ├── 02-getting-started.md
@@ -981,7 +981,7 @@ async function Page() {
 
 ### 输出 1: JSON 格式
 
-**文件**: `wikirepo/00-project-profile.json`
+**文件**: `repowiki/00-project-profile.json`
 
 ```json
 {
@@ -1040,7 +1040,7 @@ async function Page() {
 
 ### 输出 2: Markdown 报告
 
-**文件**: `wikirepo/00-project-profile.md`
+**文件**: `repowiki/00-project-profile.md`
 
 ```markdown
 # 项目画像报告
@@ -1142,7 +1142,7 @@ async function Page() {
 
 ### 改进前
 ```
-wikirepo/
+repowiki/
 ├── architecture.md         # 通用架构文档
 ├── modules/                # 所有模块一视同仁
 └── api/                    # 简单的 API 列表
@@ -1150,7 +1150,7 @@ wikirepo/
 
 ### 改进后
 ```
-wikirepo/
+repowiki/
 ├── 00-project-profile.json          # ⭐ 项目画像
 ├── 00-project-profile.md            # ⭐ 可读报告
 ├── architecture/

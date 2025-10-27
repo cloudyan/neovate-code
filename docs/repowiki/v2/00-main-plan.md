@@ -117,8 +117,8 @@ graph LR
 **目标**: 深度理解项目技术栈、架构模式和业务特征
 
 **输出**:
-- `wikirepo/00-project-profile.json` - 项目画像数据
-- `wikirepo/00-project-profile.md` - 人类可读报告
+- `repowiki/00-project-profile.json` - 项目画像数据
+- `repowiki/00-project-profile.md` - 人类可读报告
 
 ### 核心步骤
 
@@ -165,7 +165,7 @@ graph LR
 
 #### 改进前
 ```
-wikirepo/
+repowiki/
 ├── architecture.md         # 通用架构文档
 ├── modules/                # 所有模块一视同仁
 └── api/                    # 简单 API 列表
@@ -173,7 +173,7 @@ wikirepo/
 
 #### 改进后
 ```
-wikirepo/
+repowiki/
 ├── 00-project-profile.json          # ⭐ 项目画像
 ├── architecture/
 │   ├── overview.md
@@ -274,7 +274,7 @@ wikirepo/
 ### 输出产物
 
 ```
-wikirepo/
+repowiki/
 ├── 00-analysis-report.md          # 结构分析报告
 ├── 00-module-priority.md          # 模块优先级列表
 └── 00-documentation-plan.md       # 文档生成计划
@@ -377,7 +377,7 @@ wikirepo/
 ### 输出产物
 
 ```
-wikirepo/analysis/
+repowiki/analysis/
 ├── core-modules/
 │   ├── loop-analysis.md           # Loop模块深度分析
 │   ├── context-analysis.md        # Context模块深度分析
@@ -398,7 +398,7 @@ wikirepo/analysis/
 ### 文档体系设计
 
 ```
-wikirepo/
+repowiki/
 ├── README.md                       # 文档导航首页
 ├── index.md                        # 项目总览
 ├── quick-start/
@@ -706,7 +706,7 @@ A: ...
 - [ ] 分析目录结构 (使用 `ls` 和 `tree` 命令)
 - [ ] 识别技术栈和框架
 
-输出文件: `wikirepo/00-analysis-report.md`
+输出文件: `repowiki/00-analysis-report.md`
 
 ### 步骤2: 核心模块识别
 使用以下规则自动评分:
@@ -719,7 +719,7 @@ A: ...
 - [ ] 计算每个文件的代码行数
 - [ ] 按优先级排序,选出Top 10
 
-输出文件: `wikirepo/00-module-priority.md`
+输出文件: `repowiki/00-module-priority.md`
 
 ### 步骤3: 文档规划
 根据复杂度制定文档深度:
@@ -727,7 +727,7 @@ A: ...
 - 复杂度 ⭐⭐⭐⭐: 生成 3 页核心文档
 - 复杂度 ⭐⭐⭐: 生成 1-2 页概览文档
 
-输出文件: `wikirepo/00-documentation-plan.md`
+输出文件: `repowiki/00-documentation-plan.md`
 
 ---
 
@@ -754,7 +754,7 @@ A: ...
 - [ ] 使用的架构模式 (分层/事件驱动/插件化等)
 - [ ] 绘制架构图 (Mermaid Graph)
 
-输出文件: `wikirepo/analysis/[模块名]-analysis.md`
+输出文件: `repowiki/analysis/[模块名]-analysis.md`
 
 ---
 
@@ -763,9 +763,9 @@ A: ...
 
 ### 步骤1: 架构文档
 基于阶段2的分析,生成:
-- `wikirepo/architecture/overview.md` - 架构总览
-- `wikirepo/architecture/data-flow.md` - 数据流转
-- `wikirepo/architecture/patterns.md` - 设计模式
+- `repowiki/architecture/overview.md` - 架构总览
+- `repowiki/architecture/data-flow.md` - 数据流转
+- `repowiki/architecture/patterns.md` - 设计模式
 
 每个文档必须包含:
 ✅ Mermaid 图示
@@ -774,7 +774,7 @@ A: ...
 
 ### 步骤2: 模块文档
 为每个核心模块生成独立文档:
-- `wikirepo/core-modules/01-[模块名].md`
+- `repowiki/core-modules/01-[模块名].md`
 
 文档结构:
 1. 概述 (定位、职责、关键指标)
@@ -785,7 +785,7 @@ A: ...
 
 ### 步骤3: 流程文档
 为关键流程生成专门文档:
-- `wikirepo/workflows/[流程名].md`
+- `repowiki/workflows/[流程名].md`
 
 必须包含:
 ✅ Sequence Diagram (完整交互流程)
@@ -794,8 +794,8 @@ A: ...
 
 ### 步骤4: API 文档
 生成 API 参考:
-- `wikirepo/api-reference/classes/[类名].md`
-- `wikirepo/api-reference/functions/[函数名].md`
+- `repowiki/api-reference/classes/[类名].md`
+- `repowiki/api-reference/functions/[函数名].md`
 
 ---
 
@@ -834,7 +834,7 @@ A: ...
 ## 目录结构
 严格按照以下结构组织:
 ```
-wikirepo/
+repowiki/
 ├── README.md                # 导航首页
 ├── 00-analysis-report.md        # 分析报告
 ├── quick-start/                 # 快速开始
@@ -902,7 +902,7 @@ wikirepo/
 1. 读取项目根目录的 package.json 和 README.md
 2. 使用 `find src -name "*.ts" -o -name "*.js" | wc -l` 统计文件数
 3. 使用 `ls -R src/` 分析目录结构
-4. 生成 `wikirepo/00-analysis-report.md`
+4. 生成 `repowiki/00-analysis-report.md`
 
 执行完成后,等待我的确认再进入阶段2。
 ```
@@ -919,10 +919,10 @@ wikirepo/
 ### 检测变更
 ```bash
 # 记录当前 commit
-git rev-parse HEAD > wikirepo/.last-commit
+git rev-parse HEAD > repowiki/.last-commit
 
 # 下次运行时对比
-LAST_COMMIT=$(cat wikirepo/.last-commit)
+LAST_COMMIT=$(cat repowiki/.last-commit)
 CURRENT_COMMIT=$(git rev-parse HEAD)
 
 # 获取变更文件
@@ -959,7 +959,7 @@ git diff --name-only $LAST_COMMIT $CURRENT_COMMIT
   - 包含使用示例: 10分
   - 包含常见问题: 10分
 
-生成质量报告: `wikirepo/quality-report.md`
+生成质量报告: `repowiki/quality-report.md`
 ```
 
 ### 3. 交互式补充
@@ -1039,7 +1039,7 @@ git diff --name-only $LAST_COMMIT $CURRENT_COMMIT
 
 #### 输入
 ```bash
-neo /wiki-repo
+neo /repowiki
 # 或
 neo "生成项目完整文档"
 ```
@@ -1076,7 +1076,7 @@ neo "生成项目完整文档"
 
 🎉 文档生成完成!
 
-📁 输出目录: /wikirepo
+📁 输出目录: /repowiki
 📄 生成文件: 25个
 📊 总大小: 2.3MB
 ⏱️ 耗时: 18 分钟
@@ -1086,9 +1086,9 @@ neo "生成项目完整文档"
 2. src/order.ts:200 - 订单状态机需要验证
 
 💡 下一步:
-- 浏览文档: open wikirepo/README.md
-- 启动文档服务器: docsify serve wikirepo
-- 提交到 Git: git add wikirepo && git commit -m "docs: 生成项目 Wiki 文档"
+- 浏览文档: open repowiki/README.md
+- 启动文档服务器: docsify serve repowiki
+- 提交到 Git: git add repowiki && git commit -m "docs: 生成项目 Wiki 文档"
 ```
 
 ---
@@ -1137,6 +1137,6 @@ neo "生成项目完整文档"
 
 ## 📚 参考资料
 
-- [现有 wiki-repo.md 命令](../../../.neovate/commands/wiki-repo.md)
+- [现有 repowiki.md 命令](../../../.neovate/commands/repowiki.md)
 - [Neovate Code 文档优化实践](../../arch.md)
 - [文档工程最佳实践](https://documentation.divio.com/)

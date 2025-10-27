@@ -1,8 +1,8 @@
 # 阶段2: 深度模块挖掘
 
-> **时长**: 30-40分钟  
-> **目标**: 对核心模块进行深度分析,提取架构设计和关键流程  
-> **输入**: 阶段1的模块优先级列表  
+> **时长**: 30-40分钟
+> **目标**: 对核心模块进行深度分析,提取架构设计和关键流程
+> **输入**: 阶段1的模块优先级列表
 > **输出**: 深度分析报告、数据流图、架构图
 
 ---
@@ -11,7 +11,7 @@
 
 对高优先级核心模块进行深度技术分析,提取:
 - 模块职责和设计原理
-- 数据流转和调用关系  
+- 数据流转和调用关系
 - 架构模式和设计思想
 - 关键业务流程和技术实现
 
@@ -34,7 +34,7 @@
 - [ ] 公开API vs 内部实现
 - [ ] 接口设计和抽象层次
 
-✅ 依赖关系分析  
+✅ 依赖关系分析
 - [ ] 依赖了哪些模块 (import语句分析)
 - [ ] 被哪些模块依赖 (反向引用搜索)
 - [ ] 循环依赖检测
@@ -60,12 +60,12 @@
 function analyze_exports() {
   local file=$1
   echo "## 导出分析: $(basename $file)"
-  
+
   # 提取导出声明
   grep -n "^export" "$file" | while read line; do
     echo "- $line"
   done
-  
+
   # 提取类定义
   grep -n "^class\|^interface\|^type\|^enum" "$file" | while read line; do
     echo "- $line"
@@ -76,13 +76,13 @@ function analyze_exports() {
 function analyze_dependencies() {
   local file=$1
   echo "## 依赖分析: $(basename $file)"
-  
+
   # 提取 import 语句
   grep -n "^import\|^from" "$file" | sed 's/.*import\|from//' | \
     sed "s/'//g; s/\"//g; s/.*\///; s/;//" | sort | uniq | while read dep; do
     echo "- 依赖: $dep"
   done
-  
+
   # 反向搜索谁依赖了这个文件
   module_name=$(basename "$file" .ts)
   references=$(grep -r "import.*$module_name\|from.*$module_name" src/ | wc -l)
@@ -100,7 +100,7 @@ function analyze_dependencies() {
 追踪方法:
 1. **识别核心数据结构** - 查找 interface/type 定义
 2. **追踪数据创建点** - 构造函数、工厂方法、API响应
-3. **追踪数据转换点** - mapping、transform、数据处理函数  
+3. **追踪数据转换点** - mapping、transform、数据处理函数
 4. **追踪数据消费点** - 渲染、存储、输出、网络请求
 
 输出要求:
@@ -116,17 +116,17 @@ function analyze_dependencies() {
 function track_data_flow() {
   local data_type=$1
   local start_file=$2
-  
+
   echo "追踪数据类型: $data_type"
   echo "起始文件: $start_file"
-  
+
   # 查找数据定义
   grep -rn "interface.*$data_type\|type.*$data_type" src/ | head -5
-  
+
   # 查找创建点
   echo "## 数据创建点"
   grep -rn "new.*$data_type\|$data_type.*=\|create$data_type" src/ | head -5
-  
+
   # 查找使用点
   echo "## 数据使用点"
   grep -rn "$data_type" src/ | grep -v "interface\|type" | head -10
@@ -161,7 +161,7 @@ track_data_flow "User" "src/types/user.ts"
 
 4. **设计原则验证**
    - 单一职责原则 (SRP) 符合度
-   - 开闭原则 (OCP) 符合度  
+   - 开闭原则 (OCP) 符合度
    - 依赖倒置原则 (DIP) 符合度
    - 接口隔离原则 (ISP) 符合度
 ```
@@ -174,11 +174,11 @@ graph TD
     B --> C[Service Layer]
     C --> D[Repository Layer]
     D --> E[Database]
-    
+
     B -.-> F[DTO Validation]
     C -.-> G[Business Logic]
     D -.-> H[Data Access]
-    
+
     style A fill:#ff6b6b,color:#fff
     style B fill:#4ecdc4,color:#fff
     style C fill:#45b7d1,color:#fff
@@ -193,11 +193,11 @@ graph TD
 1. **用户操作流程** (用户视角)
    - 用户输入 → 系统处理 → 输出结果
    - 涉及: 表单提交、按钮点击、导航跳转
-   
-2. **核心业务流程** (业务视角)  
+
+2. **核心业务流程** (业务视角)
    - 订单创建 → 支付 → 发货 → 完成
    - 涉及: 状态机转换、业务规则验证
-   
+
 3. **技术实现流程** (技术视角)
    - 请求接收 → 路由分发 → 业务处理 → 响应返回
    - 涉及: 中间件链、错误处理、异步操作
@@ -211,7 +211,7 @@ graph TD
 
 ```markdown
 - **简单线性流程**: Mermaid Flowchart (流程图)
-- **复杂交互流程**: Mermaid Sequence Diagram (序列图)  
+- **复杂交互流程**: Mermaid Sequence Diagram (序列图)
 - **状态转换流程**: Mermaid State Diagram (状态图)
 - **决策分支流程**: Mermaid Flowchart with conditionals
 - **并行处理流程**: Mermaid Flowchart with parallel paths
@@ -225,7 +225,7 @@ sequenceDiagram
     participant Frontend
     participant Backend
     participant Database
-    
+
     User->>Frontend: 提交表单
     Frontend->>Backend: POST /api/data
     Backend->>Database: 查询验证
@@ -240,7 +240,7 @@ sequenceDiagram
 ## 📊 输出产物
 
 ```
-wikirepo/analysis/
+repowiki/analysis/
 ├── core-modules/
 │   ├── loop-analysis.md           # Loop模块深度分析
 │   ├── context-analysis.md        # Context模块深度分析
@@ -260,15 +260,15 @@ wikirepo/analysis/
 ```markdown
 # Loop 模块深度分析
 
-> 源码位置: `src/loop.ts:1-450`  
-> 优先级: ⭐⭐⭐⭐⭐ (权重: 45)  
+> 源码位置: `src/loop.ts:1-450`
+> 优先级: ⭐⭐⭐⭐⭐ (权重: 45)
 > 分析耗时: 8.2 分钟
 
 ## 📋 模块概览
 
 ### 核心职责
 1. **AI 任务调度** - 管理AI任务的执行队列和优先级
-2. **状态管理** - 维护会话状态和执行上下文  
+2. **状态管理** - 维护会话状态和执行上下文
 3. **错误处理** - 捕获和处理执行过程中的异常
 4. **性能监控** - 跟踪任务执行时间和资源使用
 
@@ -293,7 +293,7 @@ graph LR
     A --> D[tools/index.ts]
     A --> E[utils/logger.ts]
     A --> F[types/index.ts]
-    
+
     style A fill:#ff6b6b,color:#fff
 ```
 
@@ -307,7 +307,7 @@ sequenceDiagram
     participant Loop
     participant Context
     participant Tools
-    
+
     User->>Loop: 执行任务
     Loop->>Context: 获取上下文
     Context-->>Loop: 返回上下文数据
@@ -327,13 +327,13 @@ async function executeTask(task: Task, context: Context): Promise<Result> {
   try {
     // 1. 验证任务参数
     validateTask(task);
-    
+
     // 2. 准备执行上下文
     const executionContext = prepareContext(context, task);
-    
+
     // 3. 执行任务逻辑
     const result = await runTaskLogic(task, executionContext);
-    
+
     // 4. 处理执行结果
     return processResult(result);
   } catch (error) {
@@ -420,7 +420,7 @@ flowchart TD
     C -->|否| E[返回错误]
     D --> F[数据持久化]
     F --> G[返回成功]
-    
+
     style A fill:#ff6b6b,color:#fff
     style G fill:#96ceb4,color:#fff
 ```
@@ -455,7 +455,7 @@ flowchart TD
 **实现模块**: `src/observer.ts`
 **优势**: 解耦状态生产者与消费者
 
-### 2. 策略模式  
+### 2. 策略模式
 **应用场景**: 不同的任务执行策略
 **实现模块**: `src/strategies/`
 **优势**: 易于扩展新的执行策略

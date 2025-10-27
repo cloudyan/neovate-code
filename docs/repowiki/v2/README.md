@@ -130,7 +130,7 @@ graph LR
 ### 1. 执行命令
 
 ```bash
-neo /wiki-repo
+neo /repowiki
 # 或
 neo "生成项目完整文档"
 ```
@@ -146,9 +146,9 @@ neo "生成项目完整文档"
 
 ### 3. 生成文档
 
-输出到 `wikirepo/` 目录:
+输出到 `repowiki/` 目录:
 ```
-wikirepo/
+repowiki/
 ├── 00-project-profile.json      # 项目画像
 ├── 00-project-profile.md        # 可读报告
 ├── architecture/                # 架构文档
@@ -211,7 +211,7 @@ wikirepo/
 
 ### 参考实现
 - [Neovate Code 文档优化实践](../arch.md)
-- [现有 wiki-repo 命令](../../.neovate/commands/wiki-repo.md)
+- [现有 repowiki 命令](../../.neovate/commands/repowiki.md)
 
 ### 技术文档
 - [Next.js 文档](https://nextjs.org/docs)

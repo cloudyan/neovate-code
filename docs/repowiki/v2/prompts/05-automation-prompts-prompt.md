@@ -54,8 +54,8 @@
    - 常见问题解答
 
 输出:
-- wikirepo/00-project-profile.json - 项目画像数据
-- wikirepo/00-project-profile.md - 可读报告
+- repowiki/00-project-profile.json - 项目画像数据
+- repowiki/00-project-profile.md - 可读报告
 
 ### 阶段1: 智能结构分析 (15-20分钟)
 
@@ -82,9 +82,9 @@
    - 复杂度 ⭐⭐: 生成 0.5-1 页简要说明
 
 输出:
-- wikirepo/00-analysis-report.md - 结构分析报告
-- wikirepo/00-module-priority.md - 模块优先级列表
-- wikirepo/00-documentation-plan.md - 文档生成计划
+- repowiki/00-analysis-report.md - 结构分析报告
+- repowiki/00-module-priority.md - 模块优先级列表
+- repowiki/00-documentation-plan.md - 文档生成计划
 
 ### 阶段2: 深度模块挖掘 (30-40分钟)
 
@@ -110,18 +110,18 @@
    - 绘制架构图 (Mermaid Graph)
 
 输出:
-- wikirepo/analysis/[模块名]-analysis.md - 模块深度分析
-- wikirepo/analysis/data-flow-diagrams/ - 数据流图
-- wikirepo/analysis/architecture-patterns.md - 架构模式总结
+- repowiki/analysis/[模块名]-analysis.md - 模块深度分析
+- repowiki/analysis/data-flow-diagrams/ - 数据流图
+- repowiki/analysis/architecture-patterns.md - 架构模式总结
 
 ### 阶段3: 文档生成 (40-50分钟)
 
 步骤:
 1. 架构文档
    基于阶段2的分析,生成:
-   - wikirepo/architecture/overview.md - 架构总览
-   - wikirepo/architecture/data-flow.md - 数据流转
-   - wikirepo/architecture/patterns.md - 设计模式
+   - repowiki/architecture/overview.md - 架构总览
+   - repowiki/architecture/data-flow.md - 数据流转
+   - repowiki/architecture/patterns.md - 设计模式
    要求包含:
    ✅ Mermaid 图示
    ✅ 代码位置引用
@@ -130,7 +130,7 @@
 
 2. 模块文档
    为每个核心模块生成独立文档:
-   - wikirepo/core-modules/01-[模块名].md
+   - repowiki/core-modules/01-[模块名].md
    结构:
    1. 概述 (定位、职责、关键指标)
    2. 设计原理 (为什么、怎么设计)
@@ -141,7 +141,7 @@
 
 3. 流程文档
    为关键流程生成专门文档:
-   - wikirepo/workflows/[流程名].md
+   - repowiki/workflows/[流程名].md
    要求包含:
    ✅ Sequence Diagram (完整交互流程)
    ✅ Flowchart (决策逻辑)
@@ -150,9 +150,9 @@
 
 4. API 文档
    生成 API 参考:
-   - wikirepo/api-reference/classes/[类名].md
-   - wikirepo/api-reference/functions/[函数名].md
-   - wikirepo/api-reference/types/[类型名].md
+   - repowiki/api-reference/classes/[类名].md
+   - repowiki/api-reference/functions/[函数名].md
+   - repowiki/api-reference/types/[类型名].md
 
 ## 质量检查清单
 
@@ -196,7 +196,7 @@
 
 目录结构:
 ```
-wikirepo/
+repowiki/
 ├── README.md
 ├── 00-project-profile.json
 ├── 00-project-profile.md

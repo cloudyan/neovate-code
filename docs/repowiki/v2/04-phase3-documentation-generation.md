@@ -23,7 +23,7 @@
 ### 标准文档结构
 
 ```
-wikirepo/
+repowiki/
 ├── README.md                       # 文档导航首页
 ├── index.md                        # 项目总览
 ├── quick-start/                    # 快速开始

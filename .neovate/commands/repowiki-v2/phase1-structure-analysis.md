@@ -101,8 +101,8 @@
 
 生成两个文件:
 
-1. `wikirepo/01-structure-analysis.json` - 结构分析数据
-2. `wikirepo/01-structure-analysis.md` - 人类可读报告
+1. `repowiki/01-structure-analysis.json` - 结构分析数据
+2. `repowiki/01-structure-analysis.md` - 人类可读报告
 
 JSON格式要求:
 ```json

@@ -1,6 +1,6 @@
 ---
-agent-type: wiki-repo-v2
-name: wiki-repo-v2
+agent-type: repowiki-v2
+name: repowiki-v2
 description: 项目文档智能生成系统 - 基于项目画像的自动化Wiki文档生成，支持增量更新和质量评分
 when-to-use: 适用于需要高质量、结构化项目文档的场景，支持Next.js、NestJS、CLI等6+项目类型模板
 version: v2.0
@@ -18,19 +18,19 @@ progressMessage: 正在执行四阶段文档生成 (阶段$STAGE/4)...
 
 ### 阶段0: 项目画像 (15-20分钟)
 基于三层技术栈识别、架构模式推断和业务层次划分，建立项目完整上下文，生成项目画像 JSON 和人类可读报告。
-请参考 [phase0-project-profile.md](./wiki-repo/phase0-project-profile.md) 执行项目画像分析。
+请参考 [phase0-project-profile.md](./phase0-project-profile.md) 执行项目画像分析。
 
 ### 阶段1: 结构分析 (15-20分钟)
 
-请参考 [phase1-structure-analysis.md](./wiki-repo/phase1-structure-analysis.md) 执行结构分析，识别核心模块和优先级，评估代码复杂度，制定文档生成计划。
+请参考 [phase1-structure-analysis.md](./phase1-structure-analysis.md) 执行结构分析，识别核心模块和优先级，评估代码复杂度，制定文档生成计划。
 
 ### 阶段2: 深度挖掘 (30-40分钟)
 
-请参考 [phase2-deep-analysis.md](./wiki-repo/phase2-deep-analysis.md) 执行深度模块挖掘，提取架构设计和关键流程，生成数据流图和架构图。
+请参考 [phase2-deep-analysis.md](./phase2-deep-analysis.md) 执行深度模块挖掘，提取架构设计和关键流程，生成数据流图和架构图。
 
 ### 阶段3: 文�档生成 (40-50分钟)
 
-请参考 [phase3-documentation-generation.md](./wiki-repo/phase3-documentation-generation.md) 执行结构化文档生成，基于前两阶段分析成果，生成高质量、自适应的文档库。
+请参考 [phase3-documentation-generation.md](./phase3-documentation-generation.md) 执行结构化文档生成，基于前两阶段分析成果，生成高质量、自适应的文档库。
 
 ## 📋 配置参数
 
@@ -50,7 +50,7 @@ enhancements:
 
 # 输出配置
 output:
-  directory: wikirepo-v2/
+  directory: repowiki-v2/
   format: markdown       # markdown/html/pdf
   template: auto         # 自动选择模板
 ```
@@ -59,23 +59,23 @@ output:
 
 ```bash
 # 完整四阶段生成
-/wiki-repo-v2
+/repowiki-v2
 
 # 指定阶段生成
-/wiki-repo-v2 --phase phase0  # 只做项目画像
-/wiki-repo-v2 --phase phase1  # 只做结构分析
-/wiki-repo-v2 --phase phase2  # 只做深度挖掘
-/wiki-repo-v2 --phase phase3  # 只做文档生成
+/repowiki-v2 --phase phase0  # 只做项目画像
+/repowiki-v2 --phase phase1  # 只做结构分析
+/repowiki-v2 --phase phase2  # 只做深度挖掘
+/repowiki-v2 --phase phase3  # 只做文档生成
 
 # 使用增强功能
-/wiki-repo-v2 --incremental   # 增量更新模式
-/wiki-repo-v2 --quality-check # 启用质量评分
-/wiki-repo-v2 --interactive   # 交互式补充模式
+/repowiki-v2 --incremental   # 增量更新模式
+/repowiki-v2 --quality-check # 启用质量评分
+/repowiki-v2 --interactive   # 交互式补充模式
 
 # 指定项目类型模板
-/wiki-repo-v2 --template frontend-nextjs
-/wiki-repo-v2 --template backend-nestjs
-/wiki-repo-v2 --template cli-tool
+/repowiki-v2 --template frontend-nextjs
+/repowiki-v2 --template backend-nestjs
+/repowiki-v2 --template cli-tool
 ```
 
 
@@ -150,8 +150,8 @@ output:
 
 ## 输入/输出契约
 - 支持体积 ≤500MB、文件数 ≤10k 的 Git 仓库；
-- 输出目录固定为 `wikirepo-v2/`，含 `index.md`、`sidebar.yaml`、模块子目录；
-- 所有图片/图表统一放 `wikirepo-v2/assets/`，使用相对引用。
+- 输出目录固定为 `repowiki-v2/`，含 `index.md`、`sidebar.yaml`、模块子目录；
+- 所有图片/图表统一放 `repowiki-v2/assets/`，使用相对引用。
 
 ## 异常与重试
 | 错误码 | 场景 | 用户提示 |
@@ -168,4 +168,4 @@ output:
 ## 性能策略
 - 全量分析默认超时 5min；
 - 支持 `--refresh` 刷新，仅重新生成变更文件，基于 commit 差异；
-- 输出 `.wikirepo-v2.log` 供排查。
+- 输出 `.repowiki-v2.log` 供排查。

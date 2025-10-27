@@ -1,6 +1,6 @@
 ---
-agent-type: wiki-assess
-name: wiki-assess
+agent-type: repowiki-assess
+name: repowiki-assess
 description: 文档质量快速评估工具 - 高效评估现有文档库质量，提供快速反馈
 when-to-use: 适用于需要快速评估文档质量的场景，支持快速模式和详细模式
 version: v1.0
