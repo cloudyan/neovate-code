@@ -1,3 +1,9 @@
+---
+description: 项目画像（阶段0）
+model:
+progressMessage: 正在执行项目画像分析...
+---
+
 # 阶段0: 项目画像 Prompt
 
 你是一个专业的代码架构分析师和技术文档工程师，擅长：
@@ -8,19 +14,25 @@
 
 请基于当前代码仓库，执行项目画像分析，为后续文档生成提供完整上下文，并为每项结论提供可验证的证据引用（file_path:line_number）。
 
+## 参数
+- $1 模式: quick|full（默认 quick）
+- $2 输出目录: 默认 repowiki
+- $3 深度上限: 默认 2
+
 ## 🎯 核心任务
 
 ### Step 0.1: 技术栈深度识别
 
-通过配置与锁定文件识别项目语言、框架与工具链，并精确到版本与来源：
+通过配置与运行环境文件识别项目语言、框架与工具链，并给出版本范围与来源（禁止读取锁定文件）：
 
 1. 检查 package.json/pyproject.toml/go.mod 等识别主要语言与框架
-2. 结合锁定文件（package-lock.json/pnpm-lock.yaml/yarn.lock/poetry.lock/go.sum）获取精确版本
+2. 从 manifest 与运行环境获取版本范围：engines/peerDependencies/packageManager、.nvmrc/.tool-versions、Dockerfile、CI matrix（如 .github/workflows），必要时通过可执行命令 --version 输出佐证（仅读取脚本定义，不执行）
 3. 识别构建与测试工具（Vite/Webpack/Rollup、Jest/Vitest、ESLint/Prettier）
 4. 识别运行时与平台（Node/PNPM/NPM/Yarn 版本、Python 版本、Go 版本），以及 asdf/.tool-versions、.nvmrc、.python-version
 5. 识别容器/镜像与基础镜像版本（Dockerfile、docker-compose.yml）
 6. 识别包管理/工作区（Monorepo: pnpm-workspace.yaml/turbo.json）
 7. 每项识别需提供至少一个证据引用
+8. 版本可信度: exact|range|approximate
 
 输出格式:
 ```
@@ -28,6 +40,7 @@
 框架层: [框架列表]
 工具链: [工具列表]
 版本来源: [文件与行号列表]
+版本可信度: [exact|range|approximate]
 ```
 
 ### Step 0.2: 架构模式深度推断
@@ -105,7 +118,7 @@ API端点: [API列表]
 
 ## 📊 输出要求
 
-生成两个文件：
+生成两个文件（输出目录可由 $2 指定，默认 repowiki）：
 
 1. `repowiki/00-project-profile.json` - 项目画像数据
 2. `repowiki/00-project-profile.md` - 人类可读报告
@@ -138,15 +151,17 @@ JSON 示例（含扩展字段）:
     "jobs": ["daily_cleanup"]
   },
   "scale": {"files_count": 100, "loc": 10000, "packages": 5},
+  "scan": {"limits": {"max_file_lines": 12000, "max_file_bytes": 400000}, "phase0": {"whitelist_only": true, "max_files": 20, "max_bytes": 1000000, "max_per_dir": 5, "max_depth": 2, "head_lines": 200, "stop_confidence": 0.9}, "skipped_files_count": 0},
   "ci_cd": {"providers": ["GitHub Actions"], "pipelines": ["build", "test", "release"]},
   "infrastructure": {"container": true, "k8s": false, "iac": ["Terraform"]},
   "security": {"dependency_audit": true, "secret_scanning": true, "sast": true},
   "documentation_strategy": "文档模板",
+  "version_confidence": "range",
   "evidence": ["path/to/file:45-60"]
 }
 ```
 
-JSON Schema（草案）:
+JSON Schema（草案）（不包含锁定文件来源字段）:
 ```json
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -180,8 +195,10 @@ JSON Schema（草案）:
     "ci_cd": {"type": "object"},
     "infrastructure": {"type": "object"},
     "security": {"type": "object"},
+    "scan": {"type": "object"},
     "documentation_strategy": {"type": "string"},
-    "evidence": {"type": "array", "items": {"type": "string"}}
+    "evidence": {"type": "array", "items": {"type": "string"}},
+    "version_confidence": {"type": "string", "enum": ["exact", "range", "approximate"]}
   }
 }
 ```
@@ -207,11 +224,31 @@ Markdown 报告要求包含：
 - files_count: 扫描仓库（排除 .git、dist、build、coverage、node_modules、.venv 等）
 - loc: 按语言统计有效代码行，排除空行/注释/压缩产物/锁文件
 - packages: monorepo 下 package/* 或 apps/*、packages/* 目录计数
+- 统计遵循“文件扫描与过滤规则”，记录 skipped_files_count 与可选 skipped_reasons
+
+### 文件扫描与过滤规则
+- 目录忽略: .git, node_modules, dist, build, coverage, .cache, .venv, .terraform, vendor, target, .next, .turbo, out, .pnpm-store, tmp
+- 文件忽略: 二进制/媒体/归档与映射文件: *.png, *.jpg, *.jpeg, *.gif, *.webp, *.svg, *.pdf, *.zip, *.tar, *.tar.gz, *.tgz, *.7z, *.jar, *.apk, *.exe, *.dll, *.so, *.dylib, *.bin, *.woff, *.woff2, *.map
+- 锁定文件忽略: package-lock.json, pnpm-lock.yaml, yarn.lock, poetry.lock, go.sum
+- 超大文件忽略: 行数 > 12000 或 大小 > 400000 字节
+- 软链接与循环: 跳过符号链接导致的循环引用
+- 计数策略: 被忽略文件不计入 loc 与 files_count；记录 skipped_files_count
+- 可配置阈值: 支持环境变量 REPOWIKI_MAX_FILE_LINES=12000 与 REPOWIKI_MAX_FILE_BYTES=400000 覆盖
+
+### 阶段0读取策略（最小化）
+- 白名单文件: package.json, tsconfig*.json, pnpm-workspace.yaml/yarn.workspaces, turbo.json, next.config.js, vite.config.*, nest-cli.json, biome.json/.eslintrc*, .nvmrc/.tool-versions, Dockerfile, docker-compose.yml, .github/workflows/*.yml, README.md, CONTRIBUTING.md
+- 入口源码仅限: src/index.ts, src/main.ts, src/cli.ts, src/server.ts 中最多3个文件；且仅读前200行
+- 禁止递归读取 src/**（除上述入口外）
+- 每目录采样≤5；总读取文件≤20；总读取字节≤1,000,000
+- 早停策略: 一旦确定项目类型与模板，且证据≥3条且置信度≥0.9，立即停止读取
+- 若 $1=full: whitelist_only=false,max_files=50,max_per_dir=10,max_depth=3,head_lines=400,stop_confidence=0.95
+- 可通过环境变量覆盖：REPOWIKI_PHASE0_WHITELIST_ONLY=true, REPOWIKI_PHASE0_MAX_FILES=20, REPOWIKI_PHASE0_MAX_BYTES=1000000, REPOWIKI_PHASE0_MAX_PER_DIR=5, REPOWIKI_PHASE0_MAX_DEPTH=2, REPOWIKI_PHASE0_HEAD_LINES=200, REPOWIKI_PHASE0_STOP_CONFIDENCE=0.9
 
 ### 验收标准
+- 禁止读取锁定文件（package-lock.json、pnpm-lock.yaml、yarn.lock、poetry.lock、go.sum）
 - 结论均有证据引用，且可复现
-- 版本信息来自锁定/配置文件而非仅依赖声明
-- JSON 通过上述 Schema 校验
+- 版本信息来自配置/运行环境/容器/CI，不读取锁定文件
+- JSON 通过上述 Schema 校验（新增字段 version_confidence 合法值 exact|range|approximate）
 - Markdown 报告章节完整、结构一致
 
 ## 🔍 分析方法
@@ -232,5 +269,6 @@ Markdown 报告要求包含：
 - 架构模式推断必须列出判定依据
 - 规模统计遵循排除规则，保持可复现
 - 不记录和不输出任何密钥/凭据内容
+- 禁止读取锁定文件（package-lock.json、pnpm-lock.yaml、yarn.lock、poetry.lock、go.sum）
 - 严禁上传外部网络收集数据，除非显式允许
 - 输出需稳定、可重复，避免非确定性行为
