@@ -40,7 +40,7 @@ enhancements:
 
 # 输出配置
 output:
-  directory: wikirepo-v1/
+  directory: repowiki-v1/
   format: markdown       # markdown/html/pdf
   template: auto         # 自动选择模板
 ```
@@ -119,7 +119,7 @@ output:
 - 提供清晰的导航和交叉引用
 - 确保技术术语准确，解释通俗易懂
 - 根据目标平台调整格式和语法
-- 输出到当前项目 wikirepo-v1 目录
+- 输出到当前项目 repowiki-v1 目录
 
 ## 质量控制
 
@@ -136,8 +136,8 @@ output:
 
 ## 输入/输出契约
 - 支持体积 ≤500MB、文件数 ≤10k 的 Git 仓库；
-- 输出目录固定为 `wikirepo-v1/`，含 `index.md`、`sidebar.yaml`、模块子目录；
-- 所有图片/图表统一放 `wikirepo-v1/assets/`，使用相对引用。
+- 输出目录固定为 `repowiki-v1/`，含 `index.md`、`sidebar.yaml`、模块子目录；
+- 所有图片/图表统一放 `repowiki-v1/assets/`，使用相对引用。
 
 ## 异常与重试
 | 错误码 | 场景 | 用户提示 |
@@ -154,4 +154,4 @@ output:
 ## 性能策略
 - 全量分析默认超时 5min；
 - 支持 `--refresh` 刷新，仅重新生成变更文件，基于 commit 差异；
-- 输出 `.wikirepo-v1.log` 供排查。
+- 输出 `.repowiki-v1.log` 供排查。

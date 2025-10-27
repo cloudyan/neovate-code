@@ -137,7 +137,7 @@ chart_ratio=$((chart_count * 100 / text_lines))
 
 ```bash
 # 快速评估 (默认)
-/wiki-assess ./wikirepo
+/repowiki-assess ./repowiki
 
 # 输出:
 # 快速评估结果
@@ -152,7 +152,7 @@ chart_ratio=$((chart_count * 100 / text_lines))
 # 耗时: 2.3s
 
 # 详细评估
-/wiki-assess ./wikirepo --detailed
+/repowiki-assess ./repowiki --detailed
 ```
 
 ## 核心职责

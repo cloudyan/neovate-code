@@ -13,7 +13,7 @@
 ### 1. Next.js 项目结构
 
 ```
-wikirepo/
+repowiki/
 ├── 01-overview.md
 ├── 02-tech-stack.md
 ├── 03-quick-start.md
@@ -43,7 +43,7 @@ wikirepo/
 
 ### 2. NestJS 项目结构
 ```
-wikirepo/
+repowiki/
 ├── 01-overview.md
 ├── 02-tech-stack.md
 ├── 03-quick-start.md
@@ -72,7 +72,7 @@ wikirepo/
 
 ### 3. CLI 工具项目结构
 ```
-wikirepo/
+repowiki/
 ├── 01-overview.md
 ├── 02-installation.md
 ├── 03-quick-start.md
