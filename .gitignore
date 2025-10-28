@@ -13,6 +13,10 @@
 .takumi/todos
 /tmp
 /.conductor
+/scripts/unused-analysis.json
+
+
+
 
 extracted-resumes
 evaluations
@@ -20,3 +24,4 @@ apps
 
 /repowiki
 /repowiki-*
+

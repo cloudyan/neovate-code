@@ -1,12 +1,19 @@
-import { Agent, Runner, type SystemMessageItem } from '@openai/agents';
+import type {
+  LanguageModelV2,
+  LanguageModelV2Message,
+  LanguageModelV2Prompt,
+} from '@ai-sdk/provider';
 import createDebug from 'debug';
 import { At } from './at';
 import { History, type OnMessage } from './history';
-import type { NormalizedMessage, ToolUsePart } from './message';
+import type {
+  AssistantContent,
+  NormalizedMessage,
+  ToolUsePart,
+} from './message';
 import type { ModelInfo } from './model';
 import type { ToolResult, Tools, ToolUse } from './tool';
 import { Usage } from './usage';
-import { parseMessage } from './utils/parse-message';
 import { randomUUID } from './utils/randomUUID';
 
 const DEFAULT_MAX_TURNS = 50;
@@ -140,58 +147,51 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
     }
     lastUsage.reset();
 
-    // 创建 Runner 实例, 作为模型提供者的包装器
-    const runner = new Runner({
-      modelProvider: {
-        getModel() {
-          return opts.model.aisdk;
-        },
-      },
-    });
-    // Agent 实例, 配置了系统提示词和工具描述
-    const agent = new Agent({
-      name: 'code',
-      model: opts.model.model.id, // 如: qwen-coder
-      instructions: `
-${opts.systemPrompt || ''}
-${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
-      `,
-    });
-
-    // 构建完整的输入上下文
+    const systemPromptMessage = {
+      role: 'system',
+      content: opts.systemPrompt || '',
+    } as LanguageModelV2Message;
     const llmsContexts = opts.llmsContexts || [];
     const llmsContextMessages = llmsContexts.map((llmsContext) => {
       return {
         role: 'system',
         content: llmsContext,
-      } as SystemMessageItem;
+      } as LanguageModelV2Message;
     });
-    // 包含: LLM 上下文消息 && 历史对话记录
-    let agentInput = [...llmsContextMessages, ...history.toAgentInput()];
+    let prompt: LanguageModelV2Prompt = [
+      systemPromptMessage,
+      ...llmsContextMessages,
+      ...history.toLanguageV2Messages(),
+    ];
+
     if (shouldAtNormalize) {
       // add file and directory contents for the last user prompt
-      agentInput = At.normalize({
-        input: agentInput,
+      prompt = At.normalizeLanguageV2Prompt({
+        input: prompt,
         cwd: opts.cwd,
       });
       shouldAtNormalize = false;
     }
     const requestId = randomUUID();
-
-    // 执行 AI 调用
-    const result = await runner.run(agent, agentInput, {
-      stream: true, // 启用流式响应
-      signal: abortController.signal, // 支持取消操作
+    const m: LanguageModelV2 = opts.model.m;
+    const result = await m.doStream({
+      prompt: prompt,
+      tools: opts.tools.toLanguageV2Tools(),
+      abortSignal: abortController.signal,
     });
 
     let text = '';
-    let textBuffer = '';
-    let hasToolUse = false;
+    let reasoning = '';
+
+    const toolCalls: Array<{
+      toolCallId: string;
+      toolName: string;
+      input: string;
+    }> = [];
 
     // 采用事件流模式处理 AI 响应
     try {
-      for await (const chunk of result.toStream()) {
-        // 检查取消信号
+      for await (const chunk of result.stream) {
         if (opts.signal?.aborted) {
           return createCancelError();
         }
@@ -199,49 +199,30 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
         // Call onChunk for all chunks
         await opts.onChunk?.(chunk, requestId);
 
-        if (
-          chunk.type === 'raw_model_stream_event' &&
-          chunk.data.type === 'model'
-        ) {
-          // 处理不同类型的事件
-          switch (chunk.data.event.type) {
-            case 'text-delta': {
-              // 文本增量: 实时显示生成内容
-              const textDelta = chunk.data.event.delta; // 当前单个文本增量
-              textBuffer += textDelta; // 缓冲区中的完整累积文本
-              text += textDelta;
-
-              // XML 标签完整性检查，避免解析错误
-              // Check if the current text has incomplete XML tags
-              if (hasIncompleteXmlTag(text)) {
-                continue; // 等待完整标签(文本会被累积到 textBuffer)
-              }
-
-              // If we have buffered content, process it
-              if (textBuffer) {
-                await pushTextDelta(textBuffer, text, opts.onTextDelta);
-                textBuffer = '';
-              } else {
-                // TODO: why textBuffer is falsy ?
-                await pushTextDelta(textDelta, text, opts.onTextDelta);
-              }
-              break;
-            }
-            case 'reasoning':
-              // 推理过程: 展示 AI 思考过程
-              await opts.onReasoning?.(chunk.data.event.delta);
-              break;
-            case 'finish':
-              // 完成事件: 收集本轮用量使用统计
-              lastUsage = Usage.fromEventUsage(chunk.data.event.usage);
-              totalUsage.add(lastUsage); // 将本轮用量累加到总用量
-              break;
-            default:
-              // console.log('Unknown event:', chunk.data.event);
-              break;
+        switch (chunk.type) {
+          case 'text-delta': {
+            const textDelta = chunk.delta;
+            text += textDelta;
+            await opts.onTextDelta?.(textDelta);
+            break;
           }
-        } else {
-          // console.log('Unknown chunk:', chunk);
+          case 'reasoning-delta':
+            reasoning += chunk.delta;
+            break;
+          case 'tool-call':
+            toolCalls.push({
+              toolCallId: chunk.toolCallId,
+              toolName: chunk.toolName,
+              input: chunk.input,
+            });
+            break;
+          case 'finish':
+            lastUsage = Usage.fromEventUsage(chunk.usage);
+            totalUsage.add(lastUsage);
+            break;
+          default:
+            // console.log('Unknown event:', chunk.data.event);
+            break;
         }
       }
     } catch (error: any) {
@@ -267,39 +248,10 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
       return createCancelError();
     }
 
-    // Handle any remaining buffered content
-    // TODO: why have textBuffer here?
-    if (textBuffer) {
-      await pushTextDelta(textBuffer, text, opts.onTextDelta);
-      textBuffer = '';
+    await opts.onText?.(text);
+    if (reasoning) {
+      await opts.onReasoning?.(reasoning);
     }
-
-    // Only accept one tool use per message
-    // TODO: fix this...
-    const parts = text.split('</use_tool>');
-    if (parts.length > 2 && result.history.length > 0) {
-      const lastEntry = result.history[result.history.length - 1];
-      if (
-        lastEntry.type === 'message' &&
-        lastEntry.content &&
-        lastEntry.content[0]
-      ) {
-        text = parts[0] + '</use_tool>';
-        (lastEntry.content[0] as any).text = text;
-      }
-    }
-
-    const parsed = parseMessage(text);
-    if (parsed[0]?.type === 'text') {
-      await opts.onText?.(parsed[0].content);
-      finalText = parsed[0].content;
-    }
-    parsed.forEach((item) => {
-      if (item.type === 'tool_use') {
-        const callId = randomUUID();
-        item.callId = callId;
-      }
-    });
 
     const endTime = new Date();
     opts.onTurn?.({
@@ -308,37 +260,46 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
       endTime,
     });
     const model = `${opts.model.provider.id}/${opts.model.model.id}`;
+    const assistantContent: AssistantContent = [];
+    if (reasoning) {
+      assistantContent.push({
+        type: 'reasoning',
+        text: reasoning,
+      });
+    }
+    if (text) {
+      finalText = text;
+      assistantContent.push({
+        type: 'text',
+        text: text,
+      });
+    }
+    for (const toolCall of toolCalls) {
+      const tool = opts.tools.get(toolCall.toolName);
+      const input = JSON.parse(toolCall.input);
+      const description = tool?.getDescription?.({
+        params: input,
+        cwd: opts.cwd,
+      });
+      const displayName = tool?.displayName;
+      const toolUse: ToolUsePart = {
+        type: 'tool_use',
+        id: toolCall.toolCallId,
+        name: toolCall.toolName,
+        input: input,
+      };
+      if (description) {
+        toolUse.description = description;
+      }
+      if (displayName) {
+        toolUse.displayName = displayName;
+      }
+      assistantContent.push(toolUse);
+    }
     await history.addMessage(
       {
         role: 'assistant',
-        content: parsed.map((item) => {
-          if (item.type === 'text') {
-            return {
-              type: 'text',
-              text: item.content,
-            };
-          } else {
-            const tool = opts.tools.get(item.name);
-            const description = tool?.getDescription?.({
-              params: item.params,
-              cwd: opts.cwd,
-            });
-            const displayName = tool?.displayName;
-            const toolUse: ToolUsePart = {
-              type: 'tool_use',
-              id: item.callId!,
-              name: item.name,
-              input: item.params,
-            };
-            if (description) {
-              toolUse.description = description;
-            }
-            if (displayName) {
-              toolUse.displayName = displayName;
-            }
-            return toolUse;
-          }
-        }),
+        content: assistantContent,
         text,
         model,
         usage: {
@@ -348,11 +309,17 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
       },
       requestId,
     );
+    if (!toolCalls.length) {
+      break;
+    }
 
-    // 查找工具调用
-    let toolUse = parsed.find((item) => item.type === 'tool_use') as ToolUse;
-    if (toolUse) {
-      // 1. 工具使用前处理
+    const toolResults: any[] = [];
+    for (const toolCall of toolCalls) {
+      let toolUse: ToolUse = {
+        name: toolCall.toolName,
+        params: JSON.parse(toolCall.input),
+        callId: toolCall.toolCallId,
+      };
       if (opts.onToolUse) {
         toolUse = await opts.onToolUse(toolUse as ToolUse);
       }
@@ -370,18 +337,11 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
         if (opts.onToolResult) {
           toolResult = await opts.onToolResult(toolUse, toolResult, approved);
         }
-        // 更新历史
-        await history.addMessage({
-          role: 'user',
-          content: [
-            {
-              type: 'tool_result',
-              id: toolUse.callId,
-              name: toolUse.name,
-              input: toolUse.params,
-              result: toolResult,
-            },
-          ],
+        toolResults.push({
+          toolCallId: toolUse.callId,
+          toolName: toolUse.name,
+          input: toolUse.params,
+          result: toolResult,
         });
         // Prevent normal turns from being terminated due to exceeding the limit
         turnsCount--;
@@ -395,18 +355,24 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
         if (opts.onToolResult) {
           toolResult = await opts.onToolResult(toolUse, toolResult, approved);
         }
-        await history.addMessage({
-          role: 'user',
-          content: [
-            {
-              type: 'tool_result',
-              id: toolUse.callId,
-              name: toolUse.name,
-              input: toolUse.params,
-              result: toolResult,
-            },
-          ],
+        toolResults.push({
+          toolCallId: toolUse.callId,
+          toolName: toolUse.name,
+          input: toolUse.params,
+          result: toolResult,
         });
+        await history.addMessage({
+          role: 'tool',
+          content: toolResults.map((tr) => {
+            return {
+              type: 'tool-result',
+              toolCallId: tr.toolCallId,
+              toolName: tr.toolName,
+              input: tr.input,
+              result: tr.result,
+            };
+          }),
+        } as any);
         return {
           success: false,
           error: {
@@ -420,10 +386,20 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
           },
         };
       }
-      hasToolUse = true;
     }
-    if (!hasToolUse) {
-      break;
+    if (toolResults.length) {
+      await history.addMessage({
+        role: 'tool',
+        content: toolResults.map((tr) => {
+          return {
+            type: 'tool-result',
+            toolCallId: tr.toolCallId,
+            toolName: tr.toolName,
+            input: tr.input,
+            result: tr.result,
+          };
+        }),
+      } as any);
     }
   }
   const duration = Date.now() - startTime;
@@ -440,60 +416,4 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
       duration,
     },
   };
-}
-
-// 定义不完整标签模式
-const INCOMPLETE_PATTERNS = [
-  '<use_tool',
-  '<tool_name',
-  '<arguments',
-  '</use_tool',
-  '</tool_name',
-  '</arguments',
-];
-
-// 检查文本末尾是否存在未闭合的 XML 标签
-function hasIncompleteXmlTag(text: string): boolean {
-  // 截取末尾文本（15 个字符）
-  text = text.slice(-15);
-
-  // 多层次匹配检测
-  for (const pattern of INCOMPLETE_PATTERNS) {
-    // 1. 完全匹配：文本末尾完全匹配某个不完整模式
-    if (text.endsWith(pattern)) {
-      return true;
-    }
-    // 2. 前缀匹配：当文本比模式短时，检查是否为模式的开头部分
-    if (text.length < pattern.length) {
-      if (
-        pattern.startsWith(text.slice(-Math.min(text.length, pattern.length)))
-      ) {
-        return true;
-      }
-    } else {
-      // 3. 部分匹配：逐字符检查是否存在部分匹配
-      const maxCheck = Math.min(pattern.length - 1, text.length);
-      for (let i = 1; i <= maxCheck; i++) {
-        if (text.slice(-i) === pattern.slice(0, i)) {
-          return true;
-        }
-      }
-    }
-  }
-  return false;
-}
-
-// 有条件地推送文本增量
-// 只在特定条件下将文本片段推送给回调函数，避免推送不合适的文本内容
-async function pushTextDelta(
-  content: string, // 要推送的文本内容
-  text: string, // 完整的当前文本
-  onTextDelta?: (text: string) => Promise<void>, // 文本增量回调
-): Promise<void> {
-  const parsed = parseMessage(text);
-
-  // 只有当解析结果为文本类型且标记为部分文本(流式输出中)时才推送
-  if (parsed[0]?.type === 'text' && parsed[0].partial) {
-    await onTextDelta?.(content);
-  }
 }

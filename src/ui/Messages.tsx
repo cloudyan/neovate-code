@@ -1,6 +1,6 @@
 import { Box, Static, Text } from 'ink';
 import pc from 'picocolors';
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import type {
   AssistantMessage,
   NormalizedMessage,
@@ -16,6 +16,8 @@ import {
   getMessageText,
   isCanceledMessage,
   isToolResultMessage,
+  isUserBashCommandMessage,
+  isUserBashOutputMessage,
   toolResultPart2ToToolResultPart,
 } from '../message';
 import { SPACING, UI_COLORS } from './constants';
@@ -30,6 +32,54 @@ interface EnrichedProvider {
   name: string;
   validEnvs?: string[];
   hasApiKey?: boolean;
+}
+
+function BashCommandMessage({ message }: { message: UserMessage }) {
+  const command = useMemo(() => {
+    if (typeof message.content !== 'string') return '';
+    return message.content.replace(/<\/?bash-input>/g, '');
+  }, [message.content]);
+  return (
+    <Box
+      flexDirection="column"
+      marginTop={SPACING.MESSAGE_MARGIN_TOP}
+      marginLeft={SPACING.MESSAGE_MARGIN_LEFT_USER}
+    >
+      <Box>
+        <Text color={UI_COLORS.CHAT_BORDER_BASH} bold>
+          !{' '}
+        </Text>
+        <Text bold color={UI_COLORS.TOOL}>
+          {command}
+        </Text>
+      </Box>
+    </Box>
+  );
+}
+
+function BashOutputMessage({ message }: { message: NormalizedMessage }) {
+  const isError = useMemo(() => {
+    if (typeof message.content !== 'string') return false;
+    return message.content.startsWith('<bash-stderr>');
+  }, [message.content]);
+
+  const output = useMemo(() => {
+    if (message.uiContent) {
+      return message.uiContent.replace(/^\n/, '');
+    }
+    if (typeof message.content !== 'string') return '';
+    return message.content
+      .replace(/<\/?bash-stdout>/g, '')
+      .replace(/<\/?bash-stderr>/g, '');
+  }, [message.content, message.uiContent]);
+
+  return (
+    <Box flexDirection="column" marginLeft={SPACING.MESSAGE_MARGIN_LEFT_USER}>
+      <Text color={isError ? UI_COLORS.ERROR : UI_COLORS.TOOL_RESULT}>
+        ↳ {output}
+      </Text>
+    </Box>
+  );
 }
 
 type ToolPair = {
@@ -143,7 +193,7 @@ export function pairToolsWithResults(
 }
 
 export function Messages() {
-  const { messages, productName, sessionId } = useAppStore();
+  const { userName, messages, productName, sessionId } = useAppStore();
 
   // Split messages into completed and pending
   const { completedMessages, pendingMessages } = useMemo(
@@ -165,6 +215,7 @@ export function Messages() {
               message={item}
               messages={completedMessages}
               productName={productName}
+              userName={userName}
             />
           );
         }}
@@ -177,6 +228,7 @@ export function Messages() {
           message={message}
           messages={pendingMessages}
           productName={productName}
+          userName={userName}
         />
       ))}
     </Box>
@@ -317,7 +369,13 @@ function Header() {
   );
 }
 
-function User({ message }: { message: UserMessage }) {
+function User({
+  message,
+  userName,
+}: {
+  message: UserMessage;
+  userName: string;
+}) {
   const text = getMessageText(message);
   const isCanceled = isCanceledMessage(message);
   if (message.hidden) {
@@ -330,13 +388,13 @@ function User({ message }: { message: UserMessage }) {
       marginLeft={SPACING.MESSAGE_MARGIN_LEFT_USER}
     >
       <Text bold color={UI_COLORS.USER}>
-        user
+        {userName}
       </Text>
       {isCanceled ? (
         <Text color={UI_COLORS.CANCELED}>User canceled the request</Text>
       ) : (
         <Box>
-          <Text backgroundColor="#e0e0e0" color="#000000">
+          <Text backgroundColor="#555555" color="#cdcdcd">
             {text}{' '}
           </Text>
         </Box>
@@ -572,16 +630,28 @@ type MessageGroupProps = {
   message: NormalizedMessage;
   messages: NormalizedMessage[];
   productName: string;
+  userName: string;
 };
 
-function MessageGroup({ message, messages, productName }: MessageGroupProps) {
+function MessageGroup({
+  message,
+  messages,
+  productName,
+  userName,
+}: MessageGroupProps) {
   // If it's a user message
   if (message.role === 'user') {
+    if (isUserBashCommandMessage(message)) {
+      return <BashCommandMessage message={message as UserMessage} />;
+    } else if (isUserBashOutputMessage(message)) {
+      return <BashOutputMessage message={message as NormalizedMessage} />;
+    }
+
     const isToolResult = isToolResultMessage(message);
     if (isToolResult) {
       return <ToolResult message={message as ToolMessage} />;
     }
-    return <User message={message as UserMessage} />;
+    return <User message={message as UserMessage} userName={userName} />;
   }
 
   // If it's a tool message (already paired in assistant, skip rendering)

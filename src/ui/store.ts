@@ -19,6 +19,7 @@ import { Upgrade, type UpgradeOptions } from '../upgrade';
 import { setTerminalTitle } from '../utils/setTerminalTitle';
 import { clearTerminal } from '../utils/terminal';
 import { countTokens } from '../utils/tokenCounter';
+import { getUsername } from '../utils/username';
 import { detectImageFormat } from './TextInput/utils/imagePaste';
 
 export type ApprovalResult =
@@ -33,9 +34,7 @@ type AppStatus =
   | 'processing'
   | 'planning'
   | 'plan_approving'
-  // | 'plan_approved'
   | 'tool_approving'
-  // | 'tool_approved'
   | 'tool_executing'
   | 'compacting'
   | 'failed'
@@ -43,16 +42,6 @@ type AppStatus =
   | 'slash_command_executing'
   | 'help'
   | 'exit';
-
-const APP_STATUS_MESSAGES = {
-  processing: 'Processing...',
-  planning: 'Planning...',
-  plan_approving: 'Waiting for plan approval...',
-  tool_approving: 'Waiting for tool approval...',
-  tool_executing: 'Executing tool...',
-  failed: 'Failed',
-  cancelled: 'Cancelled',
-};
 
 function isExecuting(status: AppStatus) {
   return (
@@ -67,6 +56,7 @@ interface AppState {
   bridge: UIBridge;
 
   cwd: string;
+  userName: string;
   productName: string;
   productASCIIArt: string;
   version: string;
@@ -178,6 +168,7 @@ interface AppActions {
   processQueuedMessages: () => Promise<void>;
   toggleDebugMode: () => void;
   setStatus: (status: AppStatus) => void;
+  setBashMode: (bashMode: boolean) => void;
 
   // Input state actions
   setInputValue: (value: string) => void;
@@ -272,6 +263,7 @@ export const useAppStore = create<AppStore>()(
           approvalMode: response.data.approvalMode,
           pastedTextMap: response.data.pastedTextMap || {},
           pastedImageMap: response.data.pastedImageMap || {},
+          userName: getUsername() ?? 'user',
           // theme: 'light',
         });
 
@@ -484,6 +476,55 @@ export const useAppStore = create<AppStore>()(
             };
             get().addMessage(userMessage);
           }
+          return;
+        }
+
+        // Check if message is a bash command
+        if (expandedMessage.startsWith('!')) {
+          const command = expandedMessage.slice(1).trim();
+          if (!command) return;
+
+          set({
+            status: 'processing',
+          });
+
+          // Add bash command message
+          const bashCommandMsg: Message = {
+            role: 'user',
+            content: `<bash-input>${command}</bash-input>`,
+          };
+
+          await bridge.request('session.addMessages', {
+            cwd,
+            sessionId,
+            messages: [bashCommandMsg],
+          });
+
+          // Execute command via bash tool
+          const result = await bridge.request('utils.tool.executeBash', {
+            cwd,
+            command,
+          });
+
+          // Add output message
+          const bashOutputMsg = {
+            role: 'user',
+            uiContent: result.data.returnDisplay,
+            content: result.data.isError
+              ? `<bash-stderr>${result.data.llmContent}</bash-stderr>`
+              : `<bash-stdout>${result.data.llmContent}</bash-stdout>`,
+          };
+
+          await bridge.request('session.addMessages', {
+            cwd,
+            sessionId,
+            messages: [bashOutputMsg],
+          });
+
+          set({
+            status: 'idle',
+          });
+
           return;
         } else {
           // Use store's current model for regular message sending
@@ -879,6 +920,10 @@ export const useAppStore = create<AppStore>()(
 
       setStatus: (status: AppStatus) => {
         set({ status });
+      },
+
+      setBashMode: (bashMode: boolean) => {
+        set({ bashMode });
       },
 
       // Input state actions

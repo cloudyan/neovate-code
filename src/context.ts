@@ -17,6 +17,7 @@ import fs from 'fs';
 import { createJiti } from 'jiti';
 import path from 'pathe';
 import resolve from 'resolve';
+import { BackgroundTaskManager } from './backgroundTaskManager';
 import { type Config, ConfigManager } from './config';
 import { MCPManager } from './mcp';
 import { Paths } from './paths';
@@ -41,6 +42,7 @@ type ContextOpts = {
   paths: Paths; // 路径管理器
   argvConfig: Record<string, any>; // 原始命令行参数
   mcpManager: MCPManager; // MCP 服务器管理器
+  backgroundTaskManager: BackgroundTaskManager;
 };
 
 /**
@@ -92,6 +94,7 @@ export class Context {
   #pluginManager: PluginManager; // 插件管理器（私有），通过 apply() 访问
   argvConfig: Record<string, any>; // 原始命令行参数，某些场景需要区分命令行配置
   mcpManager: MCPManager; // MCP 服务器管理器，管理外部工具集成
+  backgroundTaskManager: BackgroundTaskManager; // 后台任务管理器，处理异步任务和定时任务
 
   /**
    * 构造函数（私有设计）
@@ -109,6 +112,7 @@ export class Context {
     this.mcpManager = opts.mcpManager;
     this.#pluginManager = opts.pluginManager;
     this.argvConfig = opts.argvConfig;
+    this.backgroundTaskManager = opts.backgroundTaskManager;
   }
 
   /**
@@ -283,6 +287,7 @@ export class Context {
     };
     // 创建 MCP 管理器（不立即连接，延迟到使用时）
     const mcpManager = MCPManager.create(mcpServers);
+    const backgroundTaskManager = new BackgroundTaskManager();
 
     // 步骤 8: 创建最终的 Context 实例
     return new Context({
@@ -295,6 +300,7 @@ export class Context {
       config: resolvedConfig, // 使用经过插件处理的配置
       paths,
       mcpManager,
+      backgroundTaskManager,
     });
   }
 }

@@ -2,12 +2,6 @@ import type {
   LanguageModelV2Message,
   LanguageModelV2ToolResultPart,
 } from '@ai-sdk/provider';
-import type {
-  AgentInputItem,
-  AssistantMessageItem,
-  SystemMessageItem,
-  UserMessageItem,
-} from '@openai/agents';
 import createDebug from 'debug';
 import { COMPACT_MESSAGE, compact } from './compact';
 import { MIN_TOKEN_THRESHOLD } from './constants';
@@ -18,10 +12,8 @@ import type {
   UserContent,
 } from './message';
 import type { ModelInfo } from './model';
-import type { ToolResult } from './tool';
 import { Usage } from './usage';
 import { randomUUID } from './utils/randomUUID';
-import { safeStringify } from './utils/safeStringify';
 
 export type OnMessage = (message: NormalizedMessage) => Promise<void>;
 export type HistoryOpts = {
@@ -79,93 +71,6 @@ export class History {
 
     // Filter messages to keep only those in the path, maintaining order
     return this.messages.filter((msg) => pathUuids.has(msg.uuid));
-  }
-
-  // 将历史消息转换为 AI 模型可以理解的输入格式
-  // 1. 格式转换：将内部的 NormalizedMessage 格式转换为 @openai/agents 库要求的 AgentInputItem 格式
-  // 2. 角色映射：将消息按角色（user、assistant、system）转换为对应的输入项类型
-  // 3. 内容处理
-  toAgentInput(): AgentInputItem[] {
-    return this.messages.map((message) => {
-      if (message.role === 'user') {
-        // 1. 对于用户消息，处理工具结果、文本和图像内容
-        const content = (() => {
-          let content: any = message.content;
-          if (!Array.isArray(content)) {
-            content = [
-              {
-                type: 'input_text',
-                text: content,
-              },
-            ];
-          }
-          content = content.flatMap((part: any) => {
-            if (part.type === 'tool_result') {
-              // 工具结果格式化：将工具调用结果包装成特定的 XML 格式，便于 AI 理解
-              const result = part.result as ToolResult;
-              const llmContent = result.llmContent;
-              const formatText = (text: string) => {
-                return {
-                  type: 'input_text',
-                  text: `[${part.name} for ${safeStringify(part.input)}] result: \n<function_results>\n${text}\n</function_results>`,
-                };
-              };
-              if (typeof llmContent === 'string') {
-                return formatText(llmContent);
-              } else {
-                return llmContent.map((part) => {
-                  if (part.type === 'text') {
-                    return formatText(part.text);
-                  } else {
-                    return {
-                      type: 'input_image',
-                      image: part.data,
-                      providerData: { mime_type: part.mimeType },
-                    };
-                  }
-                });
-              }
-            } else if (part.type === 'text') {
-              return [{ type: 'input_text', text: part.text }];
-            } else if (part.type === 'image') {
-              return [
-                {
-                  type: 'input_image',
-                  image: part.data,
-                  providerData: { mime_type: part.mimeType },
-                },
-              ];
-            } else {
-              return [part];
-            }
-          });
-          return content;
-        })();
-        return {
-          role: 'user',
-          content,
-        } as UserMessageItem;
-      } else if (message.role === 'assistant') {
-        // 2. 对于助手消息，提取文本内
-        return {
-          role: 'assistant',
-          content: [
-            {
-              type: 'output_text',
-              text: message.text,
-            },
-          ],
-        } as AssistantMessageItem;
-      } else if (message.role === 'system') {
-        // 3. 对于系统消息，直接使用内容
-        return {
-          role: 'system',
-          content: message.content,
-        } as SystemMessageItem;
-      } else {
-        throw new Error(`Unsupported message role: ${message}.`);
-      }
-    });
   }
 
   toLanguageV2Messages(): LanguageModelV2Message[] {
