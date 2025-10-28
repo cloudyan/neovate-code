@@ -1,4 +1,8 @@
 import type {
+  LanguageModelV2Message,
+  LanguageModelV2ToolResultPart,
+} from '@ai-sdk/provider';
+import type {
   AgentInputItem,
   AssistantMessageItem,
   SystemMessageItem,
@@ -7,7 +11,12 @@ import type {
 import createDebug from 'debug';
 import { COMPACT_MESSAGE, compact } from './compact';
 import { MIN_TOKEN_THRESHOLD } from './constants';
-import type { Message, NormalizedMessage } from './message';
+import type {
+  Message,
+  NormalizedMessage,
+  ToolResultPart2,
+  UserContent,
+} from './message';
 import type { ModelInfo } from './model';
 import type { ToolResult } from './tool';
 import { Usage } from './usage';
@@ -153,6 +162,112 @@ export class History {
           role: 'system',
           content: message.content,
         } as SystemMessageItem;
+      } else {
+        throw new Error(`Unsupported message role: ${message}.`);
+      }
+    });
+  }
+
+  toLanguageV2Messages(): LanguageModelV2Message[] {
+    return this.messages.map((message: NormalizedMessage) => {
+      if (message.role === 'user') {
+        const content = message.content as UserContent;
+        if (typeof content === 'string') {
+          return {
+            role: 'user',
+            content: [{ type: 'text', text: content }],
+          } as LanguageModelV2Message;
+        } else {
+          const normalizedContent = content.map((part: any) => {
+            if (part.type === 'text') {
+              return { type: 'text', text: part.text };
+            } else if (part.type === 'image') {
+              const isBase64 = part.data.includes(';base64,');
+              const data = isBase64
+                ? part.data.split(';base64,')[1]
+                : part.data;
+              return {
+                type: 'file',
+                data,
+                mediaType: part.mimeType,
+              };
+            } else {
+              throw new Error(`Not implemented`);
+            }
+          });
+          return {
+            role: 'user',
+            content: normalizedContent,
+          } as LanguageModelV2Message;
+        }
+      } else if (message.role === 'assistant') {
+        if (typeof message.content === 'string') {
+          return {
+            role: 'assistant',
+            content: [{ type: 'text', text: message.content }],
+          } as LanguageModelV2Message;
+        } else {
+          const normalizedContent = message.content.map((part: any) => {
+            if (part.type === 'text') {
+              return { type: 'text', text: part.text };
+            } else if (part.type === 'reasoning') {
+              return { type: 'reasoning', text: part.text };
+            } else if (part.type === 'tool_use') {
+              return {
+                type: 'tool-call',
+                toolCallId: part.id,
+                toolName: part.name,
+                input: part.input,
+              };
+            } else {
+              throw new Error(`Not implemented`);
+            }
+          });
+          return {
+            role: 'assistant',
+            content: normalizedContent,
+          } as LanguageModelV2Message;
+        }
+      } else if (message.role === 'system') {
+        return {
+          role: 'system',
+          content: message.content,
+        };
+      } else if (message.role === 'tool') {
+        return {
+          role: 'tool',
+          content: message.content.map((part: ToolResultPart2) => {
+            const llmContent = part.result.llmContent;
+            const output = (() => {
+              if (typeof llmContent === 'string') {
+                return { type: 'text', value: llmContent };
+              } else if (Array.isArray(llmContent)) {
+                return {
+                  type: 'content',
+                  value: llmContent.map((part) => {
+                    if (part.type === 'text') {
+                      return { type: 'text', value: part.text };
+                    } else if (part.type === 'image') {
+                      const isBase64 = part.data.includes(';base64,');
+                      const data = isBase64
+                        ? part.data.split(';base64,')[1]
+                        : part.data;
+                      return { type: 'media', data, mediaType: part.mimeType };
+                    } else {
+                      throw new Error(`Not implemented`);
+                    }
+                  }),
+                };
+              }
+            })();
+            return {
+              type: 'tool-result',
+              toolCallId: part.toolCallId,
+              toolName: part.toolName,
+              output,
+            };
+          }) as LanguageModelV2ToolResultPart[],
+        } as LanguageModelV2Message;
       } else {
         throw new Error(`Unsupported message role: ${message}.`);
       }

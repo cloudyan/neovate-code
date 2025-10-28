@@ -812,6 +812,19 @@ export const models: ModelMap = {
     limit: { context: 128000, output: 32000 },
     capabilities: ['chat', 'fast'],
   },
+  'minimax-m2': {
+    name: 'Minimax-M2',
+    attachment: false,
+    reasoning: true,
+    temperature: true,
+    tool_call: true,
+    knowledge: '',
+    release_date: '2025-10-27',
+    last_updated: '2025-10-27',
+    modalities: { input: ['text'], output: ['text'] },
+    open_weights: true,
+    limit: { context: 196608, output: 64000 },
+  },
 };
 
 function getProviderBaseURL(provider: Provider) {
@@ -1075,6 +1088,7 @@ export const providers: ProvidersMap = {
       'z-ai/glm-4.5': models['glm-4.5'],
       'z-ai/glm-4.5v': models['glm-4.5v'],
       'z-ai/glm-4.6': models['glm-4.6'],
+      'minimax/minimax-m2:free': models['minimax-m2'],
     },
     createModel(name, provider) {
       const baseURL = getProviderBaseURL(provider);
@@ -1324,6 +1338,7 @@ export type ModelInfo = {
   provider: Provider;
   model: Omit<Model, 'cost'>;
   aisdk: AiSdkModel;
+  m: LanguageModelV2;
 };
 
 function mergeConfigProviders(
@@ -1483,14 +1498,19 @@ export async function resolveModel(
 
   // 4. 实例创建
   model.id = modelId;
-  let m = provider.createModel(modelId, provider, globalConfigDir);
+  let m: LanguageModelV2 | Promise<LanguageModelV2> = provider.createModel(
+    modelId,
+    provider,
+    globalConfigDir,
+  );
   if (isPromise(m)) {
     m = await m;
   }
   return {
     provider,
     model,
-    aisdk: aisdk(m as LanguageModelV2),
+    aisdk: aisdk(m),
+    m,
   };
 }
 

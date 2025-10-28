@@ -1,6 +1,8 @@
+import type { LanguageModelV2FunctionTool } from '@ai-sdk/provider';
 import { isZodObject } from '@openai/agents/utils';
 import path from 'pathe';
 import type { z } from 'zod';
+import * as zod from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import type { Context } from './context';
 import type { ImagePart, TextPart } from './message';
@@ -118,6 +120,21 @@ export class Tools {
       };
     }
     return await tool.execute(argsObj);
+  }
+
+  toLanguageV2Tools(): LanguageModelV2FunctionTool[] {
+    return Object.entries(this.tools).map(([key, tool]) => {
+      // parameters of mcp tools is not zod object
+      const isMCP = key.startsWith('mcp__');
+      const schema = isMCP ? tool.parameters : zodToJsonSchema(tool.parameters);
+      return {
+        type: 'function',
+        name: key,
+        description: tool.description,
+        inputSchema: schema,
+        providerOptions: {},
+      };
+    });
   }
 
   getToolsPrompt() {
@@ -260,13 +277,15 @@ type DiffViewerReturnDisplay = {
   [key: string]: any;
 };
 
+export type ReturnDisplay =
+  | string
+  | DiffViewerReturnDisplay
+  | TodoReadReturnDisplay
+  | TodoWriteReturnDisplay;
+
 export type ToolResult = {
   llmContent: string | (TextPart | ImagePart)[];
-  returnDisplay?:
-    | string
-    | DiffViewerReturnDisplay
-    | TodoReadReturnDisplay
-    | TodoWriteReturnDisplay;
+  returnDisplay?: ReturnDisplay;
   isError?: boolean;
 };
 
