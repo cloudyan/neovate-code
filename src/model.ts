@@ -1,3 +1,5 @@
+// https://ai-sdk.dev/providers/ai-sdk-providers
+// https://ai-sdk.dev/providers/ai-sdk-providers/openai
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
@@ -853,6 +855,7 @@ function getProviderApiKey(provider: Provider) {
   return '';
 }
 
+// 默认的模型创建函数，适用于大多数提供商
 export const defaultModelCreator = (
   name: string,
   provider: Provider,
