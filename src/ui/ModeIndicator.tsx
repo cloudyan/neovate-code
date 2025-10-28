@@ -13,15 +13,23 @@ export function ModeIndicator() {
   }
 
   // > 对话模式（默认）
-  // > Bash 模式（按 Esc 键退出）
-  //     默认模式 default mode (shift + tab to cycle)
-  //     自动接受编辑 accepting edits
   //     YOLO模式 YOLO mode
   //     计划模式 plan mode（按 Shift + Tab 切换）
-  // / 斜杠模式 slash mode
-  // ! shell 模式已启用 (按 Esc 键退出) shell mode enabled (esc to disable)
+  //     默认模式 default mode (shift + tab to cycle)
+  //     自动接受编辑 accepting edits
+  //     / 斜杠模式 slash mode
+  //     $ agents 模式（类似于斜杠模式）
+  // ! Bash 模式已启用 (按 Esc 键退出) bash mode enabled (esc to disable)
   // # memory 记忆模式已启用
-  // $ agents 模式
+
+  // ? for shortcuts
+  // ! for bash mode       double tap esc to clear input      ctrl + _ to undo
+  // / for commands        shift + tab to auto-accept edits   ctrl + z to suspend
+  // @ for file paths      ctrl + o for verbose output        ctrl + v to paste images
+  // # to memorize         ctrl + t to show todos
+  //                       tab to toggle thinking
+  //                       backslash (\) + return (⏎) for
+  //                       newline
 
   const text = planMode ? (
     <>
