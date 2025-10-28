@@ -1,7 +1,9 @@
 import type {
   LanguageModelV2,
+  LanguageModelV2FunctionTool,
   LanguageModelV2Message,
   LanguageModelV2Prompt,
+  SharedV2Headers,
 } from '@ai-sdk/provider';
 import createDebug from 'debug';
 import { At } from './at';
@@ -39,6 +41,24 @@ export type LoopResult =
       };
     };
 
+type StreamResultBase = {
+  requestId: string;
+  prompt: LanguageModelV2Prompt;
+  model: ModelInfo;
+  tools: LanguageModelV2FunctionTool[];
+};
+export type StreamResult = StreamResultBase & {
+  request?: {
+    body?: unknown;
+  };
+  response?: {
+    headers?: SharedV2Headers;
+    statusCode?: number;
+    body?: unknown;
+  };
+  error?: any;
+};
+
 type RunLoopOpts = {
   input: string | NormalizedMessage[]; // 用户输入消息
   model: ModelInfo; // AI 模型信息
@@ -52,6 +72,7 @@ type RunLoopOpts = {
   onTextDelta?: (text: string) => Promise<void>; // 文本增量回调
   onText?: (text: string) => Promise<void>; // 完整文本回调
   onReasoning?: (text: string) => Promise<void>; // 推理过程回调
+  onStreamResult?: (result: StreamResult) => Promise<void>;
   onChunk?: (chunk: any, requestId: string) => Promise<void>; // 原始数据块处理回调，当接收到响应数据块时触发
   onToolUse?: (toolUse: ToolUse) => Promise<ToolUse>; // 工具使用前
   onToolResult?: (
@@ -172,33 +193,39 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
       });
       shouldAtNormalize = false;
     }
-    const requestId = randomUUID();
-    const m: LanguageModelV2 = opts.model.m;
-    const result = await m.doStream({
-      prompt: prompt,
-      tools: opts.tools.toLanguageV2Tools(),
-      abortSignal: abortController.signal,
-    });
 
     let text = '';
     let reasoning = '';
-
     const toolCalls: Array<{
       toolCallId: string;
       toolName: string;
       input: string;
     }> = [];
 
-    // 采用事件流模式处理 AI 响应
+    const requestId = randomUUID();
+    const m: LanguageModelV2 = opts.model.m;
+    const tools = opts.tools.toLanguageV2Tools();
+
     try {
+      const result = await m.doStream({
+        prompt: prompt,
+        tools,
+        abortSignal: abortController.signal,
+      });
+      opts.onStreamResult?.({
+        requestId,
+        prompt,
+        model: opts.model,
+        tools,
+        request: result.request,
+        response: result.response,
+      });
+
       for await (const chunk of result.stream) {
         if (opts.signal?.aborted) {
           return createCancelError();
         }
-
-        // Call onChunk for all chunks
         await opts.onChunk?.(chunk, requestId);
-
         switch (chunk.type) {
           case 'text-delta': {
             const textDelta = chunk.delta;
@@ -221,11 +248,25 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
             totalUsage.add(lastUsage);
             break;
           default:
-            // console.log('Unknown event:', chunk.data.event);
             break;
         }
       }
     } catch (error: any) {
+      opts.onStreamResult?.({
+        requestId,
+        prompt,
+        model: opts.model,
+        tools,
+        response: {
+          statusCode: error.statusCode,
+          headers: error.responseHeaders,
+          body: error.responseBody,
+        },
+        error: {
+          data: error.data,
+          isRetryable: error.isRetryable,
+        },
+      });
       return {
         success: false,
         error: {
