@@ -13,7 +13,7 @@ import { shellExecute } from '../utils/shell-execution';
 
 const debug = createDebug('neovate:tools:bash');
 
-const BANNED_COMMANDS = [
+export const BANNED_COMMANDS = [
   'alias',
   'aria2c',
   'axel',
