@@ -25,9 +25,9 @@ export type LoopResult =
       success: true;
       data: Record<string, any>;
       metadata: {
-        turnsCount: number;
-        toolCallsCount: number;
-        duration: number;
+        turnsCount: number; // 交互论数
+        toolCallsCount: number; // 工具调用次数
+        duration: number; // 执行时长
       };
     }
   | {
@@ -40,32 +40,32 @@ export type LoopResult =
     };
 
 type RunLoopOpts = {
-  input: string | NormalizedMessage[];
-  model: ModelInfo;
-  tools: Tools;
-  cwd: string;
-  systemPrompt?: string;
-  maxTurns?: number;
-  signal?: AbortSignal;
-  llmsContexts?: string[];
-  autoCompact?: boolean;
-  onTextDelta?: (text: string) => Promise<void>;
-  onText?: (text: string) => Promise<void>;
-  onReasoning?: (text: string) => Promise<void>;
-  onChunk?: (chunk: any, requestId: string) => Promise<void>;
-  onToolUse?: (toolUse: ToolUse) => Promise<ToolUse>;
+  input: string | NormalizedMessage[]; // 用户输入消息
+  model: ModelInfo; // AI 模型信息
+  tools: Tools; // 工具管理器
+  cwd: string; // 工作目录
+  systemPrompt?: string; // 系统提示词
+  maxTurns?: number; // 最大交互轮数限制（默认 50）
+  signal?: AbortSignal; // 取消信号，用于中断操作
+  llmsContexts?: string[]; // AI 上下文（来自 LlmsContext）
+  autoCompact?: boolean; // 是否自动压缩历史消息
+  onTextDelta?: (text: string) => Promise<void>; // 文本增量回调
+  onText?: (text: string) => Promise<void>; // 完整文本回调
+  onReasoning?: (text: string) => Promise<void>; // 推理过程回调
+  onChunk?: (chunk: any, requestId: string) => Promise<void>; // 原始数据块处理回调，当接收到响应数据块时触发
+  onToolUse?: (toolUse: ToolUse) => Promise<ToolUse>; // 工具使用前
   onToolResult?: (
     toolUse: ToolUse,
     toolResult: ToolResult,
     approved: boolean,
-  ) => Promise<ToolResult>;
+  ) => Promise<ToolResult>; // 工具结果处理回调
   onTurn?: (turn: {
     usage: Usage;
     startTime: Date;
     endTime: Date;
-  }) => Promise<void>;
-  onToolApprove?: (toolUse: ToolUse) => Promise<boolean>;
-  onMessage?: OnMessage;
+  }) => Promise<void>; // 每轮交互结束回调，包含用量统计
+  onToolApprove?: (toolUse: ToolUse) => Promise<boolean>; // 工具审批回调，当需要审批工具调用时触发，返回是否批准
+  onMessage?: OnMessage; // 消息处理回调，当 AI 生成新消息时触发
 };
 
 // TODO: support retry

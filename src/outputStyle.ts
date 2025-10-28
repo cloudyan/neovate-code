@@ -185,8 +185,10 @@ export function loadPolishedMarkdownFiles(
   if (!fs.existsSync(dir)) {
     return [];
   }
+  const realDir = fs.realpathSync(dir); // 解析软链接
   const files = glob.sync('**/*.md', {
-    cwd: dir,
+    cwd: realDir,
+    // follow: true, // 对子目录中的软链接有效，但对 cwd 无效
   });
   return files.map((relativePath) => {
     const absPath = path.join(dir, relativePath);
