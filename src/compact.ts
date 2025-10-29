@@ -18,8 +18,12 @@ export async function compact(opts: CompactOptions): Promise<any> {
     model: opts.model,
   });
   if (result.success) {
+    const summary = result.data.text;
+    if (!summary || summary.trim() === '') {
+      throw new Error('Failed to compact: received empty summary from model');
+    }
     return {
-      summary: result.data.text,
+      summary: summary,
       usage: result.data.usage,
     };
   }
