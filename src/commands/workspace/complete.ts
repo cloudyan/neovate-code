@@ -11,10 +11,29 @@ import {
 } from '../../worktree';
 import { CompletionChoice } from './components';
 
+// 流程是：
+
+// 1. 检测工作区：从当前目录识别 Git worktree 信息
+// 2. 加载元数据：读取 .xxx-workspaces/.metadata 文件获取原始分支信息
+// 3. 检查未提交更改：如果工作区有未提交的更改则发出警告
+// 4. 显示完成选项：通过交互式界面提供三个选择：
+//     1. 合并到原始分支
+//     2. 创建 PR 到远程仓库
+//     3. 取消操作
+// 5. 执行合并操作（如果选择）：
+//     1. 调用 mergeWorktree 函数合并更改
+//     2. 从元数据中删除已完成的工作区记录
+//     3. 删除工作区目录和分支
+// 6. 执行 PR 操作（如果选择）：
+//     1. 推送工作区分支到远程仓库
+//     2. 使用 GitHub CLI 创建 PR
+//     3. 提示用户在 PR 合并后手动删除工作区
+
 const execAsync = promisify(exec);
 
 export async function runComplete(context: Context, argv: any) {
   const cwd = process.cwd();
+  const productName = context.productName.toLowerCase();
 
   try {
     // Detect worktree from current directory
@@ -23,7 +42,7 @@ export async function runComplete(context: Context, argv: any) {
 
     // Load metadata to get original branch
     const fs = await import('fs');
-    const metadataPath = `${gitRoot}/.${context.productName.toLowerCase()}-workspaces/.metadata`;
+    const metadataPath = `${gitRoot}/.${productName}-workspaces/.metadata`;
     let metadata: Record<string, any> = {};
     if (fs.existsSync(metadataPath)) {
       try {
@@ -113,9 +132,7 @@ export async function runComplete(context: Context, argv: any) {
               console.log(
                 `\nWorkspace '${worktree.name}' is still active. Delete it when PR is merged:`,
               );
-              console.log(
-                `  ${context.productName.toLowerCase()} workspace delete ${worktree.name}`,
-              );
+              console.log(`  ${productName} workspace delete ${worktree.name}`);
 
               process.exit(0);
             } catch (error: any) {

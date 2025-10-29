@@ -26,9 +26,7 @@ export async function runDelete(context: Context, argv: any) {
         name = worktree.name;
       } catch (error: any) {
         console.error(`Error: ${error.message}`);
-        console.log(
-          `\nUsage: ${context.productName.toLowerCase()} workspace delete <name>`,
-        );
+        console.log(`\nUsage: ${productName} workspace delete <name>`);
         process.exit(1);
       }
     }

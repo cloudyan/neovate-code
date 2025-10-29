@@ -13,6 +13,18 @@ import {
 } from '../../worktree';
 import { WorkspaceSuccessMessage } from './components';
 
+// 流程如下：
+
+// 1. 确保当前工作目录干净（没有未提交的更改）
+// 2. 检测主分支（如 master 或 main）
+// 3. 如果没有跳过更新标志，从远程更新主分支
+// 4. 获取当前分支作为原始分支保存
+// 5. 生成或使用提供的工作区名称
+// 6. 创建 Git worktree 工作区
+// 7. 保存工作区元数据到 .xxx-workspaces/.metadata 文件
+// 8. 将工作区添加到 Git 忽略列表
+// 9. 显示成功消息
+
 export async function runCreate(context: Context, argv: any) {
   const cwd = process.cwd();
   const productName = context.productName.toLowerCase();

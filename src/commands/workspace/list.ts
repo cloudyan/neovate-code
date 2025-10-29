@@ -34,7 +34,7 @@ export async function runList(context: Context, argv: any) {
     if (enrichedWorktrees.length === 0) {
       console.log('No active workspaces found.');
       console.log(
-        `\nCreate a new workspace with: ${context.productName.toLowerCase()} workspace create`,
+        `\nCreate a new workspace with: ${productName} workspace create`,
       );
       return;
     }
