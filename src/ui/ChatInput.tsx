@@ -72,6 +72,7 @@ export function ChatInput() {
     (val: string) => {
       if (mode === 'bash' || mode === 'memory') {
         const prefix = mode === 'bash' ? '!' : '#';
+        if (['!', '#'].includes(val)) return;
         handlers.handleChange(prefix + val);
       } else {
         handlers.handleChange(val);
