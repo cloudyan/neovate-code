@@ -147,6 +147,7 @@ type RunLoopOpts = {
   systemPrompt?: string;                 // 系统提示词
   llmsContexts?: string[];               // AI 上下文（来自 LlmsContext）
   maxTurns?: number;                     // 最大轮数（默认 50）
+  errorRetryTurns?: number;              // 错误重试次数（默认 10）
   autoCompact?: boolean;                 // 是否自动压缩历史
   signal?: AbortSignal;                  // 取消信号
 
@@ -154,6 +155,7 @@ type RunLoopOpts = {
   onTextDelta?: (text: string) => Promise<void>;           // 文本增量
   onText?: (text: string) => Promise<void>;                // 完整文本
   onReasoning?: (text: string) => Promise<void>;           // 推理过程
+  onStreamResult?: (result: StreamResult) => Promise<void>; // 流式结果（包含请求/响应元数据）
   onChunk?: (chunk: any, requestId: string) => Promise<void>;  // 原始 chunk
   onMessage?: OnMessage;                                   // 消息添加
   onToolUse?: (toolUse: ToolUse) => Promise<ToolUse>;     // 工具使用前
@@ -162,6 +164,36 @@ type RunLoopOpts = {
   onTurn?: (turn) => Promise<void>;                       // 每轮结束
 };
 ```
+
+### StreamResult（流式结果）
+
+```typescript
+type StreamResult = {
+  requestId: string;                           // 请求 ID
+  prompt: LanguageModelV2Prompt;               // 发送给模型的完整 prompt
+  model: ModelInfo;                            // 模型信息
+  tools: LanguageModelV2FunctionTool[];        // 可用工具列表
+  request?: {                                  // 请求信息
+    body?: unknown;
+  };
+  response?: {                                 // 响应信息
+    headers?: SharedV2Headers;
+    statusCode?: number;
+    body?: unknown;
+  };
+  error?: {                                    // 错误信息（如果有）
+    data: any;
+    isRetryable: boolean;                      // 是否可重试
+    retryAttempt: number;                      // 当前重试次数
+    maxRetries: number;                        // 最大重试次数
+  };
+};
+```
+
+**作用**：
+- 提供完整的请求/响应元数据
+- 用于日志记录、调试和监控
+- 包含重试相关信息
 
 ### LoopResult（返回结果）
 
@@ -242,105 +274,203 @@ while (true) {
 
   // =============== 2. 调用 AI ===============
 
-  // 2.1 创建 Runner 和 Agent
-  const runner = new Runner({
-    modelProvider: {
-      getModel() {
-        return opts.model.aisdk;
-      },
-    },
-  });
+  // 2.1 重置用量统计
+  lastUsage.reset();
 
-  const agent = new Agent({
-    name: 'code',
-    model: opts.model.model.id,
-    instructions: `
-${opts.systemPrompt || ''}
-${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
-    `,
-  });
-
-  // 2.2 准备输入
-  const llmsContextMessages = opts.llmsContexts.map(ctx => ({
+  // 2.2 构建系统提示和上下文消息
+  const systemPromptMessage = {
+    role: 'system',
+    content: opts.systemPrompt || '',
+  } as LanguageModelV2Message;
+  
+  const llmsContextMessages = (opts.llmsContexts || []).map(ctx => ({
     role: 'system',
     content: ctx,
-  }));
-  let agentInput = [...llmsContextMessages, ...history.toAgentInput()];
+  })) as LanguageModelV2Message[];
+  
+  let prompt: LanguageModelV2Prompt = [
+    systemPromptMessage,
+    ...llmsContextMessages,
+    ...history.toLanguageV2Messages(),
+  ];
 
-  // 2.3 处理 @file 和 @directory 引用（At.normalize）
+  // 2.3 处理 @file 和 @directory 引用（At.normalizeLanguageV2Prompt）
   if (shouldAtNormalize) {
-    agentInput = At.normalize({ input: agentInput, cwd: opts.cwd });
+    prompt = At.normalizeLanguageV2Prompt({
+      input: prompt,
+      cwd: opts.cwd,
+    });
     shouldAtNormalize = false;
   }
 
-  // 2.4 调用 AI（流式）
-  const result = await runner.run(agent, agentInput, {
-    stream: true,
-    signal: abortController.signal,
-  });
+  // 2.4 准备模型和工具
+  const requestId = randomUUID();
+  const m: LanguageModelV2 = opts.model.m;
+  const tools = opts.tools.toLanguageV2Tools();
+
+  // 2.5 重试机制
+  let retryCount = 0;
+  const errorRetryTurns = opts.errorRetryTurns ?? DEFAULT_ERROR_RETRY_TURNS;
+
+  while (retryCount <= errorRetryTurns) {
+    if (opts.signal?.aborted) {
+      return createCancelError();
+    }
+
+    try {
+      // 2.6 调用 AI（流式）
+      const result = await m.doStream({
+        prompt: prompt,
+        tools,
+        toolChoice: { type: 'auto' },
+        abortSignal: abortController.signal,
+      });
 
   // =============== 3. 处理流式输出 ===============
 
+  // 3.1 调用 onStreamResult（成功情况）
+  opts.onStreamResult?.({
+    requestId,
+    prompt,
+    model: opts.model,
+    tools,
+    request: result.request,
+    response: result.response,
+  });
+
+  // 3.2 处理流式 chunk
   let text = '';
-  let textBuffer = '';
-  let hasToolUse = false;
+  let reasoning = '';
+  const toolCalls: Array<{
+    toolCallId: string;
+    toolName: string;
+    input: string;
+  }> = [];
 
-  try {
-    for await (const chunk of result.toStream()) {
-      // 检查取消
-      if (opts.signal?.aborted) {
-        return createCancelError();
-      }
-
-      // 调用 onChunk
-      await opts.onChunk?.(chunk, requestId);
-
-      // 处理不同类型的 chunk
-      if (chunk.type === 'raw_model_stream_event' &&
-          chunk.data.type === 'model') {
-        switch (chunk.data.event.type) {
-          case 'text-delta':
-            // 累积文本，处理不完整的 XML 标签
-            const textDelta = chunk.data.event.textDelta;
-            textBuffer += textDelta;
-            text += textDelta;
-
-            // 检查是否有不完整的 XML 标签
-            if (hasIncompleteXmlTag(text)) {
-              continue;  // 等待更多数据
-            }
-
-            // 推送文本增量
-            if (textBuffer) {
-              await pushTextDelta(textBuffer, text, opts.onTextDelta);
-              textBuffer = '';
-            }
-            break;
-
-          case 'reasoning':
-            // AI 的推理过程（Claude 支持）
-            await opts.onReasoning?.(chunk.data.event.textDelta);
-            break;
-
-          case 'finish':
-            // 使用统计
-            lastUsage = Usage.fromEventUsage(chunk.data.event.usage);
-            totalUsage.add(lastUsage);
-            break;
-        }
-      }
+  for await (const chunk of result.stream) {
+    // 检查取消
+    if (opts.signal?.aborted) {
+      return createCancelError();
     }
-  } catch (error) {
-    // API 错误处理
-    return {
-      success: false,
-      error: {
-        type: 'api_error',
-        message: error.message,
-        details: { code, status, url, error, stack },
-      },
-    };
+
+    // 调用 onChunk
+    await opts.onChunk?.(chunk, requestId);
+
+    // 处理不同类型的 chunk
+    switch (chunk.type) {
+      case 'text-delta': {
+        // 文本增量
+        const textDelta = chunk.delta;
+        text += textDelta;
+        await opts.onTextDelta?.(textDelta);
+        break;
+      }
+      case 'reasoning-delta':
+        // 推理过程（Claude 支持）
+        reasoning += chunk.delta;
+        break;
+      case 'tool-call':
+        // 工具调用
+        toolCalls.push({
+          toolCallId: chunk.toolCallId,
+          toolName: chunk.toolName,
+          input: chunk.input,
+        });
+        break;
+      case 'finish':
+        // 使用统计
+        lastUsage = Usage.fromEventUsage(chunk.usage);
+        totalUsage.add(lastUsage);
+        
+        // 检查空响应
+        if (toolCalls.length === 0 && text.trim() === '') {
+          const error = new Error('Empty response: no text or tool calls received');
+          (error as any).isRetryable = true;
+          throw error;
+        }
+        break;
+      case 'error': {
+        // 解析错误消息
+        const message = (() => {
+          if ((chunk as any).error.message) {
+            return (chunk as any).error.message;
+          }
+          try {
+            const message = JSON.parse(
+              (chunk as any).error.value?.details,
+            )?.error?.message;
+            if (message) {
+              return message;
+            }
+          } catch (_e) {}
+          return JSON.stringify(chunk.error);
+        })();
+        
+        const error = new Error(message);
+        (error as any).isRetryable = false;
+        const value = (chunk.error as any).value;
+        if (value) {
+          (error as any).statusCode = value?.status;
+        }
+        throw error;
+      }
+      default:
+        break;
+    }
   }
+
+      // 流式处理成功，退出重试循环
+      break;
+    } catch (error: any) {
+      // 调用 onStreamResult（失败情况）
+      opts.onStreamResult?.({
+        requestId,
+        prompt,
+        model: opts.model,
+        tools,
+        response: {
+          statusCode: error.statusCode,
+          headers: error.responseHeaders,
+          body: error.responseBody,
+        },
+        error: {
+          data: error.data || error.message,
+          isRetryable: error.isRetryable,
+          retryAttempt: retryCount,
+          maxRetries: errorRetryTurns,
+        },
+      });
+
+      // 判断是否可重试
+      if (error.isRetryable && retryCount < errorRetryTurns) {
+        retryCount++;
+        try {
+          // 指数退避
+          await exponentialBackoffWithCancellation(retryCount, opts.signal);
+        } catch {
+          return createCancelError();
+        }
+        continue;  // 继续重试
+      }
+
+      // 不可重试或超过重试次数，返回错误
+      return {
+        success: false,
+        error: {
+          type: 'api_error',
+          message: error instanceof Error ? error.message : 'Unknown streaming error',
+          details: {
+            code: error.data?.error?.code,
+            status: error.data?.error?.status,
+            url: error.url,
+            error,
+            stack: error.stack,
+            retriesAttempted: retryCount,
+          },
+        },
+      };
+    }
+  }  // 结束 while 重试循环
 
   // =============== 4. 解析和记录消息 ===============
 
@@ -379,66 +509,134 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
 
   // =============== 5. 处理工具调用 ===============
 
-  let toolUse = parsed.find(item => item.type === 'tool_use');
+  await opts.onText?.(text);
+  if (reasoning) {
+    await opts.onReasoning?.(reasoning);
+  }
 
-  if (toolUse) {
-    // 5.1 触发 onToolUse（插件可以修改）
+  // 5.1 构建 assistant 消息
+  const model = `${opts.model.provider.id}/${opts.model.model.id}`;
+  const assistantContent: AssistantContent = [];
+  
+  if (reasoning) {
+    assistantContent.push({ type: 'reasoning', text: reasoning });
+  }
+  if (text) {
+    finalText = text;
+    assistantContent.push({ type: 'text', text: text });
+  }
+  
+  // 5.2 添加工具调用信息
+  for (const toolCall of toolCalls) {
+    const tool = opts.tools.get(toolCall.toolName);
+    const input = JSON.parse(toolCall.input);
+    const description = tool?.getDescription?.({ params: input, cwd: opts.cwd });
+    const displayName = tool?.displayName;
+    
+    const toolUse: ToolUsePart = {
+      type: 'tool_use',
+      id: toolCall.toolCallId,
+      name: toolCall.toolName,
+      input: input,
+    };
+    if (description) toolUse.description = description;
+    if (displayName) toolUse.displayName = displayName;
+    
+    assistantContent.push(toolUse);
+  }
+  
+  await history.addMessage(
+    {
+      role: 'assistant',
+      content: assistantContent,
+      text,
+      model,
+      usage: {
+        input_tokens: lastUsage.promptTokens,
+        output_tokens: lastUsage.completionTokens,
+      },
+    },
+    requestId,
+  );
+
+  // 5.3 如果没有工具调用，退出循环
+  if (!toolCalls.length) {
+    break;
+  }
+
+  // 5.4 处理所有工具调用（支持多个）
+  const toolResults: any[] = [];
+  
+  for (const toolCall of toolCalls) {
+    let toolUse: ToolUse = {
+      name: toolCall.toolName,
+      params: JSON.parse(toolCall.input),
+      callId: toolCall.toolCallId,
+    };
+    
+    // 5.5 触发 onToolUse
     if (opts.onToolUse) {
       toolUse = await opts.onToolUse(toolUse);
     }
 
-    // 5.2 请求审批
+    // 5.6 请求审批
     const approved = opts.onToolApprove
       ? await opts.onToolApprove(toolUse)
       : true;
 
     if (approved) {
-      // 5.3 执行工具
+      // 5.7 执行工具
       toolCallsCount++;
       let toolResult = await opts.tools.invoke(
         toolUse.name,
         JSON.stringify(toolUse.params),
       );
 
-      // 5.4 触发 onToolResult（插件可以修改结果）
+      // 5.8 触发 onToolResult
       if (opts.onToolResult) {
         toolResult = await opts.onToolResult(toolUse, toolResult, approved);
       }
 
-      // 5.5 添加工具结果到历史
-      await history.addMessage({
-        role: 'user',
-        content: [{
-          type: 'tool_result',
-          id: toolUse.callId,
-          name: toolUse.name,
-          input: toolUse.params,
-          result: toolResult,
-        }],
+      toolResults.push({
+        toolCallId: toolUse.callId,
+        toolName: toolUse.name,
+        input: toolUse.params,
+        result: toolResult,
       });
-
-      // 5.6 不计入轮数（工具调用不算）
+      
+      // 防止正常轮次因超限而终止
       turnsCount--;
 
     } else {
-      // 拒绝工具调用
+      // 5.9 拒绝工具调用
       const message = 'Error: Tool execution was denied by user.';
-      let toolResult = { llmContent: message, isError: true };
+      let toolResult: ToolResult = {
+        llmContent: message,
+        isError: true,
+      };
 
       if (opts.onToolResult) {
         toolResult = await opts.onToolResult(toolUse, toolResult, approved);
       }
 
-      await history.addMessage({
-        role: 'user',
-        content: [{
-          type: 'tool_result',
-          id: toolUse.callId,
-          name: toolUse.name,
-          input: toolUse.params,
-          result: toolResult,
-        }],
+      toolResults.push({
+        toolCallId: toolUse.callId,
+        toolName: toolUse.name,
+        input: toolUse.params,
+        result: toolResult,
       });
+      
+      // 添加拒绝消息到历史
+      await history.addMessage({
+        role: 'tool',
+        content: toolResults.map((tr) => ({
+          type: 'tool-result',
+          toolCallId: tr.toolCallId,
+          toolName: tr.toolName,
+          input: tr.input,
+          result: tr.result,
+        })),
+      } as any);
 
       // 返回错误
       return {
@@ -450,8 +648,20 @@ ${opts.tools.length() > 0 ? opts.tools.getToolsPrompt() : ''}
         },
       };
     }
-
-    hasToolUse = true;
+  }
+  
+  // 5.10 添加所有工具结果到历史
+  if (toolResults.length) {
+    await history.addMessage({
+      role: 'tool',
+      content: toolResults.map((tr) => ({
+        type: 'tool-result',
+        toolCallId: tr.toolCallId,
+        toolName: tr.toolName,
+        input: tr.input,
+        result: tr.result,
+      })),
+    } as any);
   }
 
   // =============== 6. 循环控制 ===============
@@ -508,13 +718,13 @@ graph TD
 
 ---
 
-## At.normalize 文件引用处理
+## At.normalizeLanguageV2Prompt 文件引用处理
 
-### 什么是 At.normalize？
+### 什么是 At.normalizeLanguageV2Prompt？
 
-`At.normalize` 是一个特殊的文件引用机制，允许用户通过 `@文件路径` 或 `@目录路径` 语法直接在提示词中引用文件内容。这个功能在第一轮循环开始前执行，将引用的文件内容注入到用户消息中。
+`At.normalizeLanguageV2Prompt` 是一个特殊的文件引用机制，允许用户通过 `@文件路径` 或 `@目录路径` 语法直接在提示词中引用文件内容。这个功能在第一轮循环开始前执行，将引用的文件内容注入到用户消息中。
 
-**代码位置**: `src/at.ts` 和 `src/loop.ts:171-177`
+**代码位置**: `src/at.ts` 和 `src/loop.ts:212-219`
 
 ### 使用语法
 
@@ -666,62 +876,82 @@ export function add(a: number, b: number): number {
 
 #### 4. 注入到用户消息
 
-**代码位置**: `src/at.ts:159-191`
+**代码位置**: `src/at.ts`
 
 ```typescript
-static normalize(opts: {
-  input: AgentInputItem[];
+static normalizeLanguageV2Prompt(opts: {
+  input: LanguageModelV2Prompt;
   cwd: string;
-}): AgentInputItem[] {
+}): LanguageModelV2Prompt {
   // 1. 找到最后一条用户消息
   const reversedInput = [...opts.input].reverse();
   const lastUserMessage = reversedInput.find((item) => {
     return 'role' in item && item.role === 'user';
-  }) as UserMessageItem;
+  }) as LanguageModelV2Message | undefined;
   
-  if (lastUserMessage) {
-    let userPrompt = lastUserMessage.content;
-    if (Array.isArray(userPrompt)) {
-      userPrompt = userPrompt[0]?.type === 'input_text' ? userPrompt[0].text : '';
+  if (lastUserMessage && lastUserMessage.role === 'user') {
+    // 2. 获取用户消息文本
+    let userPrompt = '';
+    const content = lastUserMessage.content;
+    
+    if (Array.isArray(content)) {
+      for (const part of content) {
+        if (part.type === 'text') {
+          userPrompt += part.text;
+        }
+      }
+    } else if (typeof content === 'string') {
+      userPrompt = content;
     }
     
-    // 2. 提取并读取文件
+    // 3. 提取并读取文件
     const at = new At({ userPrompt, cwd: opts.cwd });
-    const content = at.getContent();
+    const fileContent = at.getContent();
     
-    // 3. 注入文件内容到消息末尾
-    if (content) {
+    // 4. 注入文件内容到消息末尾
+    if (fileContent) {
       if (Array.isArray(lastUserMessage.content)) {
-        if (lastUserMessage.content[0]?.type === 'input_text') {
-          lastUserMessage.content[0].text += `\n\n${content}`;
+        // 添加到最后一个 text part
+        const lastTextPart = lastUserMessage.content
+          .slice()
+          .reverse()
+          .find((p) => p.type === 'text');
+        if (lastTextPart && lastTextPart.type === 'text') {
+          lastTextPart.text += `\n\n${fileContent}`;
         }
-      } else {
-        lastUserMessage.content += `\n\n${content}`;
+      } else if (typeof lastUserMessage.content === 'string') {
+        lastUserMessage.content += `\n\n${fileContent}`;
       }
-      const input = reversedInput.reverse();
-      return input;
     }
   }
-  return opts.input;
+  
+  return reversedInput.reverse();
 }
 ```
 
 ### 在 Loop 中的调用
 
-**代码位置**: `src/loop.ts:104` 和 `src/loop.ts:171-177`
+**代码位置**: `src/loop.ts:156` 和 `src/loop.ts:212-219`
 
 ```typescript
 // 在 runLoop 函数开始时初始化
-let shouldAtNormalize = true;  // src/loop.ts:104
+let shouldAtNormalize = true;  // src/loop.ts:156
 
 // 主循环内部
 while (true) {
   // ... 其他逻辑
   
+  // 构建 prompt
+  let prompt: LanguageModelV2Prompt = [
+    systemPromptMessage,
+    ...llmsContextMessages,
+    ...history.toLanguageV2Messages(),
+  ];
+  
   // =============== 2. 首次循环特殊处理 ===============
   if (shouldAtNormalize) {
-    agentInput = At.normalize({
-      input: agentInput,
+    prompt = At.normalizeLanguageV2Prompt({
+      input: prompt,
       cwd: opts.cwd,
     });
     shouldAtNormalize = false;  // 标记已执行，不再重复
@@ -1266,96 +1496,189 @@ type ToolResult = {
 ```mermaid
 graph LR
     A[AI Stream] -->|chunk| B{chunk.type?}
-    B -->|text-delta| C[累积到 textBuffer]
-    B -->|reasoning| D[onReasoning]
-    B -->|finish| E[更新 usage]
+    B -->|text-delta| C[直接输出]
+    B -->|reasoning-delta| D[onReasoning]
+    B -->|tool-call| E[添加到 toolCalls]
+    B -->|finish| F[更新 usage + 检查空响应]
+    B -->|error| G[抛出错误]
 
-    C --> F{hasIncompleteXmlTag?}
-    F -->|是| G[等待更多数据]
-    F -->|否| H[pushTextDelta]
-    H --> I[onTextDelta]
+    C --> H[onTextDelta]
+    D --> I[累积 reasoning]
+    E --> J[收集工具调用]
 
-    style I fill:#e1f5fe,color:#000
+    style H fill:#e1f5fe,color:#000
+    style F fill:#fff9c4,color:#000
+    style G fill:#ffebee,color:#000
 ```
 
-### 处理不完整的 XML 标签
+### Chunk 类型处理
 
-为什么需要？
-- AI 流式输出时，XML 标签可能被切断
-- 例如：`"这是文本<use_to"` ← 标签不完整
-- 如果直接输出，用户会看到不完整的标签
+代码直接处理 AI SDK 返回的流式 chunk：
 
-解决方案：
 ```typescript
-const INCOMPLETE_PATTERNS = [
-  '<use_tool',
-  '<tool_name',
-  '<arguments',
-  '</use_tool',
-  '</tool_name',
-  '</arguments',
-];
-
-function hasIncompleteXmlTag(text: string): boolean {
-  // 只检查最后 15 个字符
-  text = text.slice(-15);
-
-  for (const pattern of INCOMPLETE_PATTERNS) {
-    // 1. 完全匹配模式末尾
-    if (text.endsWith(pattern)) {
-      return true;
+for await (const chunk of result.stream) {
+  switch (chunk.type) {
+    case 'text-delta': {
+      // 文本增量 - 直接输出
+      const textDelta = chunk.delta;
+      text += textDelta;
+      await opts.onTextDelta?.(textDelta);
+      break;
     }
-
-    // 2. 部分匹配模式开头
-    if (text.length < pattern.length) {
-      if (pattern.startsWith(text.slice(-Math.min(text.length, pattern.length)))) {
-        return true;
+    
+    case 'reasoning-delta':
+      // 推理过程（Claude 等模型支持）
+      reasoning += chunk.delta;
+      await opts.onReasoning?.(chunk.delta);
+      break;
+    
+    case 'tool-call':
+      // 工具调用 - 收集信息
+      toolCalls.push({
+        toolCallId: chunk.toolCallId,
+        toolName: chunk.toolName,
+        input: chunk.input,
+      });
+      break;
+    
+    case 'finish':
+      // 完成 - 更新 usage
+      lastUsage = Usage.fromEventUsage(chunk.usage);
+      totalUsage.add(lastUsage);
+      
+      // 检查空响应
+      if (toolCalls.length === 0 && text.trim() === '') {
+        const error = new Error('Empty response');
+        (error as any).isRetryable = true;
+        throw error;
       }
-    } else {
-      // 3. 检查是否是模式的前缀
-      const maxCheck = Math.min(pattern.length - 1, text.length);
-      for (let i = 1; i <= maxCheck; i++) {
-        if (text.slice(-i) === pattern.slice(0, i)) {
-          return true;
-        }
-      }
+      break;
+    
+    case 'error': {
+      // 错误 - 解析并抛出
+      const message = chunk.error.message || JSON.stringify(chunk.error);
+      const error = new Error(message);
+      (error as any).isRetryable = false;  // 默认不可重试
+      throw error;
     }
-  }
-
-  return false;
-}
-```
-
-示例：
-```typescript
-hasIncompleteXmlTag("Hello <use_to")     // true  ← 不完整
-hasIncompleteXmlTag("Hello <use_tool>")  // false ← 完整
-hasIncompleteXmlTag("Hello <")           // true  ← 可能是标签开始
-```
-
-### pushTextDelta 逻辑
-
-```typescript
-async function pushTextDelta(
-  content: string,
-  text: string,
-  onTextDelta?: (text: string) => Promise<void>,
-): Promise<void> {
-  const parsed = parseMessage(text);
-  // 只有当第一个部分是文本且标记为 partial（可以继续）时才输出
-  if (parsed[0]?.type === 'text' && parsed[0].partial) {
-    await onTextDelta?.(content);
   }
 }
 ```
 
 **关键点**：
-- `parsed[0].partial === true` → 文本可以继续，安全输出
-- `parsed[0].partial === false` → 文本已完整（或后面有工具调用），不输出增量
+- `text-delta` - 直接累积并输出，无需缓冲
+- `tool-call` - 收集所有工具调用，支持多个
+- `finish` - 检查空响应，触发重试
+- `error` - 根据错误类型标记是否可重试
 
 ---
 
 ## 错误处理
+
+### 重试机制
+
+#### 指数退避算法
+
+Loop 实现了带取消支持的指数退避重试机制：
+
+```typescript
+async function exponentialBackoffWithCancellation(
+  attempt: number,
+  signal?: AbortSignal,
+): Promise<void> {
+  const baseDelay = 1000;  // 基础延迟 1 秒
+  const delay = baseDelay * Math.pow(2, attempt - 1);  // 指数增长
+  const checkInterval = 100;  // 每 100ms 检查一次取消信号
+
+  const startTime = Date.now();
+  while (Date.now() - startTime < delay) {
+    if (signal?.aborted) {
+      throw new Error('Cancelled during retry backoff');
+    }
+    await new Promise((resolve) =>
+      setTimeout(
+        resolve,
+        Math.min(checkInterval, delay - (Date.now() - startTime)),
+      ),
+    );
+  }
+}
+```
+
+**重试延迟时间**：
+- 第 1 次重试：1 秒
+- 第 2 次重试：2 秒
+- 第 3 次重试：4 秒
+- 第 4 次重试：8 秒
+- ...
+
+**特点**：
+- 每 100ms 检查一次取消信号，即使在等待期间也能快速响应取消
+- 防止长时间阻塞
+
+#### 重试逻辑
+
+```typescript
+let retryCount = 0;
+const errorRetryTurns = opts.errorRetryTurns ?? DEFAULT_ERROR_RETRY_TURNS;  // 默认 10 次
+
+while (retryCount <= errorRetryTurns) {
+  try {
+    // 调用 AI API
+    const result = await m.doStream(...);
+    // 处理流式响应...
+    break;  // 成功，退出重试循环
+  } catch (error: any) {
+    // 判断是否可重试
+    if (error.isRetryable && retryCount < errorRetryTurns) {
+      retryCount++;
+      await exponentialBackoffWithCancellation(retryCount, opts.signal);
+      continue;  // 继续重试
+    }
+    
+    // 不可重试或超过重试次数
+    return {
+      success: false,
+      error: {
+        type: 'api_error',
+        message: error.message,
+        details: { retriesAttempted: retryCount, ... },
+      },
+    };
+  }
+}
+```
+
+**可重试错误**：
+- 空响应（无文本也无工具调用）
+- 网络超时
+- 5xx 服务器错误
+- 限流错误（429）
+
+**不可重试错误**：
+- 4xx 客户端错误（除 429 外）
+- 认证失败
+- 参数错误
+
+#### 空响应检测
+
+```typescript
+case 'finish':
+  lastUsage = Usage.fromEventUsage(chunk.usage);
+  totalUsage.add(lastUsage);
+  
+  // 检查空响应
+  if (toolCalls.length === 0 && text.trim() === '') {
+    const error = new Error('Empty response: no text or tool calls received');
+    (error as any).isRetryable = true;  // 标记为可重试
+    throw error;
+  }
+  break;
+```
+
+**作用**：
+- 防止 AI 返回空内容
+- 自动重试获取有效响应
 
 ### 错误类型
 
