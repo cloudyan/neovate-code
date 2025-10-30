@@ -1326,11 +1326,27 @@ export const modelAlias: ModelAlias = {
   'k2-turbo': 'moonshotai-cn/kimi-k2-turbo-preview',
 };
 
+// 推荐配置
+//   "model": "iflow/qwen3-coder-plus",
+//   "planModel": "iflow/qwen3-max",
+//   "smallModel": "iflow/kimi-k2-0905",
 // 推荐模型
-// 1. Qwen3-Coder-Plus(推荐)
-// 2. DeepSeek-V3.2
-// 3. GLM-4.6
-// 4. Kimi-K2-0905
+// model
+// 1. anthropic/claude-sonnet-4-5-20250929
+// 2. openai/gpt-5
+// 3. iflow/qwen3-coder-plus
+// 4. modelscope/Qwen/Qwen3-Coder-480B-A35B-Instruct
+// 5. iflow/qwen3-coder 同上
+// planModel
+// 1. iflow/qwen3-max
+// 2. iflow/deepseek-v3.2
+// 3. modelscope/deepseek-ai/DeepSeek-V3.2-Exp
+// 4. modelscope/ZhipuAI/GLM-4.6
+// 5. iflow/glm-4.6
+// smallModel
+// 1. anthropic/claude-haiku-4-5
+// 2. iflow/kimi-k2-0905
+// 3. modelscope/moonshotai/Kimi-K2-Instruct-0905
 
 export type ModelInfo = {
   provider: Provider;
