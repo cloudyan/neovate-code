@@ -47,7 +47,7 @@ export type ModelCapability =
   | 'high_performance'; // 高性能
 
 export interface Model {
-  id: string; // 模型唯一标识符
+  id: string; // 模型唯一标识符 如: modelscope 的 'Qwen/Qwen3-Coder-480B-A35B-Instruct'
   name: string; // 模型显示名称
   shortName?: string; // 模型短名称(可选)
   attachment: boolean; // 是否支持附件(如图片、文件等) for GPT-4o, Gemini
@@ -1118,6 +1118,7 @@ export const providers: ProvidersMap = {
       'glm-4.5': models['glm-4.5'],
       'glm-4.6': models['glm-4.6'],
       'qwen3-max-preview': models['qwen3-max'],
+      'qwen3-max': models['qwen3-max'],
     },
     createModel: defaultModelCreator,
   },
@@ -1346,9 +1347,9 @@ export const modelAlias: ModelAlias = {
 // 2. iflow/kimi-k2-0905 同 modelscope/moonshotai/Kimi-K2-Instruct-0905
 
 export type ModelInfo = {
-  provider: Provider;
-  model: Omit<Model, 'cost'>;
-  m: LanguageModelV2;
+  provider: Provider; // prividerInfo 供应商信息
+  model: Omit<Model, 'cost'>; // modelInfo 模型元数据(不包含成本信息)
+  m: LanguageModelV2; // modelClient 模型客户端 LanguageModelV2 类型的实例
 };
 
 function mergeConfigProviders(
@@ -1499,6 +1500,10 @@ export async function resolveModel(
   );
 
   // 3. 模型验证
+  // 对于 config.model: 'modelscope/Qwen/Qwen3-Coder-480B-A35B-Instruct'
+  // 格式输出：
+  //  providerStr: 'modelscope',
+  //  modelId: 'Qwen/Qwen3-Coder-480B-A35B-Instruct', // 保持大小写
   const modelId = modelNameArr.join('/');
   const model = provider.models[modelId] as Model;
   assert(
@@ -1506,7 +1511,7 @@ export async function resolveModel(
     `Model ${modelId} not found in provider ${providerStr}, valid models: ${Object.keys(provider.models).join(', ')}`,
   );
 
-  // 4. 实例创建
+  // 4. 创建模型客户端实例
   model.id = modelId;
   let m: LanguageModelV2 | Promise<LanguageModelV2> = provider.createModel(
     modelId,

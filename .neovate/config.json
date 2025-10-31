@@ -39,10 +39,27 @@
           "open_weights": false,
           "limit": { "context": 262144, "output": 65536 },
           "capabilities": ["coding", "high_performance"]
+        },
+        "qwen3-max": {
+          "name": "Qwen3 Max",
+          "attachment": false,
+          "reasoning": true,
+          "temperature": true,
+          "tool_call": true,
+          "knowledge": "2025-09",
+          "release_date": "2025-09-05",
+          "last_updated": "2025-09-05",
+          "modalities": { "input": ["text"], "output": ["text"] },
+          "open_weights": false,
+          "limit": { "context": 262144, "output": 32768 },
+          "capabilities": ["coding", "high_performance"]
         }
       }
     }
   },
+  "model": "iflow/qwen3-coder-plus",
+  "planModel": "iflow/qwen3-max",
+  "smallModel": "iflow/kimi-k2-0905",
   "commit": {
     "language": "en-US"
   },
