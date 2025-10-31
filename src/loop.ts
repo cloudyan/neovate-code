@@ -114,7 +114,6 @@ type RunLoopOpts = {
 };
 
 // 核心函数，实现了一个完整的 AI 交互循环
-// TODO: support retry
 export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
   // 1. 初始化阶段
   const startTime = Date.now();
