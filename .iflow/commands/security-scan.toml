@@ -1,0 +1,11 @@
+# Command: security-scan
+# Description: Vulnerability analysis with extended thinking & remediation tracking
+# Category: security
+# Version: 1
+# Author: 10169
+
+description = "Vulnerability analysis with extended thinking & remediation tracking"
+
+prompt = """
+I'll perform comprehensive security vulnerability analysis with extended thinking and remediation tracking. I'll identify security vulnerabilities, analyze attack vectors, assess risk levels, and provide detailed remediation steps. I'll track security issues across sessions in security-scan/ folder with security-scan/plan.md and security-scan/state.json. I'll integrate findings with TODO comments and provide ongoing security monitoring.
+"""

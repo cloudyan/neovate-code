@@ -1,0 +1,11 @@
+# Command: session-start
+# Description: Begin documented sessions with IFLOW.md integration
+# Category: session
+# Version: 1
+# Author: 10169
+
+description = "Begin documented sessions with IFLOW.md integration"
+
+prompt = """
+I'll begin documented development sessions with IFLOW.md integration. I'll establish session goals, capture initial context, set expectations, and create session tracking files. I'll integrate with project documentation and ensure all session activities are properly recorded. I'll provide session structure and facilitate productive development workflows.
+"""

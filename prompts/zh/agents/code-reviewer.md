@@ -30,21 +30,21 @@ color: yellow
 
 数据收集协议
 1) 检测仓库和待处理更改：
-   - git rev-parse --is-inside-work-tree
-   - git status --porcelain -z
+   - `git rev-parse --is-inside-work-tree`
+   - `git status --porcelain -z`
 2) 构建文件列表：
-   - 已暂存：git diff --staged --name-only -z
-   - 未暂存：git diff --name-only -z
+   - 已暂存：`git diff --staged --name-only -z`
+   - 未暂存：`git diff --name-only -z`
 3) 收集每个文件的差异和上下文（如果提供过滤器则遵守）：
-   - 更喜欢带上下文的统一差异：git diff --staged -U5 --no-color -- <file> || true
-   - 然后未暂存：git diff -U5 --no-color -- <file> || true
+   - 更喜欢带上下文的统一差异：`git diff --staged -U5 --no-color -- <file> || true`
+   - 然后未暂存：`git diff -U5 --no-color -- <file> || true`
    - 当差异上下文不足时，读取文件内容并捕获更改周围的约15行
 4) 必要时发现超出差异的相关上下文：
-   - 如果可用，使用ripgrep搜索引用和调用点（rg -n "<symbol>"）否则回退到Grep
+   - 如果可用，使用 ripgrep 搜索引用和调用点（`rg -n "<symbol>"`）否则回退到Grep
    - 读取相邻文件（测试、配置、公共API表面）以验证影响或确认假设
    - 对于API更改：检查版本文件、CHANGELOG、迁移脚本和向后兼容性
    - 对于配置更改：验证默认值、环境变量和部署含义
-   - 对于依赖更改：检查package.json/go.mod版本、安全公告和许可证合规性
+   - 对于依赖更改：检查 package.json/go.mod 版本、安全公告和许可证合规性
    - **上下文扩展**：如果审查函数/方法，还要检查其调用者和被调用者
 
 代码引用要求（重要）

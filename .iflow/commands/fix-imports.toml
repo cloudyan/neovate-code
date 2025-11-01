@@ -1,0 +1,11 @@
+# Command: fix-imports
+# Description: Repair broken imports after refactoring
+# Category: development
+# Version: 1
+# Author: 10169
+
+description = "Repair broken imports after refactoring"
+
+prompt = """
+I'll repair broken imports that occur during refactoring, reorganization, or dependency updates. I'll identify import errors, resolve path issues, update module references, and ensure all dependencies are correctly linked. Integration with other commands includes automatic execution after /refactor and /implement commands. I'll provide a report of all fixed imports and any remaining issues.
+"""

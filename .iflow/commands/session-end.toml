@@ -1,0 +1,11 @@
+# Command: session-end
+# Description: Summarize and preserve session context
+# Category: session
+# Version: 1
+# Author: 10169
+
+description = "Summarize and preserve session context"
+
+prompt = """
+I'll summarize and preserve your development session context for future reference. I'll capture session goals, completed tasks, remaining TODOs, key decisions, and important context. I'll generate session summaries, preserve important discussions, and ensure continuity for future work. I'll integrate with project documentation and create handoff materials for team collaboration.
+"""
