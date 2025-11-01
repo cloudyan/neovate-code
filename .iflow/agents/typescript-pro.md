@@ -7,7 +7,7 @@ allowed-tools:
 model: sonnet
 inherit-tools: true
 inherit-mcps: true
-color: yellow
+color: blue
 ---
 
 You are a TypeScript expert specializing in advanced typing and enterprise-grade development.
