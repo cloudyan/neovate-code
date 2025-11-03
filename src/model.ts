@@ -15,6 +15,7 @@ import type { ProviderConfig } from './config';
 import type { Context } from './context';
 import { PluginHookType } from './plugin';
 import { GithubProvider } from './providers/githubCopilot';
+import { getThinkingConfig } from './thinking-config';
 
 export interface ModelModalities {
   input: ('text' | 'image' | 'audio' | 'video' | 'pdf')[];
@@ -1351,6 +1352,7 @@ export type ModelInfo = {
   provider: Provider; // prividerInfo 供应商信息
   model: Omit<Model, 'cost'>; // modelInfo 模型元数据(不包含成本信息) 即接口 Model
   m: LanguageModelV2; // modelClient 模型客户端 LanguageModelV2 类型的实例
+  thinkingConfig?: Record<string, any>;
 };
 
 function mergeConfigProviders(
@@ -1470,6 +1472,14 @@ export async function resolveModelWithContext(
         context.paths.globalConfigDir,
       )
     : null;
+
+  // Add thinking config to model if available
+  if (model) {
+    const thinkingConfig = getThinkingConfig(model, 'low');
+    if (thinkingConfig) {
+      model.thinkingConfig = thinkingConfig;
+    }
+  }
 
   // 6. 返回完整结果
   return {

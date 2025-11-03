@@ -1,5 +1,6 @@
 import { Box, Text } from 'ink';
 import React, { useCallback, useMemo } from 'react';
+import { BackgroundPrompt } from './BackgroundPrompt';
 import { SPACING, UI_COLORS } from './constants';
 import { DebugRandomNumber } from './Debug';
 import { MemoryModal } from './MemoryModal';
@@ -30,6 +31,8 @@ export function ChatInput() {
     setStatus,
     showForkModal,
     forkModalVisible,
+    bashBackgroundPrompt,
+    bridge,
     mode,
     updateMode,
   } = useAppStore();
@@ -39,6 +42,14 @@ export function ChatInput() {
     onChange: inputState.setValue,
     setCursorPosition: inputState.setCursorPosition,
   });
+
+  // Handle Ctrl+B for background prompt
+  const handleMoveToBackground = useCallback(() => {
+    if (bashBackgroundPrompt) {
+      bridge.requestMoveToBackground(bashBackgroundPrompt.taskId);
+    }
+  }, [bashBackgroundPrompt, bridge]);
+
   const showSuggestions =
     slashCommands.suggestions.length > 0 ||
     fileSuggestion.matchedPaths.length > 0;
@@ -137,6 +148,7 @@ export function ChatInput() {
   if (status === 'exit') {
     return null;
   }
+
   return (
     <Box flexDirection="column" marginTop={SPACING.CHAT_INPUT_MARGIN_TOP}>
       <ModeIndicator />
@@ -186,6 +198,9 @@ export function ChatInput() {
             onExternalEdit={handleExternalEdit}
             columns={columns - 6}
             isDimmed={false}
+            onCtrlBBackground={
+              bashBackgroundPrompt ? handleMoveToBackground : undefined
+            }
           />
           <DebugRandomNumber />
         </Box>

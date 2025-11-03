@@ -20,6 +20,7 @@ import resolve from 'resolve';
 import { BackgroundTaskManager } from './backgroundTaskManager';
 import { type Config, ConfigManager } from './config';
 import { MCPManager } from './mcp';
+import type { MessageBus } from './messageBus';
 import { Paths } from './paths';
 import {
   type Plugin,
@@ -43,6 +44,7 @@ type ContextOpts = {
   argvConfig: Record<string, any>; // 原始命令行参数
   mcpManager: MCPManager; // MCP 服务器管理器
   backgroundTaskManager: BackgroundTaskManager;
+  messageBus?: MessageBus;
 };
 
 /**
@@ -56,6 +58,7 @@ export type ContextCreateOpts = {
   version: string; // 版本号
   argvConfig: Record<string, any>; // 命令行参数对象
   plugins: (string | Plugin)[]; // 插件列表（路径或对象）
+  messageBus?: MessageBus;
 };
 
 /**
@@ -85,23 +88,18 @@ export type ContextCreateOpts = {
  * ```
  */
 export class Context {
-  cwd: string; // 当前工作目录，所有相对路径的基准
-  productName: string; // 产品名称（小写），用于路径和配置文件查找
-  productASCIIArt?: string; // ASCII 艺术字，用于终端显示
-  version: string; // 版本号，用于显示和兼容性检查
-  config: Config; // 最终配置对象（合并所有来源）
-  paths: Paths; // 路径管理器，统一管理全局和项目路径
-  #pluginManager: PluginManager; // 插件管理器（私有），通过 apply() 访问
-  argvConfig: Record<string, any>; // 原始命令行参数，某些场景需要区分命令行配置
-  mcpManager: MCPManager; // MCP 服务器管理器，管理外部工具集成
-  backgroundTaskManager: BackgroundTaskManager; // 后台任务管理器，处理异步任务和定时任务
+  cwd: string;
+  productName: string;
+  productASCIIArt?: string;
+  version: string;
+  config: Config;
+  paths: Paths;
+  #pluginManager: PluginManager;
+  argvConfig: Record<string, any>;
+  mcpManager: MCPManager;
+  backgroundTaskManager: BackgroundTaskManager;
+  messageBus?: MessageBus;
 
-  /**
-   * 构造函数（私有设计）
-   * 不应直接使用，请使用 Context.create() 静态方法
-   *
-   * @param opts - 已初始化的所有依赖
-   */
   constructor(opts: ContextOpts) {
     this.cwd = opts.cwd;
     this.productName = opts.productName;
@@ -113,6 +111,7 @@ export class Context {
     this.#pluginManager = opts.pluginManager;
     this.argvConfig = opts.argvConfig;
     this.backgroundTaskManager = opts.backgroundTaskManager;
+    this.messageBus = opts.messageBus;
   }
 
   /**
@@ -301,6 +300,7 @@ export class Context {
       paths,
       mcpManager,
       backgroundTaskManager,
+      messageBus: opts.messageBus,
     });
   }
 }

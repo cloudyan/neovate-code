@@ -1,6 +1,7 @@
 import { type EventHandler, MessageBus } from './messageBus';
+import { BASH_EVENTS } from './constants';
 import type { ApprovalCategory, ToolUse } from './tool';
-import type { AppStore } from './ui/store';
+import type { AppStore, BashPromptBackgroundEvent } from './ui/store';
 
 /*
  * 作用：处理前端 UI 相关逻辑，作为 UI 层与后端的通信桥梁
@@ -30,6 +31,12 @@ export class UIBridge {
   onEvent(event: string, handler: EventHandler) {
     return this.messageBus.onEvent(event, handler);
   }
+
+  async requestMoveToBackground(taskId: string) {
+    return this.messageBus.emitEvent(BASH_EVENTS.MOVE_TO_BACKGROUND, {
+      taskId,
+    });
+  }
 }
 
 class UIHandlerRegistry {
@@ -58,5 +65,16 @@ class UIHandlerRegistry {
         return { approved: result };
       },
     );
+
+    this.messageBus.onEvent(
+      BASH_EVENTS.PROMPT_BACKGROUND,
+      (data: BashPromptBackgroundEvent) => {
+        this.appStore.setBashBackgroundPrompt(data);
+      },
+    );
+
+    this.messageBus.onEvent(BASH_EVENTS.BACKGROUND_MOVED, () => {
+      this.appStore.clearBashBackgroundPrompt();
+    });
   }
 }

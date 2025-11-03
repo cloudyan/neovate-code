@@ -5,7 +5,7 @@ import { devtools } from 'zustand/middleware';
 import type { ApprovalMode } from '../config';
 import type { LoopResult, StreamResult } from '../loop';
 import type { Message, NormalizedMessage, UserMessage } from '../message';
-import type { ProvidersMap } from '../model';
+import type { ModelInfo, ProvidersMap } from '../model';
 import { Paths } from '../paths';
 import { loadSessionMessages, Session, SessionConfigManager } from '../session';
 import {
@@ -27,6 +27,12 @@ export type ApprovalResult =
   | 'approve_always_edit'
   | 'approve_always_tool'
   | 'deny';
+
+export interface BashPromptBackgroundEvent {
+  taskId: string;
+  command: string;
+  currentOutput: string;
+}
 
 type Theme = 'light' | 'dark';
 type AppStatus =
@@ -69,7 +75,7 @@ interface AppState {
   productASCIIArt: string;
   version: string;
   theme: Theme;
-  model: string | null;
+  model: ModelInfo | null;
   modelContextLimit: number;
   providers: ProvidersMap;
   sessionId: string | null;
@@ -138,6 +144,7 @@ interface AppState {
   forkModalVisible: boolean;
   forkParentUuid: string | null;
 
+  bashBackgroundPrompt: BashPromptBackgroundEvent | null;
   thinking: { effort: 'low' | 'medium' | 'high' } | undefined;
 }
 
@@ -207,6 +214,8 @@ interface AppActions {
   showForkModal: () => void;
   hideForkModal: () => void;
   fork: (targetMessageUuid: string) => Promise<void>;
+  setBashBackgroundPrompt: (prompt: BashPromptBackgroundEvent) => void;
+  clearBashBackgroundPrompt: () => void;
   toggleThinking: () => void;
 }
 
@@ -263,6 +272,8 @@ export const useAppStore = create<AppStore>()(
       forkParentUuid: null,
       thinking: undefined,
 
+      bashBackgroundPrompt: null,
+
       // Actions
       initialize: async (opts) => {
         const { bridge } = opts;
@@ -273,9 +284,6 @@ export const useAppStore = create<AppStore>()(
         if (!response.success) {
           throw new Error(response.error.message);
         }
-        const providerId = response.data.model?.split('/')[0];
-        const shouldEnableThinking =
-          providerId === 'google' || providerId === 'anthropic';
         set({
           bridge,
           cwd: opts.cwd,
@@ -283,7 +291,9 @@ export const useAppStore = create<AppStore>()(
           productASCIIArt: response.data.productASCIIArt,
           version: response.data.version,
           model: response.data.model,
-          modelContextLimit: response.data.modelContextLimit,
+          modelContextLimit: response.data.model
+            ? response.data.model.model.limit.context
+            : 0,
           providers: response.data.providers,
           sessionId: opts.sessionId,
           messages: opts.messages,
@@ -296,7 +306,9 @@ export const useAppStore = create<AppStore>()(
           pastedTextMap: response.data.pastedTextMap || {},
           pastedImageMap: response.data.pastedImageMap || {},
           userName: getUsername() ?? 'user',
-          thinking: shouldEnableThinking ? { effort: 'low' } : undefined,
+          thinking: response.data.model?.thinkingConfig
+            ? { effort: 'low' }
+            : undefined,
           // theme: 'light',
         });
 
@@ -636,6 +648,14 @@ export const useAppStore = create<AppStore>()(
         }
       },
 
+      setBashBackgroundPrompt: (prompt: BashPromptBackgroundEvent) => {
+        set({ bashBackgroundPrompt: prompt });
+      },
+
+      clearBashBackgroundPrompt: () => {
+        set({ bashBackgroundPrompt: null });
+      },
+
       sendMessage: async (opts: {
         message: string | null;
         planMode?: boolean;
@@ -713,6 +733,7 @@ export const useAppStore = create<AppStore>()(
           processingStartTime: null,
           processingTokens: 0,
           retryInfo: null,
+          bashBackgroundPrompt: null,
         });
       },
 
@@ -854,14 +875,13 @@ export const useAppStore = create<AppStore>()(
         // Get the modelContextLimit for the selected model
         const modelsResponse = await bridge.request('models.list', { cwd });
         if (modelsResponse.success) {
-          const providerId = model?.split('/')[0];
-          const shouldEnableThinking =
-            providerId === 'google' || providerId === 'anthropic';
+          const currentModel = modelsResponse.data.currentModel;
           set({
-            model,
-            modelContextLimit:
-              modelsResponse.data.currentModelInfo.modelContextLimit,
-            thinking: shouldEnableThinking ? { effort: 'low' } : undefined,
+            model: currentModel,
+            modelContextLimit: currentModel?.model.limit.context || 0,
+            thinking: currentModel?.thinkingConfig
+              ? { effort: 'low' }
+              : undefined,
           });
         }
       },
@@ -1059,14 +1079,9 @@ export const useAppStore = create<AppStore>()(
       },
 
       toggleThinking: () => {
-        const current = get().thinking;
-        const model = get().model;
-        const providerId = model?.split('/')[0];
-        const shouldEnableThinking =
-          providerId === 'google' || providerId === 'anthropic';
-        if (!shouldEnableThinking) {
-          return undefined;
-        }
+        const { thinking: current, model } = get();
+        if (!model) return;
+        if (!model.thinkingConfig) return;
         let next: { effort: 'low' | 'medium' | 'high' } | undefined;
         if (!current) {
           next = { effort: 'low' };

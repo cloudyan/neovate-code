@@ -1,4 +1,5 @@
 import type { SlashCommand } from '../types';
+import { createBugCommand } from './bug';
 import { clearCommand } from './clear';
 import { compactCommand } from './compact';
 import { exitCommand } from './exit';
@@ -35,6 +36,7 @@ export function createBuiltinCommands(opts: {
     createResumeCommand(),
     createReviewCommand(),
     createTerminalSetupCommand(),
+    createBugCommand(),
     compactCommand,
     statusCommand,
     brainstormCommand,
