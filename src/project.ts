@@ -42,6 +42,9 @@ export class Project {
       signal?: AbortSignal;
       attachments?: ImagePart[];
       parentUuid?: string;
+      thinking?: {
+        effort: 'low' | 'medium' | 'high';
+      };
     } = {},
   ) {
     // 解析可用的工具
@@ -97,6 +100,9 @@ export class Project {
       signal?: AbortSignal;
       attachments?: ImagePart[];
       parentUuid?: string;
+      thinking?: {
+        effort: 'low' | 'medium' | 'high';
+      };
     } = {},
   ) {
     // 解析只读工具
@@ -154,6 +160,9 @@ export class Project {
       systemPrompt?: string;
       attachments?: ImagePart[];
       parentUuid?: string;
+      thinking?: {
+        effort: 'low' | 'medium' | 'high';
+      };
     } = {},
   ) {
     // 1. 初始化组件
@@ -266,6 +275,7 @@ export class Project {
       llmsContexts: llmsContext.messages,
       signal: opts.signal,
       autoCompact: this.context.config.autoCompact,
+      thinking: opts.thinking,
       onMessage: async (message) => {
         const normalizedMessage = {
           ...message,

@@ -14,6 +14,7 @@ import type {
   ToolUsePart,
 } from './message';
 import type { ModelInfo } from './model';
+import { getThinkingConfig } from './thinking-config';
 import type { ToolResult, Tools, ToolUse } from './tool';
 import { Usage } from './usage';
 import { randomUUID } from './utils/randomUUID';
@@ -93,6 +94,9 @@ type RunLoopOpts = {
   signal?: AbortSignal; // 取消信号，用于中断操作
   llmsContexts?: string[]; // AI 上下文（来自 LlmsContext）
   autoCompact?: boolean; // 是否自动压缩历史消息
+  thinking?: {
+    effort: 'low' | 'medium' | 'high';
+  };
   onTextDelta?: (text: string) => Promise<void>; // 文本增量回调
   onText?: (text: string) => Promise<void>; // 完整文本回调
   onReasoning?: (text: string) => Promise<void>; // 推理过程回调
@@ -153,6 +157,7 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
   });
 
   let shouldAtNormalize = true;
+  let shouldThinking = true;
 
   // 主循环逻辑
   while (true) {
@@ -229,6 +234,18 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
     const m: LanguageModelV2 = opts.model.m;
     const tools = opts.tools.toLanguageV2Tools();
 
+    // Get thinking config based on model's reasoning capability
+    let thinkingConfig: Record<string, any> | undefined = undefined;
+    if (shouldThinking && opts.thinking) {
+      thinkingConfig = getThinkingConfig(
+        opts.model.provider.id,
+        opts.model.model.reasoning,
+        opts.model.model.id,
+        opts.thinking.effort,
+      );
+      shouldThinking = false;
+    }
+
     let retryCount = 0;
     const errorRetryTurns = opts.errorRetryTurns ?? DEFAULT_ERROR_RETRY_TURNS;
 
@@ -243,6 +260,7 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
           tools,
           toolChoice: { type: 'auto' },
           abortSignal: abortController.signal,
+          ...thinkingConfig,
         });
         opts.onStreamResult?.({
           requestId,
