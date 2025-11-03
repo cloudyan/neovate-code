@@ -825,6 +825,7 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 196608, output: 64000 },
+    capabilities: ['coding', 'high_performance', 'fast'],
   },
 };
 
@@ -1348,7 +1349,7 @@ export const modelAlias: ModelAlias = {
 
 export type ModelInfo = {
   provider: Provider; // prividerInfo 供应商信息
-  model: Omit<Model, 'cost'>; // modelInfo 模型元数据(不包含成本信息)
+  model: Omit<Model, 'cost'>; // modelInfo 模型元数据(不包含成本信息) 即接口 Model
   m: LanguageModelV2; // modelClient 模型客户端 LanguageModelV2 类型的实例
 };
 
@@ -1505,6 +1506,9 @@ export async function resolveModel(
   //  providerStr: 'modelscope',
   //  modelId: 'Qwen/Qwen3-Coder-480B-A35B-Instruct', // 保持大小写
   const modelId = modelNameArr.join('/');
+
+  // TODO: 模型元数据, 扩展可配置为 string，自动映射 models 元数据
+  // 什么时候映射扩展呢，provider.models VS models 哪个数据更全呢？
   const model = provider.models[modelId] as Model;
   assert(
     model,
