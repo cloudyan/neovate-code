@@ -77,6 +77,7 @@ interface AppState {
   theme: Theme;
   model: ModelInfo | null;
   modelContextLimit: number;
+  initializeModelError: string | null;
   providers: ProvidersMap;
   sessionId: string | null;
   initialPrompt: string | null;
@@ -86,6 +87,7 @@ interface AppState {
   error: string | null;
   slashCommandJSX: ReactNode | null;
   planMode: boolean;
+  brainstormMode: boolean;
   bashMode: boolean;
   approvalMode: ApprovalMode;
   mode: InputMode;
@@ -174,7 +176,7 @@ interface AppActions {
   clear: () => Promise<void>;
   setDraftInput: (draftInput: string) => void;
   setHistoryIndex: (historyIndex: number | null) => void;
-  togglePlanMode: () => void;
+  toggleMode: () => void;
   approvePlan: (planResult: string) => void;
   denyPlan: () => void;
   updateMode: (value: string) => void;
@@ -240,6 +242,7 @@ export const useAppStore = create<AppStore>()(
       error: null,
       slashCommandJSX: null,
       planMode: false,
+      brainstormMode: false,
       bashMode: false,
       approvalMode: 'default',
       mode: 'prompt',
@@ -291,6 +294,7 @@ export const useAppStore = create<AppStore>()(
           productASCIIArt: response.data.productASCIIArt,
           version: response.data.version,
           model: response.data.model,
+          initializeModelError: response.data.initializeModelError,
           modelContextLimit: response.data.model
             ? response.data.model.model.limit.context
             : 0,
@@ -399,8 +403,22 @@ export const useAppStore = create<AppStore>()(
       },
 
       send: async (message) => {
-        const { bridge, cwd, sessionId, planMode, status, pastedTextMap } =
-          get();
+        const {
+          bridge,
+          cwd,
+          sessionId,
+          planMode,
+          brainstormMode,
+          status,
+          pastedTextMap,
+        } = get();
+
+        if (brainstormMode) {
+          message = `/spec:brainstorm ${message}`;
+          set({
+            brainstormMode: false,
+          });
+        }
 
         bridge.request('utils.telemetry', {
           cwd,
@@ -787,8 +805,15 @@ export const useAppStore = create<AppStore>()(
         set({ historyIndex });
       },
 
-      togglePlanMode: () => {
-        set({ planMode: !get().planMode });
+      toggleMode: () => {
+        const { planMode, brainstormMode } = get();
+        if (!planMode && !brainstormMode) {
+          set({ planMode: true });
+        } else if (planMode && !brainstormMode) {
+          set({ planMode: false, brainstormMode: true });
+        } else {
+          set({ planMode: false, brainstormMode: false });
+        }
       },
 
       approvePlan: (planResult: string) => {

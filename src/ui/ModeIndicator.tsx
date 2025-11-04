@@ -4,7 +4,8 @@ import { SPACING, UI_COLORS } from './constants';
 import { useAppStore } from './store';
 
 export function ModeIndicator() {
-  const { planMode, planResult, slashCommandJSX, mode } = useAppStore();
+  const { planMode, brainstormMode, planResult, slashCommandJSX, mode } =
+    useAppStore();
   if (slashCommandJSX) {
     return null;
   }
@@ -47,16 +48,31 @@ export function ModeIndicator() {
       );
     }
 
-    if (mode === 'prompt' && planMode) {
-      return (
-        <>
-          <Text color={UI_COLORS.MODE_INDICATOR_TEXT}>plan mode</Text>
-          <Text color={UI_COLORS.MODE_INDICATOR_DESCRIPTION}>
-            {' '}
-            (shift + tab to toggle)
-          </Text>
-        </>
-      );
+    if (mode === 'prompt') {
+      if (planMode) {
+        return (
+          <>
+            <Text color={UI_COLORS.MODE_INDICATOR_TEXT}>plan mode</Text>
+            <Text color={UI_COLORS.MODE_INDICATOR_DESCRIPTION}>
+              {' '}
+              (shift + tab to toggle)
+            </Text>
+          </>
+        );
+      }
+      if (brainstormMode) {
+        return (
+          <>
+            <Text color={UI_COLORS.MODE_INDICATOR_TEXT}>
+              🧠 brainstorm mode
+            </Text>
+            <Text color={UI_COLORS.MODE_INDICATOR_DESCRIPTION}>
+              {' '}
+              (shift + tab to toggle)
+            </Text>
+          </>
+        );
+      }
     }
 
     return <Text> </Text>;

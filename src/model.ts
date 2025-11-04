@@ -237,11 +237,24 @@ export const models: ModelMap = {
     limit: { context: 262144, output: 66536 },
     capabilities: ['coding'],
   },
+  'qwen3-coder-plus': {
+    name: 'Qwen3 Coder Plus',
+    attachment: false,
+    reasoning: false,
+    temperature: true,
+    tool_call: true,
+    knowledge: '2025-04',
+    release_date: '2025-07-23',
+    last_updated: '2025-07-23',
+    modalities: { input: ['text'], output: ['text'] },
+    open_weights: true,
+    limit: { context: 1048576, output: 65536 },
+  },
   'qwen3-235b-a22b-07-25': {
     name: 'Qwen3 235B A22B Instruct 2507',
     shortName: 'Qwen3',
     attachment: false,
-    reasoning: false,
+    reasoning: true,
     temperature: true,
     tool_call: true,
     knowledge: '2025-04',
@@ -1111,6 +1124,7 @@ export const providers: ProvidersMap = {
     doc: 'https://iflow.cn/',
     models: {
       'qwen3-coder': models['qwen3-coder-480b-a35b-instruct'],
+      'qwen3-coder-plus': models['qwen3-coder-plus'],
       'kimi-k2': models['kimi-k2'],
       'kimi-k2-0905': models['kimi-k2-0905'],
       'deepseek-v3': models['deepseek-v3-0324'],
@@ -1119,8 +1133,8 @@ export const providers: ProvidersMap = {
       'deepseek-r1': models['deepseek-r1-0528'],
       'glm-4.5': models['glm-4.5'],
       'glm-4.6': models['glm-4.6'],
-      'qwen3-max-preview': models['qwen3-max'],
       'qwen3-max': models['qwen3-max'],
+      'qwen3-max-preview': models['qwen3-max'],
     },
     createModel: defaultModelCreator,
   },
@@ -1464,14 +1478,20 @@ export async function resolveModelWithContext(
   // 5. 解析模型
   // 如果有模型名称，调用 resolveModel 进行实际解析
   // resolveModel 是纯粹的解析函数，不处理插件和配置
-  const model = modelName
-    ? await resolveModel(
-        modelName,
-        finalProviders,
-        hookedModelAlias,
-        context.paths.globalConfigDir,
-      )
-    : null;
+  let model = null;
+  let error = null;
+  try {
+    model = modelName
+      ? await resolveModel(
+          modelName,
+          finalProviders,
+          hookedModelAlias,
+          context.paths.globalConfigDir,
+        )
+      : null;
+  } catch (err) {
+    error = err;
+  }
 
   // Add thinking config to model if available
   if (model) {
@@ -1486,6 +1506,7 @@ export async function resolveModelWithContext(
     providers: finalProviders, // 经过插件钩子和配置合并后的最终提供商
     modelAlias, // 注意：这里返回的是原始 modelAlias，而非 hookedModelAlias
     model, // 解析后的模型信息（包含 provider、model、aisdk）
+    error,
   };
 }
 
