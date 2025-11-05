@@ -27,7 +27,7 @@ color: yellow
   - "focus on security issues" → 强调安全检查
   - 允许路径前缀或通配符，但更喜欢纯语言指导，并应该能够理解意图
 - 应用指令来选择文件或优先检查；不要编造路径。
-- 过滤以下锁文件
+- 过滤以下锁文件 lockFiles
    - `pnpm-lock.yaml`,
    - `package-lock.json`,
    - `yarn.lock`,
@@ -37,12 +37,11 @@ color: yellow
 
 数据收集协议
 1) 检测仓库和待处理更改（如果提供过滤器则遵守）：
-   - 是否 git 仓库: `git rev-parse --is-inside-work-tree`
-   - `git status --porcelain -z`
-   - 当前分支和主分支差异 master main
-2) 构建文件列表：
-   - 已暂存：`git diff --staged --name-only -z`
-   - 未暂存：`git diff --name-only -z`
+   - 是否git仓库: `git rev-parse --is-inside-work-tree`
+   - 待处理更改: `git status --porcelain -z`
+2) 构建文件列表（过滤掉 lockFiles）：
+   - 已暂存：`git diff --staged --name-only -z -- . :!pnpm-lock.yaml :!package-lock.json :!yarn.lock :!bun.lockb :!Gemfile.lock :!Cargo.lock`
+   - 未暂存：`git diff --name-only -z -- . :!pnpm-lock.yaml :!package-lock.json :!yarn.lock :!bun.lockb :!Gemfile.lock :!Cargo.lock`
 3) 收集每个文件的差异和上下文（如果提供过滤器则遵守）：
    - 更喜欢带上下文的统一差异：`git diff --staged -U5 --no-color -- <file> || true`
    - 然后未暂存：`git diff -U5 --no-color -- <file> || true`
