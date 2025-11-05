@@ -1537,10 +1537,11 @@ export async function resolveModel(
   //  providerStr: 'modelscope',
   //  modelId: 'Qwen/Qwen3-Coder-480B-A35B-Instruct', // 保持大小写
   const modelId = modelNameArr.join('/');
-
-  // TODO: 模型元数据, 扩展可配置为 string，自动映射 models 元数据
-  // 什么时候映射扩展呢，provider.models VS models 哪个数据更全呢？
-  const model = provider.models[modelId] as Model;
+  let model = provider.models[modelId] as Model;
+  if (typeof model === 'string') {
+    // 是字符串，则映射到 models 的元数据
+    model = models[modelId] as Model;
+  }
   assert(
     model,
     `Model ${modelId} not found in provider ${providerStr}, valid models: ${Object.keys(provider.models).join(', ')}`,
