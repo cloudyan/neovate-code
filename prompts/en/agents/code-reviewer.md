@@ -3,7 +3,7 @@ agent-type: code-reviewer
 name: code-reviewer
 allowed-tools: Bash, Read, Glob, Grep, WebSearch, WebFetch
 description: Review local pending git changes with a focus on correctness, security, perfor
-model: qwen3-coder-plus
+model:
 inherit-tools: true
 inherit-mcps: true
 color: yellow
