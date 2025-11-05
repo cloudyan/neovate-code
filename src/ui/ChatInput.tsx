@@ -67,10 +67,12 @@ export function ChatInput() {
   const handleDisplayChange = useCallback(
     (val: string) => {
       // If the first character is ! or #, don't set value, just change mode
-      const firstChar = val[0];
-      if (['!', '#'].includes(firstChar)) {
-        updateMode(firstChar);
-        return;
+      if (val.length > inputState.state.value.length) {
+        const firstChar = val[0];
+        if (['!', '#'].includes(firstChar)) {
+          updateMode(firstChar);
+          return;
+        }
       }
       handlers.handleChange(val);
     },
@@ -80,8 +82,11 @@ export function ChatInput() {
   // Handle delete key press - switch to prompt mode when value becomes empty
   const handleDelete = useCallback(() => {
     // When current displayValue is empty, continue pressing delete key to switch to default mode
-    if ((mode === 'bash' || mode === 'memory') && displayValue === '') {
-      updateMode('');
+    if (mode === 'bash' || mode === 'memory') {
+      if (displayValue === '' || inputState.state.cursorPosition === 0) {
+        updateMode('');
+        return;
+      }
     }
   }, [mode, displayValue, inputState]);
 
