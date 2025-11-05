@@ -1,17 +1,18 @@
 import type { PromptCommand } from '../../types';
 
 // 编写执行计划
-export const writePlanCommand = {
-  type: 'prompt',
-  name: 'spec:write-plan',
-  description:
-    'Create detailed implementation plans with bite-sized tasks for engineers with zero codebase context',
-  progressMessage: 'Creating implementation plan...',
-  async getPromptForCommand(args: string) {
-    return [
-      {
-        role: 'user',
-        content: `
+export function writePlanCommand(language: string): PromptCommand {
+  return {
+    type: 'prompt',
+    name: 'spec:write-plan',
+    description:
+      'Create detailed implementation plans with bite-sized tasks for engineers with zero codebase context',
+    progressMessage: 'Creating implementation plan...',
+    async getPromptForCommand(args: string) {
+      return [
+        {
+          role: 'user',
+          content: `
 # Writing Plans
 
 ## Overview
@@ -21,6 +22,8 @@ Write comprehensive implementation plans assuming the engineer has zero context 
 Assume they are a skilled developer, but know almost nothing about our toolset or problem domain. Assume they don't know good test design very well.
 
 **Announce at start:** "I'm creating the implementation plan."
+
+**Language:** Please communicate in ${language}.
 
 **Save plans to:** \`docs/plans/YYYY-MM-DD-\<feature-name\>.md\`
 
@@ -92,7 +95,8 @@ Expected: PASS
 
 Arguments: ${args}
         `.trim(),
-      },
-    ];
-  },
-} as PromptCommand;
+        },
+      ];
+    },
+  } as PromptCommand;
+}

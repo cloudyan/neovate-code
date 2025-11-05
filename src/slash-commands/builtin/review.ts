@@ -1,7 +1,7 @@
 import type { PromptCommand } from '../types';
 
 // 代码审查功能
-export function createReviewCommand() {
+export function createReviewCommand(language: string) {
   return {
     type: 'prompt',
     name: 'review',
@@ -22,7 +22,9 @@ export function createReviewCommand() {
       return [
         {
           role: 'user',
-          content: `You are an expert code reviewer. Follow these steps:
+          content: `You are an expert code reviewer. Please communicate in ${language}.
+
+Follow these steps:
 
 1. If no PR number is provided in the args, use bash("git --no-pager diff --cached -- . ${data.lockFilesPattern}") to get the diff
 2. If a PR number is provided, use bash("gh pr diff <number>") to get the diff

@@ -22,6 +22,7 @@ import { languageCommand } from './language';
 export function createBuiltinCommands(opts: {
   productName: string;
   argvConfig: Record<string, any>;
+  language: string;
 }): SlashCommand[] {
   return [
     clearCommand,
@@ -34,14 +35,14 @@ export function createBuiltinCommands(opts: {
     createModelCommand(opts),
     createOutputStyleCommand(),
     createResumeCommand(),
-    createReviewCommand(),
+    createReviewCommand(opts.language),
     createTerminalSetupCommand(),
     createBugCommand(),
     compactCommand,
     statusCommand,
-    brainstormCommand,
-    writePlanCommand,
-    executePlanCommand,
+    brainstormCommand(opts.language),
+    writePlanCommand(opts.language),
+    executePlanCommand(opts.language),
     languageCommand,
   ];
 }

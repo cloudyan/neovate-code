@@ -18,6 +18,7 @@ export type SlashCommandManagerOpts = {
   productName: string;
   slashCommands: SlashCommand[];
   argvConfig: Record<string, any>;
+  language: string;
 };
 
 export type CommandEntry = {
@@ -43,6 +44,7 @@ export class SlashCommandManager {
     const builtin = createBuiltinCommands({
       productName,
       argvConfig: opts.argvConfig,
+      language: opts.language,
     });
     builtin.forEach((command) => {
       commands.set(command.name, { command, source: CommandSource.Builtin });
@@ -81,6 +83,7 @@ export class SlashCommandManager {
       paths: context.paths,
       slashCommands: pluginSlashCommands,
       argvConfig: context.argvConfig,
+      language: context.config.language,
     });
   }
 
