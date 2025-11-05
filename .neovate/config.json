@@ -29,21 +29,7 @@
       "api": "https://api.minimaxi.com/v1/v1/endpoints",
       "doc": "https://platform.minimaxi.com/docs/guides/text-generation",
       "models": {
-        "MiniMax-M2": {
-          "name": "MiniMax-M2",
-          "shortName": "MiniMax-M2",
-          "attachment": false,
-          "reasoning": true,
-          "temperature": true,
-          "tool_call": true,
-          "knowledge": "2025-10",
-          "release_date": "2025-10-27",
-          "last_updated": "2025-10-27",
-          "modalities": { "input": ["text"], "output": ["text"] },
-          "open_weights": false,
-          "limit": { "context": 204800, "output": 32000 },
-          "capabilities": ["coding", "high_performance", "fast"]
-        }
+        "MiniMax-M2": "minimax-m2"
       }
     },
     "iflow": {

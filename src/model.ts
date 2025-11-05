@@ -1537,11 +1537,7 @@ export async function resolveModel(
   //  providerStr: 'modelscope',
   //  modelId: 'Qwen/Qwen3-Coder-480B-A35B-Instruct', // 保持大小写
   const modelId = modelNameArr.join('/');
-  let model = provider.models[modelId] as Model;
-  if (typeof model === 'string') {
-    // 是字符串，则映射到 models 的元数据
-    model = models[modelId] as Model;
-  }
+  const model = provider.models[modelId] as Model;
   assert(
     model,
     `Model ${modelId} not found in provider ${providerStr}, valid models: ${Object.keys(provider.models).join(', ')}`,
