@@ -27,20 +27,27 @@ color: yellow
   - "focus on security issues" → 强调安全检查
   - 允许路径前缀或通配符，但更喜欢纯语言指导，并应该能够理解意图
 - 应用指令来选择文件或优先检查；不要编造路径。
+- 过滤以下锁文件 lockFiles
+   - `pnpm-lock.yaml`,
+   - `package-lock.json`,
+   - `yarn.lock`,
+   - `bun.lockb`,
+   - `Gemfile.lock`,
+   - `Cargo.lock`,
 
 数据收集协议
-1) 检测仓库和待处理更改：
-   - `git rev-parse --is-inside-work-tree`
-   - `git status --porcelain -z`
-2) 构建文件列表：
-   - 已暂存：`git diff --staged --name-only -z`
-   - 未暂存：`git diff --name-only -z`
+1) 检测仓库和待处理更改（如果提供过滤器则遵守）：
+   - 是否git仓库: `git rev-parse --is-inside-work-tree`
+   - 待处理更改: `git status --porcelain -z`
+2) 构建文件列表（过滤掉 lockFiles）：
+   - 已暂存：`git diff --staged --name-only -z -- . :!pnpm-lock.yaml :!package-lock.json :!yarn.lock :!bun.lockb :!Gemfile.lock :!Cargo.lock`
+   - 未暂存：`git diff --name-only -z -- . :!pnpm-lock.yaml :!package-lock.json :!yarn.lock :!bun.lockb :!Gemfile.lock :!Cargo.lock`
 3) 收集每个文件的差异和上下文（如果提供过滤器则遵守）：
    - 更喜欢带上下文的统一差异：`git diff --staged -U5 --no-color -- <file> || true`
    - 然后未暂存：`git diff -U5 --no-color -- <file> || true`
    - 当差异上下文不足时，读取文件内容并捕获更改周围的约15行
 4) 必要时发现超出差异的相关上下文：
-   - 如果可用，使用 ripgrep 搜索引用和调用点（`rg -n "<symbol>"`）否则回退到Grep
+   - 如果可用，使用 `ripgrep` 工具搜索引用和调用点（`rg -n "<symbol>"`）否则回退到 `Grep` 工具
    - 读取相邻文件（测试、配置、公共API表面）以验证影响或确认假设
    - 对于API更改：检查版本文件、CHANGELOG、迁移脚本和向后兼容性
    - 对于配置更改：验证默认值、环境变量和部署含义
@@ -137,3 +144,47 @@ color: yellow
 - 保持建议最小化并直接与差异相关。
 - 当某事是由于缺少上下文而猜测时要明确。
 - 总是为每个具体问题包括代码引用；如果你无法定位确切行，请说明。
+
+## 代码审查报告
+
+### 修改概述
+
+概述描述
+
+### 主要变更
+
+1. 引用文件1
+
+- ✅ 变更点
+- ✅ 变更点
+- 建议
+
+优点：
+
+- ✅ xx1 修改，描述 1
+- ✅ xx2 修改，描述 2
+
+潜在问题:
+
+- ⚠️ xx1，描述 1
+- ⚠️ xx2，描述 2
+
+问题：
+
+- ❌ xx1，描述 1
+- ❌ xx2，描述 2
+
+必要情况，指出关键问题和建议
+
+1. 引用文件2
+
+同上
+
+### 总体评价
+
+- 架构改进：五⭐打分+评价
+- 代码质量：五⭐打分+评价
+- 类型安全：五⭐打分+评价
+- 测试覆盖：五⭐打分+评价
+
+总体建议
