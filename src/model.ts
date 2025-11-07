@@ -222,6 +222,32 @@ export const models: ModelMap = {
     limit: { context: 262144, output: 16384 },
     capabilities: ['chat'],
   },
+  'kimi-k2-thinking': {
+    name: 'Kimi K2 Thinking',
+    attachment: false,
+    reasoning: true,
+    temperature: true,
+    tool_call: true,
+    knowledge: '2024-08',
+    release_date: '2025-11-06',
+    last_updated: '2025-11-06',
+    modalities: { input: ['text'], output: ['text'] },
+    open_weights: true,
+    limit: { context: 262144, output: 262144 },
+  },
+  'kimi-k2-thinking-turbo': {
+    name: 'Kimi K2 Thinking Turbo',
+    attachment: false,
+    reasoning: true,
+    temperature: true,
+    tool_call: true,
+    knowledge: '2024-08',
+    release_date: '2025-11-06',
+    last_updated: '2025-11-06',
+    modalities: { input: ['text'], output: ['text'] },
+    open_weights: true,
+    limit: { context: 262144, output: 262144 },
+  },
   'qwen3-coder-480b-a35b-instruct': {
     name: 'Qwen3 Coder 480B A35B Instruct',
     shortName: 'Qwen3 Coder',
@@ -841,6 +867,19 @@ export const models: ModelMap = {
     limit: { context: 196608, output: 64000 },
     capabilities: ['coding', 'high_performance', 'fast'],
   },
+  'polaris-alpha': {
+    name: 'Polaris Alpha',
+    attachment: true,
+    reasoning: false,
+    temperature: false,
+    tool_call: true,
+    knowledge: '2025-07',
+    release_date: '2025-07-30',
+    last_updated: '2025-07-30',
+    modalities: { input: ['text', 'image'], output: ['text'] },
+    open_weights: false,
+    limit: { context: 256000, output: 128000 },
+  },
 };
 
 function getProviderBaseURL(provider: Provider) {
@@ -1095,6 +1134,7 @@ export const providers: ProvidersMap = {
       'openai/gpt-5-codex': models['gpt-5-codex'],
       'moonshotai/kimi-k2': models['kimi-k2'],
       'moonshotai/kimi-k2-0905': models['kimi-k2-0905'],
+      'moonshotai/kimi-k2-thinking': models['kimi-k2-thinking'],
       'qwen/qwen3-coder': models['qwen3-coder-480b-a35b-instruct'],
       'qwen/qwen3-max': models['qwen3-max'],
       'x-ai/grok-code-fast-1': models['grok-code-fast-1'],
@@ -1106,6 +1146,7 @@ export const providers: ProvidersMap = {
       'z-ai/glm-4.5v': models['glm-4.5v'],
       'z-ai/glm-4.6': models['glm-4.6'],
       'minimax/minimax-m2:free': models['minimax-m2'],
+      'openrouter/polaris-alpha': models['polaris-alpha'],
     },
     createModel(name, provider) {
       const baseURL = getProviderBaseURL(provider);
@@ -1148,6 +1189,8 @@ export const providers: ProvidersMap = {
       'kimi-k2-0711-preview': models['kimi-k2'],
       'kimi-k2-0905-preview': models['kimi-k2-0905'],
       'kimi-k2-turbo-preview': models['kimi-k2-turbo-preview'],
+      'kimi-k2-thinking': models['kimi-k2-thinking'],
+      'kimi-k2-thinking-turbo': models['kimi-k2-thinking-turbo'],
     },
     createModel(name, provider) {
       const baseURL = getProviderBaseURL(provider);
@@ -1168,6 +1211,8 @@ export const providers: ProvidersMap = {
       'kimi-k2-0711-preview': models['kimi-k2'],
       'kimi-k2-0905-preview': models['kimi-k2-0905'],
       'kimi-k2-turbo-preview': models['kimi-k2-turbo-preview'],
+      'kimi-k2-thinking': models['kimi-k2-thinking'],
+      'kimi-k2-thinking-turbo': models['kimi-k2-thinking-turbo'],
     },
     createModel(name, provider) {
       const baseURL = getProviderBaseURL(provider);
