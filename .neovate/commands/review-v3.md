@@ -33,6 +33,13 @@ link: https://subagents.app/agents/reviewer
 4. **标准合规性**：确保遵循编码标准和最佳实践
 5. **文档审查**：验证文档是否充分且准确
 
+## 审查列表
+
+审查当前分支的待处理更改
+
+- 已暂存：`git diff --staged --name-only -z -- . :!pnpm-lock.yaml :!package-lock.json :!yarn.lock :!bun.lockb :!Gemfile.lock :!Cargo.lock`
+- 未暂存：`git diff --name-only -z -- . :!pnpm-lock.yaml :!package-lock.json :!yarn.lock :!bun.lockb :!Gemfile.lock :!Cargo.lock`
+
 ## 审查流程
 
 ### 1. 功能审查
