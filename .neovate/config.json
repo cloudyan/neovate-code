@@ -16,9 +16,15 @@
           "knowledge": "2025-10",
           "release_date": "2025-10-23",
           "last_updated": "2025-10-23",
-          "modalities": { "input": ["text"], "output": ["text"] },
+          "modalities": {
+            "input": ["text"],
+            "output": ["text"]
+          },
           "open_weights": false,
-          "limit": { "context": 256000, "output": 32000 },
+          "limit": {
+            "context": 256000,
+            "output": 32000
+          },
           "capabilities": ["coding", "high_performance", "fast"]
         }
       }
@@ -44,9 +50,15 @@
           "knowledge": "2025-09",
           "release_date": "2025-09-05",
           "last_updated": "2025-09-05",
-          "modalities": { "input": ["text"], "output": ["text"] },
+          "modalities": {
+            "input": ["text"],
+            "output": ["text"]
+          },
           "open_weights": false,
-          "limit": { "context": 262144, "output": 65536 },
+          "limit": {
+            "context": 262144,
+            "output": 65536
+          },
           "capabilities": ["coding", "high_performance"]
         },
         "qwen3-max": {
@@ -58,9 +70,15 @@
           "knowledge": "2025-09",
           "release_date": "2025-09-05",
           "last_updated": "2025-09-05",
-          "modalities": { "input": ["text"], "output": ["text"] },
+          "modalities": {
+            "input": ["text"],
+            "output": ["text"]
+          },
           "open_weights": false,
-          "limit": { "context": 262144, "output": 32768 },
+          "limit": {
+            "context": 262144,
+            "output": 32768
+          },
           "capabilities": ["coding", "high_performance"]
         }
       }
