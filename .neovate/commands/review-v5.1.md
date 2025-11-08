@@ -120,6 +120,264 @@ git diff -U5 --no-color -- <file> || true
 - linter 或 formatter 已覆盖的建议
 - "可以更好"的评论（无具体风险）
 
+# 核心基础设施模块识别与优先审查
+
+## 基础设施模块识别规则
+当审查代码时，必须特别关注以下基础设施模块的变更：
+
+### 前端关键模块
+- **环境配置模块**: env、config、settings相关文件
+- **API/网络层**: request、api、gateway、http、axios、fetch相关文件
+- **路由管理**: router、navigation、route、history相关文件
+- **状态管理**: store、state、context、redux、vuex、pinia相关文件
+- **全局常量**: constants、enum、config相关文件
+- **认证授权**: auth、login、permission、security、token相关文件
+- **存储管理**: storage、cache、localstorage、session、cookie相关文件
+- **工具函数库**: utils、helpers、common、shared相关文件
+- **构建配置**: webpack、vite、rollup、babel、tsconfig相关文件
+
+### 后端关键模块
+- **数据库层**: migration、schema、models、entity、repository、ORM配置相关文件
+- **中间件**: middleware、interceptor、filter、guard相关文件
+- **任务调度**: cron、queue、worker、job、scheduler相关文件
+- **服务注册**: service、provider、registry、discovery相关文件
+- **健康检查**: health、readiness、liveness相关文件
+- **日志系统**: logger、logging、log配置相关文件
+- **错误处理**: error、exception、handler相关文件
+- **连接池**: pool、connection、database配置相关文件
+
+## 识别策略
+
+### 1. 路径模式识别
+检查文件是否位于关键目录中：
+- 通用: `src/shared/`、`src/core/`、`src/lib/`、`src/foundation/`
+- 配置: `src/config/`、`config/`、`conf/`
+- 工具: `src/utils/`、`src/helpers/`、`src/common/`
+- 常量: `src/constants/`、`src/enums/`
+- 基础设施: `src/infra/`、`infrastructure/`
+
+### 2. 命名模式识别
+检查文件名是否包含关键词：
+- 前端: env、api、config、router、store、auth、request、axios、fetch
+- 后端: middleware、migration、schema、pool、logger、cron、queue
+- 通用: utils、helpers、common、shared、base、core
+
+### 3. 动态依赖识别（自动化）
+**执行命令分析引用数量**：
+```bash
+# 统计文件被引用次数
+rg -l "import.*$(basename <file> .ext)" | wc -l
+rg -l "require.*$(basename <file> .ext)" | wc -l
+rg -l "from.*$(basename <file> .ext)" | wc -l
+```
+
+**影响面评分公式**：
+```
+影响分数 = (直接引用数 × 3) + (文件修改行数/50) + (最近30天修改次数)
+
+评级标准：
+- 分数 ≥ 15 → 🔴 核心基础设施（严重问题优先级）
+- 分数 8-14 → 🟠 重要模块（高优先级）
+- 分数 3-7  → 🟡 普通模块（中优先级）
+- 分数 < 3  → 🔵 辅助模块（低优先级）
+```
+
+### 4. 功能特征识别
+检查代码特征判断是否为核心模块：
+- **全局副作用**: 修改全局对象、注册事件监听、初始化单例
+- **导出密度**: export声明数量 > 5个
+- **条件导出**: 根据环境变量动态导出
+- **初始化函数**: init()、setup()、bootstrap()、configure()
+- **单例模式**: getInstance()、shared、singleton关键词
+
+### 5. 语言特定识别
+
+#### JavaScript/TypeScript
+- 检查: `process.env`使用、`axios.create()`、`createStore()`
+- 全局扩展: `window.*`、`global.*`赋值
+- 原型链修改: `prototype`、`__proto__`
+
+#### Python
+- 检查: `settings.py`、`@app.middleware`、`@app.before_request`
+- 全局对象: `app`、`db`、`cache`实例化
+
+#### Java
+- 检查: `@Configuration`、`@Bean`、`ApplicationContext`
+- 静态初始化块、静态工厂方法
+
+#### Go
+- 检查: `init()`函数、`var`包级变量
+- `context.Context`传播、`middleware`函数签名
+
+## 审查优先级调整
+
+**自动提升优先级的触发条件**：
+1. **基础设施模块变更** → 🔴 严重问题优先级
+2. **影响分数 ≥ 15** → 🔴 严重问题优先级
+3. **标记为"核心"、"全局"、"基础"、"shared"的变更** → 🔴 严重问题优先级
+4. **被超过5个模块直接依赖的变更** → 🟠 高优先级
+5. **影响环境判断、路由、API调用的变更** → 🔴 严重问题优先级
+6. **修改init/setup/bootstrap函数** → 🔴 严重问题优先级
+7. **更改全局常量或配置默认值** → 🟠 高优先级
+8. **数据库schema/migration变更** → 🔴 严重问题优先级
+9. **中间件执行顺序变更** → 🔴 严重问题优先级
+
+## 基础设施检查清单
+在审查每个基础设施模块变更时，必须回答以下问题：
+
+1. **影响范围评估**
+   - 这个变更影响多少个功能模块？
+   - 使用搜索工具查找所有引用点
+   - 评估是否为全局性影响
+
+2. **核心行为变更**
+   - 这个变更是否改变了核心行为逻辑？
+   - 环境判断、路由逻辑、API调用方式等
+   - 配置默认值、全局状态变更等
+
+3. **生产风险评估**
+   - 如果这个变更有缺陷，是否会影响整个应用？
+   - 是否可能导致生产环境故障？
+   - 是否影响用户核心功能使用？
+
+4. **回滚难度**
+   - 这个变更是否容易回滚？
+   - 是否涉及数据结构变更？
+   - 是否影响其他模块的依赖关系？
+
+## 特别关注点
+
+### 环境配置模块 (`env`, `config`)
+- 检查环境判断逻辑是否正确
+- 验证默认环境值是否合理
+- 确认生产环境配置是否安全
+- 检查是否有硬编码的环境标识
+
+### API/网络层 (`api`, `request`)
+- 检查请求头、URL构造是否正确
+- 验证错误处理逻辑是否完善
+- 确认安全相关配置（认证、加密）
+- 检查是否有调试代码残留（console.log、print、debug标志）
+- 验证超时配置、重试逻辑
+- 检查baseURL、endpoint变更影响
+
+### 数据库层 (`migration`, `schema`, `models`)
+- 检查migration的up/down是否配对
+- 验证索引创建是否会锁表
+- 确认字段默认值和NOT NULL约束
+- 检查外键关系和级联删除
+- 验证数据类型变更的兼容性
+
+### 中间件层 (`middleware`, `interceptor`)
+- 检查中间件执行顺序变更
+- 验证next()调用是否遗漏
+- 确认异常是否会中断链路
+- 检查是否影响全局错误处理
+
+### 任务调度 (`cron`, `queue`, `worker`)
+- 检查cron表达式正确性
+- 验证任务幂等性和重试逻辑
+- 确认并发控制和资源限制
+- 检查死信队列处理
+
+### 状态管理 (`store`, `context`)
+- 检查状态更新逻辑是否正确
+- 验证状态初始化是否合理
+- 确认状态变更的影响范围
+- 检查是否有内存泄漏风险
+
+# 审查流程增强
+
+## 第一阶段：基础设施识别
+
+### 自动化识别流程
+1. **路径匹配**：检查文件路径是否命中关键目录模式
+2. **关键词扫描**：检查文件名是否包含核心模块关键词
+3. **引用计数**：执行rg搜索统计引用数（如果变更 > 3个文件）
+4. **影响评分**：计算影响面分数，自动分级
+5. **优先级标记**：根据评分自动调整审查优先级
+
+### 人工验证
+对识别为核心模块的文件：
+1. 阅读完整文件内容，理解上下文
+2. 检查是否有全局副作用、单例模式
+3. 应用更严格的审查标准（安全、错误处理、向后兼容）
+4. 检查每个变更行，不放过细节
+
+## 第二阶段：影响分析
+
+### 引用链分析
+```bash
+# 1. 搜索直接引用点
+rg -l "import.*{module_name}" --type js --type ts
+rg -l "from {module_name}" --type py
+
+# 2. 检查是否被关键模块引用
+# 如果被auth/api/middleware引用，需要更高优先级
+
+# 3. 分析调用链深度
+# 检查是否为底层依赖（被多层模块依赖）
+```
+
+### 变更影响评估
+1. **API变更检查**：
+   - 函数签名变更（参数、返回值）
+   - 导出接口添加/删除
+   - 默认值、配置项变更
+
+2. **向后兼容性**：
+   - 是否会破坏现有调用方
+   - 是否需要迁移指南
+   - 是否需要版本号更新
+
+3. **影响范围量化**：
+   - 直接影响：{N}个文件
+   - 间接影响：{M}个模块
+   - 风险级别：低/中/高/严重
+
+## 第三阶段：风险评估
+
+### 生产风险矩阵
+
+| 变更类型 | 影响范围 | 回滚难度 | 风险等级 | 审查重点 |
+|---------|---------|---------|---------|----------|
+| env配置变更 | 全局 | 低 | 🔴 严重 | 环境判断逻辑、默认值 |
+| API基础URL | 全局 | 低 | 🔴 严重 | URL构造、环境区分 |
+| 中间件顺序 | 全局 | 低 | 🔴 严重 | 执行链路、副作用 |
+| DB migration | 全局 | 高 | 🔴 严重 | 数据丢失、锁表风险 |
+| 工具函数逻辑 | 局部 | 低 | 🟠 高 | 边界情况、空值处理 |
+| 路由配置 | 局部 | 低 | 🟠 高 | 权限验证、参数校验 |
+| UI组件 | 局部 | 低 | 🟡 中 | 界面交互、样式 |
+
+### 检查清单
+
+**1. 错误处理完备性**
+- [ ] 关键路径是否有try-catch/error boundary
+- [ ] 异步操作是否处理失败情况
+- [ ] 是否有降级方案（fallback）
+
+**2. 测试覆盖验证**
+```bash
+# 搜索相关测试文件
+rg -l "describe.*{module_name}" --type test
+rg -l "test.*{function_name}" --type test
+
+# 检查是否有：
+- [ ] 单元测试覆盖核心逻辑
+- [ ] 集成测试覆盖关键流程
+- [ ] 边界情况测试（null/undefined/空数组）
+```
+
+**3. 回滚方案评估**
+- [ ] 是否涉及数据结构变更（需要migration）
+- [ ] 是否有全局状态变更（难以回滚）
+- [ ] 回滚时间窗口估计：{N}分钟
+
+**4. 生产部署建议**
+- 分阶段发布：灰度发布 → 小流量验证 → 全量
+- 监控告警：配置错误率、响应时间监控
+- 回滚预案：准备一键回滚脚本
+
 # 分析手册
 
 ## 系统化分析流程
@@ -255,6 +513,7 @@ git diff -U5 --no-color -- <file> || true
 
 - 范围: {N}个文件（修改{M}, 新增{A}, 删除{D}）
 - 问题 | {T}个（🔴严重{C}, 🟠高{H}, 🟡中{M}, 🔵低{L}）
+- 基础设施变更: {识别到的基础设施模块列表}
 - 聚焦 | {基于发现的具体高风险简述}
 
 > **关键行动**
@@ -349,18 +608,17 @@ public LoginResponse authenticate(String inputUser, String inputPass) {
 ### ✅ 行动路线图
 
 ⏰ **时间敏感**
-- [立即] 修复 `AuthService.java:71-73` 中的空指针风险
-- [24h内] 添加配置验证测试
+- [立即] 修复基础设施模块中的严重问题
+- [24h内] 验证基础设施变更的影响范围
 
 🛠 **技术债务**
-- [本周] 重构认证模块，统一错误处理
-- [迭代] 添加集成测试覆盖 (建议：`__tests__/auth.integration.test.ts`)
+- [本周] 完善基础设施模块的测试覆盖
+- [迭代] 建立基础设施变更的审查清单
 
 🔍 **深度审查建议**
-- 检查其他 `@Value` 注入点的空值处理
-- 审查配置加载失败时的优雅降级策略
-
----
+- 检查基础设施模块的所有引用点
+- 审查基础设施变更对生产环境的影响
+- 建立基础设施模块的监控和告警机制
 
 ### 🧪 测试用例矩阵
 
