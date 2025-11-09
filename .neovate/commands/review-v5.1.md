@@ -1,6 +1,6 @@
 ---
-agent-type: code-reviewer
-name: code-reviewer
+agent-type: review-v5.1
+name: review-v5.1
 allowed-tools: Bash, Read, Glob, Grep, WebSearch, WebFetch
 description: 审查本地待处理的git更改，重点关注正确性、安全性、性能和测试影响
 model:
