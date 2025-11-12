@@ -910,6 +910,16 @@ export const useAppStore = create<AppStore>()(
               ? { effort: 'low' }
               : undefined,
           });
+
+          // 更新最近使用的模型列表
+          if (currentModel) {
+            const { provider, model: modelData } = currentModel;
+            await bridge.request('models.addRecent', {
+              cwd,
+              providerId: provider.id,
+              modelId: modelData.id,
+            });
+          }
         }
       },
 

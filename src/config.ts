@@ -77,6 +77,7 @@ export type Config = {
   autoUpdate?: boolean;
   browser?: boolean;
   temperature?: number;
+  recentModels?: string[];
 };
 
 const DEFAULT_CONFIG: Partial<Config> = {
@@ -106,8 +107,9 @@ const VALID_CONFIG_KEYS = [
   'provider',
   'browser',
   'temperature',
+  'recentModels',
 ];
-const ARRAY_CONFIG_KEYS = ['plugins'];
+const ARRAY_CONFIG_KEYS = ['plugins', 'recentModels'];
 const OBJECT_CONFIG_KEYS = ['mcpServers', 'commit', 'provider'];
 const BOOLEAN_CONFIG_KEYS = [
   'quiet',

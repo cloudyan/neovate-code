@@ -1,7 +1,7 @@
 import { Box, Text, useInput } from 'ink';
 import pc from 'picocolors';
 import type React from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import type { ModelInfo } from '../../model';
 import PaginatedGroupSelectInput from '../../ui/PaginatedGroupSelectInput';
 import { useAppStore } from '../../ui/store';
@@ -30,6 +30,7 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({
     modelId: string;
   } | null>(null);
   const [groupedModels, setGroupedModels] = useState<GroupedData[]>([]);
+  const [recentModels, setRecentModels] = useState<string[]>([]);
 
   useEffect(() => {
     bridge.request('models.list', { cwd }).then((result) => {
@@ -39,8 +40,46 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({
         setCurrentModelInfo(result.data.currentModelInfo);
       }
       setGroupedModels(result.data.groupedModels);
+      // 确保 recentModels 是数组类型
+      const recentModelsData = result.data.recentModels || [];
+      if (Array.isArray(recentModelsData)) {
+        setRecentModels(recentModelsData);
+      }
     });
   }, [cwd]);
+
+  // 将最近使用的模型添加到分组模型列表的开头
+  const groupedModelsWithRecent = useMemo(() => {
+    if (recentModels.length === 0) {
+      return groupedModels;
+    }
+
+    // 创建最近使用模型的映射，方便查找
+    const recentModelSet = new Set(recentModels);
+
+    // 从现有模型中找出最近使用的模型
+    const recentModelItems: { name: string; modelId: string; value: string }[] =
+      [];
+    for (const group of groupedModels) {
+      for (const model of group.models) {
+        if (recentModelSet.has(model.value)) {
+          recentModelItems.push(model);
+        }
+      }
+    }
+
+    // 如果有最近使用的模型，添加一个"Recent"分组
+    if (recentModelItems.length > 0) {
+      const recentGroup: GroupedData = {
+        provider: 'Recent',
+        providerId: 'recent',
+        models: recentModelItems,
+      };
+      return [recentGroup, ...groupedModels];
+    }
+
+    return groupedModels;
+  }, [groupedModels, recentModels]);
 
   return (
     <Box
@@ -65,7 +104,7 @@ export const ModelSelect: React.FC<ModelSelectProps> = ({
       </Box>
       <Box>
         <PaginatedGroupSelectInput
-          groups={groupedModels}
+          groups={groupedModelsWithRecent}
           initialValue={currentModel}
           itemsPerPage={15}
           enableSearch={true}

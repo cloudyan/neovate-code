@@ -28,6 +28,7 @@ import { Project } from './project';
 import { query } from './query';
 import { SessionConfigManager } from './session';
 import { SlashCommandManager } from './slashCommand';
+import { RecentModelsManager } from './utils/recentModels';
 import { getFiles } from './utils/files';
 import { listDirectory } from './utils/list';
 import { randomUUID } from './utils/randomUUID';
@@ -383,13 +384,38 @@ class NodeHandlerRegistry {
             value: `${provider.id}/${modelId}`,
           })),
         }));
+
+        // 获取最近使用的模型
+        const recentModelsManager = new RecentModelsManager(
+          cwd,
+          context.productName,
+        );
+        const recentModels = recentModelsManager.getRecentModels();
+
         return {
           success: true,
           data: {
             groupedModels,
             currentModel,
             currentModelInfo,
+            recentModels,
           },
+        };
+      },
+    );
+
+    this.messageBus.registerHandler(
+      'models.addRecent',
+      async (data: { cwd: string; providerId: string; modelId: string }) => {
+        const { cwd, providerId, modelId } = data;
+        const context = await this.getContext(cwd);
+        const recentModelsManager = new RecentModelsManager(
+          cwd,
+          context.productName,
+        );
+        recentModelsManager.addRecentModel(providerId, modelId);
+        return {
+          success: true,
         };
       },
     );
