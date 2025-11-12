@@ -84,9 +84,6 @@
       }
     }
   },
-  "model": "iflow/qwen3-coder-plus",
-  "planModel": "iflow/qwen3-max",
-  "smallModel": "iflow/kimi-k2-0905",
   "commit": {
     "language": "en-US"
   },
