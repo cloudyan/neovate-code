@@ -56,7 +56,7 @@ export function ChatInput() {
     fileSuggestion.matchedPaths.length > 0;
   const placeholderText = useMemo(() => {
     if (queuedMessages.length > 0) {
-      return 'Press up to edit queued messages';
+      return 'Press option+up to edit queued messages';
     }
     if (currentTip) {
       return currentTip;
@@ -163,6 +163,7 @@ export function ChatInput() {
             placeholder={placeholderText}
             onChange={handleDisplayChange}
             onHistoryUp={handlers.handleHistoryUp}
+            onQueuedMessagesUp={handlers.handleQueuedMessagesUp}
             onHistoryDown={handlers.handleHistoryDown}
             onHistoryReset={handlers.handleHistoryReset}
             onExit={() => {

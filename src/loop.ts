@@ -14,6 +14,7 @@ import type {
   ToolUsePart,
 } from './message';
 import type { ModelInfo } from './model';
+import { addPromptCache } from './promptCache';
 import { getThinkingConfig } from './thinking-config';
 import type { ToolResult, Tools, ToolUse } from './tool';
 import { Usage } from './usage';
@@ -98,6 +99,7 @@ type RunLoopOpts = {
   thinking?: {
     effort: 'low' | 'medium' | 'high';
   };
+  temperature?: number;
   onTextDelta?: (text: string) => Promise<void>; // 文本增量回调
   onText?: (text: string) => Promise<void>; // 完整文本回调
   onReasoning?: (text: string) => Promise<void>; // 推理过程回调
@@ -223,6 +225,8 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
       shouldAtNormalize = false;
     }
 
+    prompt = addPromptCache(prompt, opts.model);
+
     let text = '';
     let reasoning = '';
     const toolCalls: Array<{
@@ -257,6 +261,9 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
           toolChoice: { type: 'auto' },
           abortSignal: abortController.signal,
           ...thinkingConfig,
+          ...(opts.temperature !== undefined && {
+            temperature: opts.temperature,
+          }),
         });
         opts.onStreamResult?.({
           requestId,

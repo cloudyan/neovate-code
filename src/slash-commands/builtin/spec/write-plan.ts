@@ -5,8 +5,7 @@ export function writePlanCommand(language: string): PromptCommand {
   return {
     type: 'prompt',
     name: 'spec:write-plan',
-    description:
-      'Create detailed implementation plans with bite-sized tasks for engineers with zero codebase context',
+    description: 'Write implementation plan',
     progressMessage: 'Creating implementation plan...',
     async getPromptForCommand(args: string) {
       return [

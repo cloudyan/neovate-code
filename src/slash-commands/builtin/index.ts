@@ -14,6 +14,7 @@ import { createResumeCommand } from './resume';
 import { createReviewCommand } from './review';
 import { brainstormCommand } from './spec/brainstorm';
 import { executePlanCommand } from './spec/execute-plan';
+import { saveDesignCommand } from './spec/save-design';
 import { writePlanCommand } from './spec/write-plan';
 import { statusCommand } from './status';
 import { createTerminalSetupCommand } from './terminal-setup';
@@ -44,5 +45,6 @@ export function createBuiltinCommands(opts: {
     writePlanCommand(opts.language),
     executePlanCommand(opts.language),
     languageCommand,
+    saveDesignCommand(opts.language),
   ];
 }

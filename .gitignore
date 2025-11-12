@@ -26,4 +26,5 @@ apps
 /.repowiki-*
 
 /.neovate-workspaces
+/.log-outputs
 
