@@ -16,6 +16,7 @@ import type { Context } from './context';
 import { PluginHookType } from './plugin';
 import { GithubProvider } from './providers/githubCopilot';
 import { getThinkingConfig } from './thinking-config';
+import { rotateApiKey } from './utils/apiKeyRotation';
 
 export interface ModelModalities {
   input: ('text' | 'image' | 'audio' | 'video' | 'pdf')[];
@@ -62,7 +63,6 @@ export interface Model {
   open_weights: boolean; // 是否使用开源权重
   cost: ModelCost; // 模型使用成本
   limit: ModelLimit; // 模型限制(上下文长度、输出长度等)
-  capabilities?: ModelCapability[]; // 模型能力标签
 }
 
 export interface Provider {
@@ -105,7 +105,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 128000, output: 8192 },
-    capabilities: ['coding', 'high_performance'],
   },
   'deepseek-v3-1': {
     name: 'DeepSeek V3.1',
@@ -120,7 +119,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 163840, output: 163840 },
-    capabilities: ['coding', 'high_performance'],
   },
   'deepseek-v3-1-terminus': {
     name: 'DeepSeek V3.1 Terminus',
@@ -134,7 +132,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 131072, output: 65536 },
-    capabilities: ['coding'],
   },
   'deepseek-v3-2-exp': {
     name: 'DeepSeek V3.2 Exp',
@@ -148,7 +145,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 131072, output: 65536 },
-    capabilities: ['coding'],
   },
   'deepseek-r1-0528': {
     name: 'DeepSeek-R1-0528',
@@ -163,7 +159,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 65536, output: 8192 },
-    capabilities: ['coding', 'high_performance'],
   },
   'doubao-seed-1.6': {
     name: 'Doubao Seed 1.6',
@@ -177,7 +172,6 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: true,
     limit: { context: 163840, output: 163840 },
-    capabilities: ['creative', 'multimodal'],
   },
   'kimi-k2': {
     name: 'Kimi K2',
@@ -191,7 +185,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 131072, output: 16384 },
-    capabilities: ['chat', 'fast'],
   },
   'kimi-k2-turbo-preview': {
     name: 'Kimi K2 Turbo',
@@ -205,7 +198,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 131072, output: 16384 },
-    capabilities: ['chat', 'fast'],
   },
   'kimi-k2-0905': {
     name: 'Kimi K2 Instruct 0905',
@@ -220,7 +212,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 262144, output: 16384 },
-    capabilities: ['chat'],
   },
   'kimi-k2-thinking': {
     name: 'Kimi K2 Thinking',
@@ -261,7 +252,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 262144, output: 66536 },
-    capabilities: ['coding'],
   },
   'qwen3-coder-plus': {
     name: 'Qwen3 Coder Plus',
@@ -289,7 +279,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 262144, output: 131072 },
-    capabilities: ['chat'],
   },
   'qwen3-max': {
     name: 'Qwen3 Max',
@@ -303,7 +292,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: false,
     limit: { context: 262144, output: 32768 },
-    capabilities: [],
   },
   'gemini-2.5-flash': {
     name: 'Gemini 2.5 Flash',
@@ -320,7 +308,6 @@ export const models: ModelMap = {
     },
     open_weights: false,
     limit: { context: 1048576, output: 65536 },
-    capabilities: ['multimodal', 'fast'],
   },
   'gemini-2.5-flash-preview-09-2025': {
     name: 'Gemini 2.5 Flash Preview 2025 09',
@@ -337,7 +324,6 @@ export const models: ModelMap = {
     },
     open_weights: false,
     limit: { context: 1048576, output: 65536 },
-    capabilities: ['multimodal', 'fast'],
   },
   'gemini-2.5-flash-lite-preview-06-17': {
     name: 'Gemini 2.5 Flash Lite Preview 06-17',
@@ -355,7 +341,6 @@ export const models: ModelMap = {
     },
     open_weights: false,
     limit: { context: 65536, output: 65536 },
-    capabilities: ['multimodal', 'fast', 'low_cost'],
   },
   'gemini-2.5-pro': {
     name: 'Gemini 2.5 Pro',
@@ -372,7 +357,6 @@ export const models: ModelMap = {
     },
     open_weights: false,
     limit: { context: 1048576, output: 65536 },
-    capabilities: ['multimodal', 'high_performance'],
   },
   'grok-4': {
     name: 'Grok 4',
@@ -386,7 +370,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: false,
     limit: { context: 256000, output: 64000 },
-    capabilities: ['high_performance'],
   },
   'grok-code-fast-1': {
     name: 'Grok Code Fast 1',
@@ -400,7 +383,6 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 256000, output: 32000 },
-    capabilities: ['coding', 'fast'],
   },
   'grok-4-fast': {
     name: 'Grok 4 Fast',
@@ -414,7 +396,6 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 2000000, output: 2000000 },
-    capabilities: ['high_performance'],
   },
   'claude-3-5-sonnet-20241022': {
     name: 'Claude Sonnet 3.5 v2',
@@ -429,7 +410,6 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 200000, output: 8192 },
-    capabilities: ['chat', 'multimodal'],
   },
   'claude-3-7-sonnet': {
     name: 'Claude Sonnet 3.7',
@@ -444,7 +424,6 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 200000, output: 64000 },
-    capabilities: ['multimodal'],
   },
   'claude-4-sonnet': {
     name: 'Claude Sonnet 4',
@@ -459,7 +438,6 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 200000, output: 64000 },
-    capabilities: ['multimodal'],
   },
   'claude-4-opus': {
     name: 'Claude Opus 4',
@@ -474,7 +452,6 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 200000, output: 32000 },
-    capabilities: ['multimodal', 'high_performance'],
   },
   'gpt-oss-120b': {
     name: 'GPT OSS 120B',
@@ -489,7 +466,54 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 131072, output: 32768 },
-    capabilities: ['coding'],
+  },
+  'gpt-5.1-codex': {
+    name: 'GPT-5.1-Codex',
+    attachment: false,
+    reasoning: true,
+    temperature: false,
+    tool_call: true,
+    knowledge: '2024-09-30',
+    release_date: '2025-11-13',
+    last_updated: '2025-11-13',
+    modalities: {
+      input: ['text', 'image'],
+      output: ['text'],
+    },
+    open_weights: false,
+    limit: { context: 400000, output: 128000 },
+  },
+  'gpt-5.1-codex-mini': {
+    name: 'GPT-5.1-Codex-mini',
+    attachment: false,
+    reasoning: true,
+    temperature: false,
+    tool_call: true,
+    knowledge: '2024-09-30',
+    release_date: '2025-11-13',
+    last_updated: '2025-11-13',
+    modalities: {
+      input: ['text', 'image'],
+      output: ['text'],
+    },
+    open_weights: false,
+    limit: { context: 400000, output: 100000 },
+  },
+  'gpt-5.1': {
+    name: 'GPT-5.1',
+    attachment: true,
+    reasoning: true,
+    temperature: false,
+    tool_call: true,
+    knowledge: '2024-09-30',
+    release_date: '2025-11-13',
+    last_updated: '2025-11-13',
+    modalities: {
+      input: ['text', 'image'],
+      output: ['text'],
+    },
+    open_weights: false,
+    limit: { context: 400000, output: 128000 },
   },
   'gpt-5': {
     name: 'GPT-5',
@@ -506,7 +530,6 @@ export const models: ModelMap = {
     },
     open_weights: false,
     limit: { context: 400000, output: 128000 },
-    capabilities: ['multimodal', 'high_performance'],
   },
   'gpt-5-mini': {
     name: 'GPT-5 Mini',
@@ -520,7 +543,6 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 272000, output: 128000 },
-    capabilities: ['multimodal', 'high_performance'],
   },
   'gpt-5-codex': {
     name: 'GPT-5-Codex',
@@ -534,7 +556,6 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 128000, output: 64000 },
-    capabilities: ['coding'],
   },
   'gpt-4.1': {
     name: 'GPT-4.1',
@@ -548,7 +569,6 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 1047576, output: 32768 },
-    capabilities: ['chat', 'multimodal'],
   },
   'gpt-4': {
     name: 'GPT-4',
@@ -562,7 +582,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: false,
     limit: { context: 8192, output: 8192 },
-    capabilities: ['chat'],
   },
   'gpt-4o': {
     name: 'GPT-4o',
@@ -576,7 +595,6 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 128000, output: 16384 },
-    capabilities: ['chat', 'multimodal'],
   },
   o3: {
     name: 'o3',
@@ -590,7 +608,6 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 200000, output: 100000 },
-    capabilities: ['multimodal'],
   },
   'o3-pro': {
     name: 'o3-pro',
@@ -604,7 +621,6 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 200000, output: 100000 },
-    capabilities: ['multimodal'],
   },
   'o3-mini': {
     name: 'o3-mini',
@@ -618,7 +634,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: false,
     limit: { context: 200000, output: 100000 },
-    capabilities: ['fast'],
   },
   'o4-mini': {
     name: 'o4-mini',
@@ -632,7 +647,6 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 200000, output: 100000 },
-    capabilities: ['multimodal'],
   },
   'glm-4.5': {
     name: 'GLM 4.5',
@@ -646,7 +660,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 131072, output: 98304 },
-    capabilities: [],
   },
   'glm-4.5-air': {
     name: 'GLM-4.5-Air',
@@ -660,7 +673,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 131072, output: 98304 },
-    capabilities: [],
   },
   'glm-4.5-flash': {
     name: 'GLM-4.5-Flash',
@@ -674,7 +686,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 131072, output: 98304 },
-    capabilities: ['fast'],
   },
   'glm-4.5v': {
     name: 'GLM 4.5V',
@@ -688,7 +699,6 @@ export const models: ModelMap = {
     modalities: { input: ['text', 'image', 'video'], output: ['text'] },
     open_weights: true,
     limit: { context: 64000, output: 16384 },
-    capabilities: ['multimodal'],
   },
   'glm-4.6': {
     name: 'GLM-4.6',
@@ -702,7 +712,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 204800, output: 131072 },
-    capabilities: [],
   },
   'sonoma-dusk-alpha': {
     name: 'Sonoma Dusk Alpha',
@@ -781,7 +790,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: false,
     limit: { context: 128000, output: 32000 },
-    capabilities: ['chat'],
   },
   'ring-1t': {
     name: 'InclusionAI Ring-1T',
@@ -795,7 +803,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: false,
     limit: { context: 128000, output: 32000 },
-    capabilities: [],
   },
   'ring-flash-2.0': {
     name: 'InclusionAI Ring-flash-2.0',
@@ -809,7 +816,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: false,
     limit: { context: 128000, output: 32000 },
-    capabilities: ['fast'],
   },
   'ling-flash-2.0': {
     name: 'InclusionAI Ling-flash-2.0',
@@ -823,7 +829,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: false,
     limit: { context: 128000, output: 32000 },
-    capabilities: ['chat', 'fast'],
   },
   'ring-mini-2.0': {
     name: 'InclusionAI Ring-mini-2.0',
@@ -837,7 +842,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: false,
     limit: { context: 128000, output: 32000 },
-    capabilities: ['fast'],
   },
   'ling-mini-2.0': {
     name: 'InclusionAI Ling-mini-2.0',
@@ -851,7 +855,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: false,
     limit: { context: 128000, output: 32000 },
-    capabilities: ['chat', 'fast'],
   },
   'minimax-m2': {
     name: 'Minimax-M2',
@@ -865,20 +868,6 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 196608, output: 64000 },
-    capabilities: ['coding', 'high_performance', 'fast'],
-  },
-  'polaris-alpha': {
-    name: 'Polaris Alpha',
-    attachment: true,
-    reasoning: false,
-    temperature: false,
-    tool_call: true,
-    knowledge: '2025-07',
-    release_date: '2025-07-30',
-    last_updated: '2025-07-30',
-    modalities: { input: ['text', 'image'], output: ['text'] },
-    open_weights: false,
-    limit: { context: 256000, output: 128000 },
   },
 };
 
@@ -897,16 +886,20 @@ function getProviderBaseURL(provider: Provider) {
 }
 
 function getProviderApiKey(provider: Provider) {
-  if (provider.options?.apiKey) {
-    return provider.options.apiKey;
-  }
-  const envs = provider.env || [];
-  for (const env of envs) {
-    if (process.env[env]) {
-      return process.env[env];
+  const apiKey = (() => {
+    if (provider.options?.apiKey) {
+      return provider.options.apiKey;
     }
-  }
-  return '';
+    const envs = provider.env || [];
+    for (const env of envs) {
+      if (process.env[env]) {
+        return process.env[env];
+      }
+    }
+    return '';
+  })();
+  const key = rotateApiKey(apiKey);
+  return key;
 }
 
 // 默认的模型创建函数，适用于大多数提供商
@@ -949,6 +942,9 @@ export const providers: ProvidersMap = {
       'gemini-2.5-pro': models['gemini-2.5-pro'],
       o3: models['o3'],
       'claude-sonnet-4': models['claude-4-sonnet'],
+      'gpt-5.1-codex': models['gpt-5.1-codex'],
+      'gpt-5.1-codex-mini': models['gpt-5.1-codex-mini'],
+      'gpt-5.1': models['gpt-5.1'],
       'gpt-5': models['gpt-5'],
       'claude-3.7-sonnet-thought': models['claude-3-7-sonnet'],
       'claude-sonnet-4.5': models['claude-4-5-sonnet'],
@@ -989,6 +985,9 @@ export const providers: ProvidersMap = {
       o3: models['o3'],
       'o3-mini': models['o3-mini'],
       'o4-mini': models['o4-mini'],
+      'gpt-5.1': models['gpt-5.1'],
+      'gpt-5.1-codex': models['gpt-5.1-codex'],
+      'gpt-5.1-codex-mini': models['gpt-5.1-codex-mini'],
       'gpt-5': models['gpt-5'],
       'gpt-5-mini': models['gpt-5-mini'],
       'gpt-5-codex': models['gpt-5-codex'],
@@ -1089,7 +1088,9 @@ export const providers: ProvidersMap = {
       'DeepSeek-R1': models['deepseek-r1-0528'],
       'DeepSeek-V3': models['deepseek-v3-0324'],
       'claude-opus-4-20250514': models['claude-4-opus'],
+      'claude-opus-4-1': models['claude-4.1-opus'],
       'claude-sonnet-4-20250514': models['claude-4-sonnet'],
+      'claude-sonnet-4-5': models['claude-4-5-sonnet'],
       'claude-3-7-sonnet-20250219': models['claude-3-7-sonnet'],
       'claude-3-5-sonnet-20241022': models['claude-3-5-sonnet-20241022'],
       'gpt-4.1': models['gpt-4.1'],
@@ -1100,6 +1101,9 @@ export const providers: ProvidersMap = {
       'o4-mini': models['o4-mini'],
       'gpt-5': models['gpt-5'],
       'gpt-5-mini': models['gpt-5-mini'],
+      'glm-4.6': models['glm-4.6'],
+      'kimi-k2-thinking': models['kimi-k2-thinking'],
+      'kimi-k2-turbo-preview': models['kimi-k2-turbo-preview'],
     },
     createModel: defaultModelCreator,
   },
@@ -1129,6 +1133,9 @@ export const providers: ProvidersMap = {
       'openai/o3-mini': models['o3-mini'],
       'openai/o4-mini': models['o4-mini'],
       'openai/gpt-oss-120b': models['gpt-oss-120b'],
+      'openai/gpt-5.1-codex': models['gpt-5.1-codex'],
+      'openai/gpt-5.1-codex-mini': models['gpt-5.1-codex-mini'],
+      'openai/gpt-5.1': models['gpt-5.1'],
       'openai/gpt-5': models['gpt-5'],
       'openai/gpt-5-mini': models['gpt-5-mini'],
       'openai/gpt-5-codex': models['gpt-5-codex'],
@@ -1139,14 +1146,11 @@ export const providers: ProvidersMap = {
       'qwen/qwen3-max': models['qwen3-max'],
       'x-ai/grok-code-fast-1': models['grok-code-fast-1'],
       'x-ai/grok-4': models['grok-4'],
-      'x-ai/grok-4-fast:free': models['grok-4-fast'],
-      'openrouter/sonoma-dusk-alpha': models['sonoma-dusk-alpha'],
-      'openrouter/sonoma-sky-alpha': models['sonoma-sky-alpha'],
+      'x-ai/grok-4-fast': models['grok-4-fast'],
       'z-ai/glm-4.5': models['glm-4.5'],
       'z-ai/glm-4.5v': models['glm-4.5v'],
       'z-ai/glm-4.6': models['glm-4.6'],
-      'minimax/minimax-m2:free': models['minimax-m2'],
-      'openrouter/polaris-alpha': models['polaris-alpha'],
+      'minimax/minimax-m2': models['minimax-m2'],
     },
     createModel(name, provider) {
       const baseURL = getProviderBaseURL(provider);
@@ -1362,9 +1366,26 @@ export const providers: ProvidersMap = {
     },
     createModel: defaultModelCreator,
   },
+  minimax: {
+    id: 'minimax',
+    env: ['MINIMAX_API_KEY'],
+    name: 'Minimax',
+    api: 'https://api.minimaxi.com/anthropic/v1',
+    doc: 'https://platform.minimaxi.com/docs/guides/quickstart',
+    models: {
+      'minimax-m2': models['minimax-m2'],
+    },
+    createModel(name, provider) {
+      const baseURL = getProviderBaseURL(provider);
+      const apiKey = getProviderApiKey(provider);
+      return createAnthropic({
+        baseURL,
+        apiKey,
+      }).chat(name);
+    },
+  },
 };
 
-// 推荐模型
 // value format: provider/model
 export type ModelAlias = Record<string, string>;
 // 模型别名映射表，用于简化模型引用，对应 Provider 下的 models 的 key
@@ -1410,8 +1431,10 @@ export const modelAlias: ModelAlias = {
 export type ModelInfo = {
   provider: Provider; // prividerInfo 供应商信息
   model: Omit<Model, 'cost'>; // modelInfo 模型元数据(不包含成本信息) 即接口 Model
-  m: LanguageModelV2; // modelClient 模型客户端 LanguageModelV2 类型的实例
+  // m 即 modelClient 模型客户端 LanguageModelV2 类型的实例
+  // m: LanguageModelV2;
   thinkingConfig?: Record<string, any>;
+  _mCreator: () => Promise<LanguageModelV2>;
 };
 
 function mergeConfigProviders(
@@ -1590,18 +1613,21 @@ export async function resolveModel(
 
   // 4. 创建模型客户端实例
   model.id = modelId;
-  let m: LanguageModelV2 | Promise<LanguageModelV2> = provider.createModel(
-    modelId,
-    provider,
-    globalConfigDir,
-  );
-  if (isPromise(m)) {
-    m = await m;
-  }
+  const mCreator = async () => {
+    let m: LanguageModelV2 | Promise<LanguageModelV2> = provider.createModel(
+      modelId,
+      provider,
+      globalConfigDir,
+    );
+    if (isPromise(m)) {
+      m = await m;
+    }
+    return m;
+  };
   return {
     provider,
     model,
-    m,
+    _mCreator: mCreator,
   };
 }
 

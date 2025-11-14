@@ -146,6 +146,7 @@ interface AppState {
 
   forkModalVisible: boolean;
   forkParentUuid: string | null;
+  forkCounter: number;
 
   bashBackgroundPrompt: BashPromptBackgroundEvent | null;
   thinking: { effort: 'low' | 'medium' | 'high' } | undefined;
@@ -217,6 +218,7 @@ interface AppActions {
   showForkModal: () => void;
   hideForkModal: () => void;
   fork: (targetMessageUuid: string) => Promise<void>;
+  incrementForkCounter: () => void;
   setBashBackgroundPrompt: (prompt: BashPromptBackgroundEvent) => void;
   clearBashBackgroundPrompt: () => void;
   toggleThinking: () => void;
@@ -274,6 +276,7 @@ export const useAppStore = create<AppStore>()(
       pastedImageMap: {},
       forkModalVisible: false,
       forkParentUuid: null,
+      forkCounter: 0,
       thinking: undefined,
 
       bashBackgroundPrompt: null,
@@ -485,11 +488,18 @@ export const useAppStore = create<AppStore>()(
             const isLocalJSX = type === 'local-jsx';
             const isPrompt = type === 'prompt';
             if (isPrompt) {
+              const forkParentUuid = get().forkParentUuid;
               await bridge.request('session.addMessages', {
                 cwd,
                 sessionId,
                 messages: [userMessage],
+                parentUuid: forkParentUuid || undefined,
               });
+              if (forkParentUuid) {
+                set({
+                  forkParentUuid: null,
+                });
+              }
             } else {
               set({
                 messages: [...get().messages, userMessage],
@@ -725,7 +735,7 @@ export const useAppStore = create<AppStore>()(
             processingStartTime: null,
             processingTokens: 0,
             retryInfo: null,
-            forkParentUuid: null, // Clear after successful send
+            forkParentUuid: null,
           });
         } else {
           set({
@@ -734,6 +744,7 @@ export const useAppStore = create<AppStore>()(
             processingStartTime: null,
             processingTokens: 0,
             retryInfo: null,
+            forkParentUuid: null,
           });
         }
         return response;
@@ -1044,6 +1055,11 @@ export const useAppStore = create<AppStore>()(
           inputCursorPosition: contentText.length,
           forkModalVisible: false,
         });
+        get().incrementForkCounter();
+      },
+
+      incrementForkCounter: () => {
+        set({ forkCounter: get().forkCounter + 1 });
       },
 
       setStatus: (status: AppStatus) => {
