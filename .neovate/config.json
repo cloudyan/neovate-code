@@ -24,9 +24,14 @@
           "limit": {
             "context": 256000,
             "output": 32000
-          },
-          "capabilities": ["coding", "high_performance", "fast"]
+          }
         }
+      }
+    },
+    "modelscope": {
+      "models": {
+        "moonshotai/Kimi-K2-Thinking": "kimi-k2-thinking",
+        "MiniMax/MiniMax-M2": "minimax-m2"
       }
     },
     "minimax": {
@@ -39,49 +44,7 @@
       }
     },
     "iflow": {
-      "models": {
-        "qwen3-coder-plus": {
-          "name": "Qwen3 Coder Plus 2025-07-22",
-          "shortName": "Qwen3 Coder Plus",
-          "attachment": false,
-          "reasoning": true,
-          "temperature": true,
-          "tool_call": true,
-          "knowledge": "2025-09",
-          "release_date": "2025-09-05",
-          "last_updated": "2025-09-05",
-          "modalities": {
-            "input": ["text"],
-            "output": ["text"]
-          },
-          "open_weights": false,
-          "limit": {
-            "context": 262144,
-            "output": 65536
-          },
-          "capabilities": ["coding", "high_performance"]
-        },
-        "qwen3-max": {
-          "name": "Qwen3 Max",
-          "attachment": false,
-          "reasoning": true,
-          "temperature": true,
-          "tool_call": true,
-          "knowledge": "2025-09",
-          "release_date": "2025-09-05",
-          "last_updated": "2025-09-05",
-          "modalities": {
-            "input": ["text"],
-            "output": ["text"]
-          },
-          "open_weights": false,
-          "limit": {
-            "context": 262144,
-            "output": 32768
-          },
-          "capabilities": ["coding", "high_performance"]
-        }
-      }
+      "models": {}
     }
   },
   "commit": {
