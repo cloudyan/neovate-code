@@ -869,6 +869,32 @@ export const models: ModelMap = {
     open_weights: true,
     limit: { context: 196608, output: 64000 },
   },
+  'sherlock-dash-alpha': {
+    name: 'Sherlock Dash Alpha',
+    attachment: true,
+    reasoning: false,
+    temperature: false,
+    tool_call: true,
+    knowledge: 'unknown',
+    release_date: '2025-11-15',
+    last_updated: '2025-11-15',
+    modalities: { input: ['text', 'image'], output: ['text'] },
+    open_weights: false,
+    limit: { context: 1840000, output: 64000 },
+  },
+  'sherlock-think-alpha': {
+    name: 'Sherlock Think Alpha',
+    attachment: true,
+    reasoning: true,
+    temperature: false,
+    tool_call: true,
+    knowledge: 'unknown',
+    release_date: '2025-11-15',
+    last_updated: '2025-11-15',
+    modalities: { input: ['text', 'image'], output: ['text'] },
+    open_weights: false,
+    limit: { context: 1840000, output: 64000 },
+  },
 };
 
 function getProviderBaseURL(provider: Provider) {
@@ -1151,6 +1177,8 @@ export const providers: ProvidersMap = {
       'z-ai/glm-4.5v': models['glm-4.5v'],
       'z-ai/glm-4.6': models['glm-4.6'],
       'minimax/minimax-m2': models['minimax-m2'],
+      'openrouter/sherlock-dash-alpha': models['sherlock-dash-alpha'],
+      'openrouter/sherlock-think-alpha': models['sherlock-think-alpha'],
     },
     createModel(name, provider) {
       const baseURL = getProviderBaseURL(provider);
@@ -1158,6 +1186,10 @@ export const providers: ProvidersMap = {
       return createOpenRouter({
         apiKey,
         baseURL,
+        headers: {
+          'X-Title': 'Neovate Code',
+          'HTTP-Referer': 'https://neovateai.dev/',
+        },
       }).chat(name);
     },
   },
