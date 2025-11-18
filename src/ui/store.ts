@@ -147,6 +147,7 @@ interface AppState {
   forkModalVisible: boolean;
   forkParentUuid: string | null;
   forkCounter: number;
+  copyModalVisible: boolean;
 
   bashBackgroundPrompt: BashPromptBackgroundEvent | null;
   thinking: { effort: 'low' | 'medium' | 'high' } | undefined;
@@ -219,6 +220,9 @@ interface AppActions {
   hideForkModal: () => void;
   fork: (targetMessageUuid: string) => Promise<void>;
   incrementForkCounter: () => void;
+  showCopyModal: () => void;
+  hideCopyModal: () => void;
+  copyMessage: (targetMessageUuid: string) => Promise<void>;
   setBashBackgroundPrompt: (prompt: BashPromptBackgroundEvent) => void;
   clearBashBackgroundPrompt: () => void;
   toggleThinking: () => void;
@@ -277,6 +281,7 @@ export const useAppStore = create<AppStore>()(
       forkModalVisible: false,
       forkParentUuid: null,
       forkCounter: 0,
+      copyModalVisible: false,
       thinking: undefined,
 
       bashBackgroundPrompt: null,
@@ -1016,6 +1021,20 @@ export const useAppStore = create<AppStore>()(
 
       hideForkModal: () => {
         set({ forkModalVisible: false });
+      },
+
+      showCopyModal: () => {
+        set({ copyModalVisible: true });
+      },
+
+      hideCopyModal: () => {
+        set({ copyModalVisible: false });
+      },
+
+      copyMessage: async (targetMessageUuid: string) => {
+        // 这个方法主要用于处理复制完成后的逻辑
+        // 实际的复制操作在 CopyModal 组件中完成
+        set({ copyModalVisible: false });
       },
 
       fork: async (targetMessageUuid: string) => {

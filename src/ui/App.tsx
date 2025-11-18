@@ -5,6 +5,7 @@ import { ActivityIndicator } from './ActivityIndicator';
 import { ApprovalModal } from './ApprovalModal';
 import { BackgroundPrompt } from './BackgroundPrompt';
 import { ChatInput } from './ChatInput';
+import { CopyModal } from './CopyModal';
 import { Debug } from './Debug';
 import { ExitHint } from './ExitHint';
 import { ForkModal } from './ForkModal';
@@ -72,9 +73,13 @@ export function App() {
   const { forceRerender } = useTerminalRefresh();
   const {
     forkModalVisible,
+    copyModalVisible,
     messages,
     fork,
     hideForkModal,
+    showCopyModal,
+    hideCopyModal,
+    copyMessage,
     forkParentUuid,
     forkCounter,
     bridge,
@@ -83,6 +88,8 @@ export function App() {
   } = useAppStore();
   const [forkMessages, setForkMessages] = React.useState<any[]>([]);
   const [forkLoading, setForkLoading] = React.useState(false);
+  const [copyMessages, setCopyMessages] = React.useState<any[]>([]);
+  const [copyLoading, setCopyLoading] = React.useState(false);
   React.useEffect(() => {
     if (!forkModalVisible) return;
     if (!bridge || !cwd || !sessionId) {
@@ -104,6 +111,28 @@ export function App() {
       }
     })();
   }, [forkModalVisible, bridge, cwd, sessionId]);
+
+  React.useEffect(() => {
+    if (!copyModalVisible) return;
+    if (!bridge || !cwd || !sessionId) {
+      setCopyMessages([]);
+      return;
+    }
+    setCopyLoading(true);
+    (async () => {
+      try {
+        const res = await bridge.request('session.messages.list', {
+          cwd,
+          sessionId,
+        });
+        setCopyMessages(res.data?.messages || []);
+      } catch (_e) {
+        setCopyMessages([]);
+      } finally {
+        setCopyLoading(false);
+      }
+    })();
+  }, [copyModalVisible, bridge, cwd, sessionId]);
   return (
     <Box
       flexDirection="column"
@@ -125,6 +154,17 @@ export function App() {
           }}
           onClose={() => {
             hideForkModal();
+          }}
+        />
+      )}
+      {copyModalVisible && (
+        <CopyModal
+          messages={copyMessages as any}
+          onSelect={(uuid) => {
+            copyMessage(uuid);
+          }}
+          onClose={() => {
+            hideCopyModal();
           }}
         />
       )}
