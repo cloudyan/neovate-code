@@ -487,7 +487,7 @@ rg -l "test.*{function_name}" --type test
 1. 🔴 核心基础设施(auth/api/middleware/config/migration)
 2. 🟠 公共API/工具函数(shared/utils/stores)
 3. 🟡 业务逻辑(核心流程)
-4. 🔵 辅助功能(UI组件/测试/文档)
+4. 🔵 辅助功能(UI组件/样式/测试/文档)
 
 **项目感知分块**:
 1. 🔴 核心业务模块(src/pages/cart, src/pages/*)
