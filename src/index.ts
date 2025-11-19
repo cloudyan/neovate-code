@@ -1,6 +1,7 @@
 import assert from 'assert';
 import { render } from 'ink';
 import React from 'react';
+import { runTest } from './commands/__test';
 import { runServer } from './commands/server/server';
 import { Context } from './context';
 import { GlobalData } from './globalData';
@@ -359,6 +360,7 @@ export async function runNeovate(opts: {
 
   // 二. 子命令处理
   const validCommands = [
+    '__test',
     'config',
     'commit',
     'mcp',
@@ -376,6 +378,10 @@ export async function runNeovate(opts: {
 
     // 根据命令动态加载并执行
     switch (command) {
+      case '__test': {
+        await runTest(context);
+        break;
+      }
       case 'config': {
         // 配置管理 (查看/编辑配置)
         const { runConfig } = await import('./commands/config');
