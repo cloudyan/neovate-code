@@ -16,8 +16,11 @@ interface CopyModalProps {
   onClose: () => void;
 }
 
+const MESSAGES_PER_PAGE = 10;
+
 export function CopyModal({ messages, onSelect, onClose }: CopyModalProps) {
   const [selectedIndex, setSelectedIndex] = React.useState(0);
+  const [currentPage, setCurrentPage] = React.useState(0);
   const [isCopying, setIsCopying] = React.useState(false);
   const [copyStatus, setCopyStatus] = React.useState<string | null>(null);
 
@@ -32,6 +35,12 @@ export function CopyModal({ messages, onSelect, onClose }: CopyModalProps) {
     )
     .reverse();
 
+  const totalPages = Math.ceil(aiMessages.length / MESSAGES_PER_PAGE);
+  const startIndex = currentPage * MESSAGES_PER_PAGE;
+  const endIndex = Math.min(startIndex + MESSAGES_PER_PAGE, aiMessages.length);
+  const currentMessages = aiMessages.slice(startIndex, endIndex);
+  const globalSelectedIndex = startIndex + selectedIndex;
+
   useInput((input, key) => {
     if (key.escape) {
       onClose();
@@ -39,11 +48,25 @@ export function CopyModal({ messages, onSelect, onClose }: CopyModalProps) {
       setSelectedIndex((prev) => Math.max(0, prev - 1));
       setCopyStatus(null);
     } else if (key.downArrow) {
-      setSelectedIndex((prev) => Math.min(aiMessages.length - 1, prev + 1));
+      setSelectedIndex((prev) =>
+        Math.min(currentMessages.length - 1, prev + 1),
+      );
       setCopyStatus(null);
+    } else if (key.pageDown || (input === ' ' && !isCopying)) {
+      // Space or PageDown for next page
+      if (currentPage < totalPages - 1) {
+        setCurrentPage((prev) => prev + 1);
+        setSelectedIndex(0); // Reset selection to first item on new page
+      }
+    } else if (key.pageUp) {
+      // PageUp for previous page
+      if (currentPage > 0) {
+        setCurrentPage((prev) => prev - 1);
+        setSelectedIndex(0); // Reset selection to first item on new page
+      }
     } else if (key.return && !isCopying) {
-      if (aiMessages[selectedIndex]) {
-        handleCopy(aiMessages[selectedIndex].uuid!);
+      if (aiMessages[globalSelectedIndex]) {
+        handleCopy(aiMessages[globalSelectedIndex].uuid!);
       }
     }
   });
@@ -95,7 +118,12 @@ export function CopyModal({ messages, onSelect, onClose }: CopyModalProps) {
         .map((part) => part.text);
       text = textParts.join(' ');
     }
-    return text.length > 80 ? text.slice(0, 80) + '...' : text;
+
+    // Remove newlines and extra spaces to keep it on one line
+    text = text.replace(/\s+/g, ' ').trim();
+
+    // Limit to 60 characters to ensure enough space for timestamp
+    return text.length > 60 ? text.slice(0, 60) + '...' : text;
   };
 
   const getTimestamp = (message: Message & { timestamp: string }): string => {
@@ -106,6 +134,7 @@ export function CopyModal({ messages, onSelect, onClose }: CopyModalProps) {
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
+      second: '2-digit',
     });
   };
 
@@ -147,7 +176,7 @@ export function CopyModal({ messages, onSelect, onClose }: CopyModalProps) {
         </Text>
       </Box>
       <Box flexDirection="column">
-        {aiMessages.map((message, index) => {
+        {currentMessages.map((message, index) => {
           const isSelected = index === selectedIndex;
           const preview = getMessagePreview(message);
           const timestamp = getTimestamp(message);
@@ -173,9 +202,16 @@ export function CopyModal({ messages, onSelect, onClose }: CopyModalProps) {
           </Text>
         </Box>
       )}
-      <Box marginTop={1}>
+      <Box marginTop={1} flexDirection="row" justifyContent="space-between">
         <Text dimColor>
-          {isCopying ? '正在复制...' : '使用 ↑/↓ 导航, Enter 复制, Esc 取消'}
+          {isCopying
+            ? '正在复制...'
+            : totalPages > 1
+              ? '使用 ↑/↓ 导航, PgUp/PgDn 或 空格键 翻页, Enter 复制, Esc 取消'
+              : '使用 ↑/↓ 导航, Enter 复制, Esc 取消'}
+        </Text>
+        <Text dimColor>
+          第 {currentPage + 1} 页，共 {totalPages} 页
         </Text>
       </Box>
     </Box>
