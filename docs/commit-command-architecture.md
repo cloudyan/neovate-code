@@ -12,6 +12,13 @@
 4. **自动化流程** - 支持一键提交和推送
 5. **格式验证** - 确保生成的提交信息符合规范
 
+常用 commit 模型：
+
+- openai/gpt-4o - 成本低，速度快
+- anthropic/claude-haiku-4-5 - 最快最便宜的Claude模型
+- google/gemini-2.5-flash - 快速且成本效益高
+- moonshotai-cn/kimi-k2-0711-preview - 成本效益高
+
 ## 架构图
 
 ```mermaid
@@ -152,11 +159,11 @@ export async function query(opts: {
       // ...
     },
   ];
-  
+
   // 2. 解析模型
-  const model = opts.model || 
+  const model = opts.model ||
     (await resolveModelWithContext(null, opts.context!)).model!;
-  
+
   // 3. 调用 runLoop（但**不带工具**）
   return await runLoop({
     input: messages,
@@ -194,7 +201,7 @@ sequenceDiagram
     participant ResolveModel as resolveModel
     participant Loop as runLoop()
     participant Model as AI Model
-    
+
     Commit->>Query: query({ userPrompt, systemPrompt, context })
     Query->>Query: 构造 messages 数组
     Query->>ResolveModel: 解析模型
@@ -223,14 +230,14 @@ graph TD
     G --> H[返回提交信息]
     H --> I[交互式选择]
     I --> J[复制/提交/推送/分支]
-    
+
     I --> K[generateBranchName]
     K --> L[query]
     L --> M[runLoop]
     M --> N[AI Model]
     N --> O[返回分支名]
     O --> P[checkout -b]
-    
+
     style E fill:#fff3e0,color:#000
     style F fill:#fce4ec,color:#000
     style L fill:#fff3e0,color:#000
