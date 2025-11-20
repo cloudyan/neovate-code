@@ -5,6 +5,7 @@ import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createXai } from '@ai-sdk/xai';
+import { createAihubmix } from '@aihubmix/ai-sdk-provider';
 import {
   createOpenRouter,
   type LanguageModelV2,
@@ -410,6 +411,19 @@ export const models: ModelMap = {
     knowledge: '2024-11',
     release_date: '2025-08-19',
     last_updated: '2025-08-19',
+    modalities: { input: ['text', 'image'], output: ['text'] },
+    open_weights: false,
+    limit: { context: 2000000, output: 2000000 },
+  },
+  'grok-4.1-fast': {
+    name: 'Grok 4.1 Fast',
+    attachment: true,
+    reasoning: true,
+    temperature: true,
+    tool_call: true,
+    knowledge: '2025-10',
+    release_date: '2025-11-19',
+    last_updated: '2025-11-19',
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 2000000, output: 2000000 },
@@ -1099,6 +1113,11 @@ export const providers: ProvidersMap = {
     name: 'xAI',
     doc: 'https://xai.com/docs/models',
     models: {
+      'grok-4-1-fast': models['grok-4.1-fast'],
+      'grok-4-1-fast-non-reasoning': {
+        ...models['grok-4.1-fast'],
+        reasoning: false,
+      },
       'grok-4': models['grok-4'],
       'grok-4-fast': models['grok-4-fast'],
       'grok-code-fast-1': models['grok-code-fast-1'],
@@ -1167,7 +1186,12 @@ export const providers: ProvidersMap = {
       'kimi-k2-thinking': models['kimi-k2-thinking'],
       'kimi-k2-turbo-preview': models['kimi-k2-turbo-preview'],
     },
-    createModel: defaultModelCreatorCompatible,
+    createModel(name, provider) {
+      const apiKey = getProviderApiKey(provider);
+      return createAihubmix({
+        apiKey,
+      }).chat(name);
+    },
   },
   openrouter: {
     id: 'openrouter',
@@ -1210,6 +1234,7 @@ export const providers: ProvidersMap = {
       'x-ai/grok-code-fast-1': models['grok-code-fast-1'],
       'x-ai/grok-4': models['grok-4'],
       'x-ai/grok-4-fast': models['grok-4-fast'],
+      'x-ai/grok-4.1-fast': models['grok-4.1-fast'],
       'z-ai/glm-4.5': models['glm-4.5'],
       'z-ai/glm-4.5v': models['glm-4.5v'],
       'z-ai/glm-4.6': models['glm-4.6'],
@@ -1237,7 +1262,6 @@ export const providers: ProvidersMap = {
     api: 'https://apis.iflow.cn/v1/',
     doc: 'https://iflow.cn/',
     models: {
-      'qwen3-coder': models['qwen3-coder-480b-a35b-instruct'],
       'qwen3-coder-plus': models['qwen3-coder-plus'],
       'kimi-k2': models['kimi-k2'],
       'kimi-k2-0905': models['kimi-k2-0905'],

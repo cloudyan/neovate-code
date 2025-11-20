@@ -80,6 +80,7 @@ export type SessionConfig = {
   summary?: string;
   pastedTextMap?: Record<string, string>;
   pastedImageMap?: Record<string, string>;
+  additionalDirectories?: string[];
 };
 
 const DEFAULT_SESSION_CONFIG: SessionConfig = {
@@ -87,6 +88,7 @@ const DEFAULT_SESSION_CONFIG: SessionConfig = {
   approvalTools: [],
   pastedTextMap: {},
   pastedImageMap: {},
+  additionalDirectories: [],
 };
 
 /**

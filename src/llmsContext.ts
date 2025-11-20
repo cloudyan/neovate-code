@@ -30,6 +30,7 @@ export type LlmsContextCreateOpts = {
   context: Context; // 全局上下文（包含配置、插件等）
   sessionId: string; // 会话 ID
   userPrompt: string | null; // 用户输入的提示（可能为空，如恢复会话）
+  additionalDirectories?: string[];
 };
 
 /**
@@ -142,6 +143,11 @@ ${Object.entries(llmsContext)
     // 二. llmsEnv: 包含运行环境信息
     let llmsEnv = {
       'Working directory': opts.context.cwd,
+      ...(opts.additionalDirectories &&
+        opts.additionalDirectories.length > 0 && {
+          'Additional working directories':
+            opts.additionalDirectories.join(', '),
+        }),
       'Is directory a git repo': gitStatus ? 'YES' : 'NO',
       Platform: platform,
       "Today's date": new Date().toLocaleDateString(),
