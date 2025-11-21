@@ -1,6 +1,7 @@
 // https://ai-sdk.dev/providers/ai-sdk-providers
 // https://ai-sdk.dev/providers/ai-sdk-providers/openai
 import { createAnthropic } from '@ai-sdk/anthropic';
+import { createCerebras } from '@ai-sdk/cerebras';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
@@ -1479,6 +1480,20 @@ export const providers: ProvidersMap = {
         baseURL,
         apiKey,
       }).chat(name);
+    },
+  },
+  cerebras: {
+    id: 'cerebras',
+    env: ['CEREBRAS_API_KEY'],
+    name: 'Cerebras',
+    doc: 'https://cerebras.ai/docs',
+    models: {
+      'zai-glm-4.6': models['glm-4.6'],
+      'gpt-oss-120b': models['gpt-oss-120b'],
+    },
+    createModel(name, provider) {
+      const apiKey = getProviderApiKey(provider);
+      return createCerebras({ apiKey })(name);
     },
   },
 };
