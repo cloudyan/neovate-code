@@ -28,6 +28,7 @@ type ResolveToolsOpts = {
   sessionId: string;
   write?: boolean;
   todo?: boolean;
+  readOnly?: boolean; // 新增只读模式标识
 };
 
 export async function resolveTools(opts: ResolveToolsOpts) {
@@ -36,6 +37,7 @@ export async function resolveTools(opts: ResolveToolsOpts) {
   const model = (
     await resolveModelWithContext(opts.context.config.model, opts.context)
   ).model!;
+
   const readonlyTools = [
     createReadTool({ cwd, productName }),
     createLSTool({ cwd, productName }),
@@ -46,35 +48,45 @@ export async function resolveTools(opts: ResolveToolsOpts) {
     // createEvaluateTool({ cwd }),
     // createCodeReviewTool({ cwd }),
   ];
-  const writeTools = opts.write
-    ? [
-        createWriteTool({ cwd }),
-        createEditTool({ cwd }),
-        createBashTool({
-          cwd,
-          backgroundTaskManager: opts.context.backgroundTaskManager,
-          messageBus: opts.context.messageBus,
-        }),
-      ]
-    : [];
+
+  // 只有在非只读模式且允许写入时才添加写入工具
+  const writeTools =
+    opts.write && !opts.readOnly
+      ? [
+          createWriteTool({ cwd }),
+          createEditTool({ cwd }),
+          createBashTool({
+            cwd,
+            backgroundTaskManager: opts.context.backgroundTaskManager,
+            messageBus: opts.context.messageBus,
+          }),
+        ]
+      : [];
+
   const todoTools = (() => {
     if (!opts.todo) return [];
+    // 只读模式下仍然允许todo操作
     const { todoWriteTool, todoReadTool } = createTodoTool({
       filePath: path.join(paths.globalConfigDir, 'todos', `${sessionId}.json`),
     });
     return [todoReadTool, todoWriteTool];
   })();
-  const backgroundTools = opts.write
-    ? [
-        createBashOutputTool({
-          backgroundTaskManager: opts.context.backgroundTaskManager,
-        }),
-        createKillBashTool({
-          backgroundTaskManager: opts.context.backgroundTaskManager,
-        }),
-      ]
-    : [];
+
+  // 只有在非只读模式且允许写入时才添加后台工具
+  const backgroundTools =
+    opts.write && !opts.readOnly
+      ? [
+          createBashOutputTool({
+            backgroundTaskManager: opts.context.backgroundTaskManager,
+          }),
+          createKillBashTool({
+            backgroundTaskManager: opts.context.backgroundTaskManager,
+          }),
+        ]
+      : [];
+
   const mcpTools = await getMcpTools(opts.context);
+
   return [
     ...readonlyTools,
     ...writeTools,

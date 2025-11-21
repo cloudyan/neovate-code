@@ -53,6 +53,7 @@ export class Project {
       sessionId: this.session.id,
       write: true,
       todo: true,
+      readOnly: this.context.config.readOnlyMode, // 添加只读模式配置
     });
     tools = await this.context.apply({
       hook: 'tool',
@@ -111,6 +112,7 @@ export class Project {
       sessionId: this.session.id,
       write: false, // 禁止写操作
       todo: false, // 禁止 todo 操作
+      readOnly: this.context.config.readOnlyMode, // 添加只读模式配置
     });
     tools = await this.context.apply({
       hook: 'tool',

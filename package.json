@@ -15,6 +15,7 @@
   },
   "scripts": {
     "dev": "bun ./src/cli.ts",
+    "dev:readonly": "bun ./src/cli.ts server --read-only",
     "format": "biome format .",
     "build:type": "tsc --project tsconfig.json --emitDeclarationOnly --declarationDir dist-dts",
     "build:cli": "bun build src/cli.ts --external react-devtools-core --minify --outfile dist/cli.mjs --target=node",
