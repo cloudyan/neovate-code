@@ -55,7 +55,7 @@
     "lucide-react": "^0.545.0",
     "tailwind-scrollbar": "^4.0.2",
     "tailwindcss": "^4.1.10",
-    "typescript": "~5.8.3",
+    "typescript": "~5.9.3",
     "vite": "^6.3.5",
     "vite-plugin-svgr": "^4.3.0"
   },
