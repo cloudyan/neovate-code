@@ -1,6 +1,5 @@
 import { Box, Text } from 'ink';
-import React, { useCallback, useMemo } from 'react';
-import { BackgroundPrompt } from './BackgroundPrompt';
+import { useCallback, useMemo } from 'react';
 import { SPACING, UI_COLORS } from './constants';
 import { DebugRandomNumber } from './Debug';
 import { MemoryModal } from './MemoryModal';
@@ -15,7 +14,7 @@ import { useTerminalSize } from './useTerminalSize';
 import { useTryTips } from './useTryTips';
 
 export function ChatInput() {
-  const { inputState, handlers, slashCommands, fileSuggestion } =
+  const { inputState, handlers, slashCommands, fileSuggestion, reverseSearch } =
     useInputHandlers();
   const { currentTip } = useTryTips();
   const {
@@ -53,8 +52,13 @@ export function ChatInput() {
 
   const showSuggestions =
     slashCommands.suggestions.length > 0 ||
-    fileSuggestion.matchedPaths.length > 0;
+    fileSuggestion.matchedPaths.length > 0 ||
+    reverseSearch.active;
   const placeholderText = useMemo(() => {
+    // Reverse search mode has highest priority
+    if (reverseSearch.placeholderText) {
+      return reverseSearch.placeholderText;
+    }
     if (queuedMessages.length > 0) {
       return 'Press option+up to edit queued messages';
     }
@@ -62,22 +66,39 @@ export function ChatInput() {
       return currentTip;
     }
     return '';
-  }, [currentTip, queuedMessages]);
+  }, [currentTip, queuedMessages, reverseSearch.placeholderText]);
 
-  // Display value - slice prefix for bash/memory modes
+  // Display value - slice prefix for bash/memory modes, or show search query in reverse search mode
   const displayValue = useMemo(() => {
+    if (reverseSearch.active) {
+      return reverseSearch.query;
+    }
     return inputState.state.value;
-  }, [mode, inputState.state.value]);
+  }, [mode, inputState.state.value, reverseSearch.active, reverseSearch.query]);
 
   // Adjust cursor position for display (subtract 1 for bash/memory modes)
   const displayCursorOffset = useMemo(() => {
+    // In reverse search mode, cursor is always at the end of search query
+    if (reverseSearch.active) {
+      return reverseSearch.query.length;
+    }
     const offset = inputState.state.cursorPosition ?? 0;
     return offset;
-  }, [mode, inputState.state.cursorPosition]);
+  }, [
+    mode,
+    inputState.state.cursorPosition,
+    reverseSearch.active,
+    reverseSearch.query,
+  ]);
 
   // Wrap onChange to add prefix back for bash/memory modes
   const handleDisplayChange = useCallback(
     (val: string) => {
+      // In reverse search mode, don't modify the value
+      if (reverseSearch.active) {
+        handlers.handleChange(val);
+        return;
+      }
       // If the first character is ! or #, don't set value, just change mode
       if (val.length > inputState.state.value.length) {
         const firstChar = val[0];
@@ -88,7 +109,7 @@ export function ChatInput() {
       }
       handlers.handleChange(val);
     },
-    [mode, handlers],
+    [mode, handlers, reverseSearch.active],
   );
 
   // Handle delete key press - switch to prompt mode when value becomes empty
@@ -105,9 +126,14 @@ export function ChatInput() {
   // Wrap cursor position change to add 1 for bash/memory modes
   const handleDisplayCursorChange = useCallback(
     (pos: number) => {
+      // In reverse search mode, don't update cursor position
+      // (cursor is managed by the search query length)
+      if (reverseSearch.active) {
+        return;
+      }
       inputState.setCursorPosition(pos);
     },
-    [mode, inputState],
+    [mode, inputState, reverseSearch.active],
   );
 
   // Get border color based on mode
@@ -126,10 +152,11 @@ export function ChatInput() {
 
   // Get prompt symbol based on mode
   const promptSymbol = useMemo(() => {
+    if (reverseSearch.active) return 'search';
     if (mode === 'memory') return '#';
     if (mode === 'bash') return '!';
     return '>';
-  }, [mode]);
+  }, [mode, reverseSearch.active]);
 
   if (slashCommandJSX) {
     return null;
@@ -166,6 +193,8 @@ export function ChatInput() {
             onQueuedMessagesUp={handlers.handleQueuedMessagesUp}
             onHistoryDown={handlers.handleHistoryDown}
             onHistoryReset={handlers.handleHistoryReset}
+            onReverseSearch={handlers.handleReverseSearch}
+            onReverseSearchPrevious={handlers.handleReverseSearchPrevious}
             onExit={() => {
               setStatus('exit');
               setTimeout(() => {
@@ -209,44 +238,74 @@ export function ChatInput() {
         <Text color={borderColor}>{'─'.repeat(Math.max(0, columns))}</Text>
       </Box>
       <StatusLine hasSuggestions={showSuggestions} />
-      <Suggestion
-        suggestions={slashCommands.suggestions}
-        selectedIndex={slashCommands.selectedIndex}
-        maxVisible={10}
-      >
-        {(suggestion, isSelected, visibleSuggestions) => {
-          const maxNameLength = Math.max(
-            ...visibleSuggestions.map((s) => s.command.name.length),
-          );
-          return (
-            <SuggestionItem
-              name={`/${suggestion.command.name}`}
-              description={suggestion.command.description}
-              isSelected={isSelected}
-              firstColumnWidth={maxNameLength + 4}
-            />
-          );
-        }}
-      </Suggestion>
-      <Suggestion
-        suggestions={fileSuggestion.matchedPaths}
-        selectedIndex={fileSuggestion.selectedIndex}
-        maxVisible={10}
-      >
-        {(suggestion, isSelected, visibleSuggestions) => {
-          const maxNameLength = Math.max(
-            ...visibleSuggestions.map((s) => s.length),
-          );
-          return (
-            <SuggestionItem
-              name={suggestion}
-              description={''}
-              isSelected={isSelected}
-              firstColumnWidth={maxNameLength + 4}
-            />
-          );
-        }}
-      </Suggestion>
+      {reverseSearch.active &&
+        (reverseSearch.matches.length > 0 ? (
+          <Suggestion
+            suggestions={reverseSearch.matches}
+            selectedIndex={reverseSearch.selectedIndex}
+            maxVisible={10}
+          >
+            {(suggestion, isSelected, visibleSuggestions) => {
+              const maxNameLength = Math.max(
+                ...visibleSuggestions.map((s) => s.length),
+              );
+              return (
+                <SuggestionItem
+                  name={suggestion}
+                  description={''}
+                  isSelected={isSelected}
+                  firstColumnWidth={maxNameLength + 4}
+                />
+              );
+            }}
+          </Suggestion>
+        ) : (
+          <Box marginLeft={2} marginTop={1}>
+            <Text dimColor>No matches found</Text>
+          </Box>
+        ))}
+      {!reverseSearch.active && slashCommands.suggestions.length > 0 && (
+        <Suggestion
+          suggestions={slashCommands.suggestions}
+          selectedIndex={slashCommands.selectedIndex}
+          maxVisible={10}
+        >
+          {(suggestion, isSelected, visibleSuggestions) => {
+            const maxNameLength = Math.max(
+              ...visibleSuggestions.map((s) => s.command.name.length),
+            );
+            return (
+              <SuggestionItem
+                name={`/${suggestion.command.name}`}
+                description={suggestion.command.description}
+                isSelected={isSelected}
+                firstColumnWidth={maxNameLength + 4}
+              />
+            );
+          }}
+        </Suggestion>
+      )}
+      {!reverseSearch.active && fileSuggestion.matchedPaths.length > 0 && (
+        <Suggestion
+          suggestions={fileSuggestion.matchedPaths}
+          selectedIndex={fileSuggestion.selectedIndex}
+          maxVisible={10}
+        >
+          {(suggestion, isSelected, visibleSuggestions) => {
+            const maxNameLength = Math.max(
+              ...visibleSuggestions.map((s) => s.length),
+            );
+            return (
+              <SuggestionItem
+                name={suggestion}
+                description={''}
+                isSelected={isSelected}
+                firstColumnWidth={maxNameLength + 4}
+              />
+            );
+          }}
+        </Suggestion>
+      )}
     </Box>
   );
 }

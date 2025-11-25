@@ -1,3 +1,21 @@
+## 0.18.1
+
+`2025-11-25`
+
+- feat: add claude-opus-4-5 model support and update model aliases by [@sorrycc](https://github.com/sorrycc)
+- fix(ui): fix indentation issues caused by special characters by [@QuietlyChan](https://github.com/QuietlyChan) in [#452](https://github.com/umijs/takumi/pull/452)
+- feat(log): add cross-platform support to open generated HTML log files by [@QuietlyChan](https://github.com/QuietlyChan) in [#443](https://github.com/umijs/takumi/pull/443)
+- fix: reset selected index when suggestions change by [@Rongjianying](https://github.com/Rongjianying) in [#448](https://github.com/umijs/takumi/pull/448)
+- feat: add wanqing provider support to thinking configuration by [@阿平](https://github.com/阿平) in [#440](https://github.com/umijs/takumi/pull/440)
+- fix: add pnpmfile hooks to downgrade string-width 8.x to 7.2.0 for compatibility by [@阿平](https://github.com/阿平) in [#439](https://github.com/umijs/takumi/pull/439)
+- feat: add cerebras provider support with glm-4.6 and gpt-oss-120b models by [@sorrycc](https://github.com/sorrycc)
+- Revert "fix: pin string-width version to 7.2.0 to resolve ink compatibility issue " by [@sorrycc](https://github.com/sorrycc) in [#437](https://github.com/umijs/takumi/pull/437)
+- fix: pin string-width version to 7.2.0 to resolve ink compatibility issue by [@阿平](https://github.com/阿平) in [#437](https://github.com/umijs/takumi/pull/437)
+- feat: add project.workspaces.get handler and rename list handler by [@sorrycc](https://github.com/sorrycc)
+- fix: remove qwen3-coder model from providers map by [@sorrycc](https://github.com/sorrycc)
+- dep: update clipboardy from 5.0.0 to 5.0.1 and glob from 11.0.3 to 13.0.0 by [@sorrycc](https://github.com/sorrycc)
+
+
 ## 0.18.0
 
 `2025-11-20`

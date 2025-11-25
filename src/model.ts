@@ -810,6 +810,19 @@ export const models: ModelMap = {
     open_weights: false,
     limit: { context: 200000, output: 64000 },
   },
+  'claude-opus-4-5': {
+    name: 'Claude Opus 4.5',
+    attachment: true,
+    reasoning: true,
+    temperature: true,
+    tool_call: true,
+    knowledge: '2025-03-31',
+    release_date: '2025-11-24',
+    last_updated: '2025-11-24',
+    modalities: { input: ['text', 'image'], output: ['text'] },
+    open_weights: false,
+    limit: { context: 200000, output: 64000 },
+  },
   'ling-1t': {
     name: 'InclusionAI Ling-1T',
     attachment: true,
@@ -1024,6 +1037,7 @@ export const providers: ProvidersMap = {
       'gpt-5': models['gpt-5'],
       'claude-3.7-sonnet-thought': models['claude-3-7-sonnet'],
       'claude-sonnet-4.5': models['claude-4-5-sonnet'],
+      'claude-opus-4-5': models['claude-opus-4-5'],
     },
     async createModel(name, provider, globalConfigDir) {
       const githubDataPath = path.join(globalConfigDir, 'githubCopilot.json');
@@ -1147,6 +1161,7 @@ export const providers: ProvidersMap = {
       'claude-3-7-sonnet-20250219-thinking': models['claude-3-7-sonnet'],
       'claude-3-5-sonnet-20241022': models['claude-3-5-sonnet-20241022'],
       'claude-haiku-4-5': models['claude-haiku-4-5'],
+      'claude-opus-4-5': models['claude-opus-4-5'],
     },
     createModel(name, provider) {
       const baseURL = getProviderBaseURL(provider);
@@ -1207,6 +1222,7 @@ export const providers: ProvidersMap = {
       'anthropic/claude-haiku-4.5': models['claude-haiku-4-5'],
       'anthropic/claude-opus-4': models['claude-4-opus'],
       'anthropic/claude-opus-4.1': models['claude-4.1-opus'],
+      'anthropic/claude-opus-4.5': models['claude-opus-4-5'],
       'deepseek/deepseek-r1-0528': models['deepseek-r1-0528'],
       'deepseek/deepseek-chat-v3-0324': models['deepseek-v3-0324'],
       'deepseek/deepseek-chat-v3.1': models['deepseek-v3-1'],
@@ -1461,6 +1477,7 @@ export const providers: ProvidersMap = {
       'openai/gpt-5.1-codex-mini': models['gpt-5.1-codex-mini'],
       'anthropic/claude-sonnet-4.5': models['claude-4-5-sonnet'],
       'anthropic/claude-opus-4.1': models['claude-4.1-opus'],
+      'anthropic/claude-opus-4.5': models['claude-opus-4-5'],
     },
     createModel: defaultModelCreatorCompatible,
   },
@@ -1496,6 +1513,28 @@ export const providers: ProvidersMap = {
       return createCerebras({ apiKey })(name);
     },
   },
+  poe: {
+    id: 'poe',
+    env: ['POE_API_KEY'],
+    name: 'Poe',
+    api: 'https://api.poe.com/v1',
+    doc: 'https://poe.com',
+    models: {
+      'Claude-Opus-4.5': models['claude-4-opus'],
+      'Claude-Sonnet-4.5': models['claude-4-5-sonnet'],
+      'Gemini-3-Pro': models['gemini-3-pro-preview'],
+      'Gemini-2.5-Pro': models['gemini-2.5-pro'],
+      'Gemini-2.5-Flash': models['gemini-2.5-flash'],
+      'GPT-5.1': models['gpt-5.1'],
+      'GPT-5.1-Codex': models['gpt-5.1-codex'],
+      'Grok-4.1-Fast-Non-Reasoning': {
+        ...models['grok-4.1-fast'],
+        reasoning: false,
+      },
+      'Grok-4.1-Fast': models['grok-4.1-fast'],
+    },
+    createModel: defaultModelCreatorCompatible,
+  },
 };
 
 // value format: provider/model
@@ -1507,18 +1546,15 @@ export const modelAlias: ModelAlias = {
   '41': 'openai/gpt-4.1',
   '4': 'openai/gpt-4',
   '4o': 'openai/gpt-4o',
-  'flash-lite': 'google/gemini-2.5-flash-lite',
   flash: 'google/gemini-2.5-flash',
   gemini: 'google/gemini-2.5-pro',
-  grok: 'xai/grok-4',
+  grok: 'xai/grok-4-1-fast',
   'grok-code': 'xai/grok-code-fast-1',
   sonnet: 'anthropic/claude-sonnet-4-5-20250929',
   haiku: 'anthropic/claude-haiku-4-5',
-  'sonnet-3.5': 'anthropic/claude-3-5-sonnet-20241022',
-  'sonnet-3.7': 'anthropic/claude-3-7-sonnet-20250219',
-  'sonnet-3.7-thinking': 'anthropic/claude-3-7-sonnet-20250219-thinking',
-  k2: 'moonshotai-cn/kimi-k2-0711-preview',
-  'k2-turbo': 'moonshotai-cn/kimi-k2-turbo-preview',
+  opus: 'anthropic/claude-opus-4-5',
+  k2: 'moonshotai-cn/kimi-k2-thinking',
+  'k2-turbo': 'moonshotai-cn/kimi-k2-thinking-turbo',
 };
 
 // 推荐配置
