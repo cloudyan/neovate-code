@@ -56,6 +56,7 @@ export type Config = {
   model: string;
   planModel: string;
   smallModel?: string;
+  visionModel?: string;
   language: string;
   quiet: boolean;
   approvalMode: ApprovalMode;
@@ -101,6 +102,7 @@ const VALID_CONFIG_KEYS = [
   'model',
   'planModel',
   'smallModel',
+  'visionModel',
   'systemPrompt',
   'todo',
   'autoCompact',
@@ -164,6 +166,7 @@ export class ConfigManager {
     ) as Config;
     config.planModel = config.planModel || config.model;
     config.smallModel = config.smallModel || config.model;
+    config.visionModel = config.visionModel || config.model;
     if (config.browser) {
       config.mcpServers = mergeBrowserMcpServers(
         config.mcpServers,

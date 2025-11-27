@@ -13,11 +13,14 @@ import {
 } from '@openrouter/ai-sdk-provider';
 import assert from 'assert';
 import defu from 'defu';
-import path from 'pathe';
-import type { ProviderConfig } from './config';
+import {
+  AntigravityProvider,
+  createAntigravityProvider,
+  GithubProvider,
+} from 'oauth-providers';
+import { ConfigManager, type ProviderConfig } from './config';
 import type { Context } from './context';
 import { PluginHookType } from './plugin';
-import { GithubProvider } from './providers/githubCopilot';
 import { getThinkingConfig } from './thinking-config';
 import { rotateApiKey } from './utils/apiKeyRotation';
 
@@ -80,7 +83,10 @@ export interface Provider {
   createModel(
     name: string,
     provider: Provider,
-    globalConfigDir: string,
+    options: {
+      globalConfigDir: string;
+      setGlobalConfig: (key: string, value: string, isGlobal: boolean) => void;
+    },
   ): Promise<LanguageModelV2> | LanguageModelV2;
   // 额外配置选项
   options?: {
@@ -1010,10 +1016,10 @@ export const defaultModelCreator = (
 export const providers: ProvidersMap = {
   'github-copilot': {
     id: 'github-copilot',
+    name: 'GitHub Copilot',
     env: [],
     apiEnv: [],
     api: 'https://api.githubcopilot.com',
-    name: 'GitHub Copilot',
     doc: 'https://docs.github.com/en/copilot',
     models: {
       'claude-opus-4': models['claude-4-opus'],
@@ -1039,15 +1045,29 @@ export const providers: ProvidersMap = {
       'claude-sonnet-4.5': models['claude-4-5-sonnet'],
       'claude-opus-4-5': models['claude-opus-4-5'],
     },
-    async createModel(name, provider, globalConfigDir) {
-      const githubDataPath = path.join(globalConfigDir, 'githubCopilot.json');
-      const githubProvider = new GithubProvider({ authFile: githubDataPath });
-      const token = await githubProvider.access();
-      if (!token) {
-        throw new Error(
-          'Failed to get GitHub Copilot token, use /login to login first',
+    async createModel(name, provider, options) {
+      const apiKey = provider.options?.apiKey;
+      assert(
+        apiKey,
+        'Failed to get GitHub Copilot token, use /login to login first',
+      );
+      let account = JSON.parse(apiKey);
+      const githubProvider = new GithubProvider();
+      githubProvider.setState(account);
+      if (githubProvider.isTokenExpired()) {
+        await githubProvider.refresh();
+        account = githubProvider.getState();
+        provider.options = {
+          ...provider.options,
+          apiKey: JSON.stringify(account),
+        };
+        options.setGlobalConfig(
+          'provider.github-copilot.options.apiKey',
+          JSON.stringify(account),
+          true,
         );
       }
+      const token = account.copilot_token;
       return createOpenAI({
         baseURL: 'https://api.individual.githubcopilot.com',
         headers: {
@@ -1535,6 +1555,42 @@ export const providers: ProvidersMap = {
     },
     createModel: defaultModelCreatorCompatible,
   },
+  antigravity: {
+    id: 'antigravity',
+    env: [],
+    name: 'Antigravity',
+    doc: 'https://antigravity.google/',
+    models: {
+      'gemini-2.5-pro': models['gemini-2.5-pro'],
+      'gemini-2.5-flash': models['gemini-2.5-flash'],
+      'gemini-3-pro-low': models['gemini-3-pro-preview'],
+      'gemini-3-pro-high': models['gemini-3-pro-preview'],
+      'claude-sonnet-4-5-thinking': models['claude-4-5-sonnet'],
+    },
+    async createModel(name, provider, options) {
+      const apiKey = provider.options?.apiKey;
+      assert(apiKey, 'Antigravity not logged in.');
+      let account = JSON.parse(apiKey);
+      const p = new AntigravityProvider();
+      p.setState(account);
+      if (p.isTokenExpired()) {
+        await p.refresh();
+        account = p.getState();
+        provider.options = {
+          ...provider.options,
+          apiKey: JSON.stringify(account),
+        };
+        options.setGlobalConfig(
+          'provider.antigravity.options.apiKey',
+          JSON.stringify(account),
+          true,
+        );
+      }
+      return createAntigravityProvider({
+        account,
+      })(name);
+    },
+  },
 };
 
 // value format: provider/model
@@ -1703,6 +1759,14 @@ export async function resolveModelWithContext(
           finalProviders,
           hookedModelAlias,
           context.paths.globalConfigDir,
+          (key, value, isGlobal) => {
+            const configManager = new ConfigManager(
+              context.cwd,
+              context.productName,
+              {},
+            );
+            configManager.setConfig(isGlobal, key, value);
+          },
         )
       : null;
   } catch (err) {
@@ -1732,6 +1796,7 @@ export async function resolveModel(
   providers: ProvidersMap,
   modelAlias: Record<string, string>,
   globalConfigDir: string,
+  setGlobalConfig: (key: string, value: string, isGlobal: boolean) => void,
 ): Promise<ModelInfo> {
   // 1. 别名解析
   const alias = modelAlias[name];
@@ -1765,7 +1830,10 @@ export async function resolveModel(
     let m: LanguageModelV2 | Promise<LanguageModelV2> = provider.createModel(
       modelId,
       provider,
-      globalConfigDir,
+      {
+        globalConfigDir,
+        setGlobalConfig,
+      },
     );
     if (isPromise(m)) {
       m = await m;

@@ -195,10 +195,6 @@ export class Project {
         type: PluginHookType.SeriesLast,
       });
     }
-    const model = (
-      await resolveModelWithContext(opts.model || null, this.context)
-    ).model!;
-
     const sessionConfigManager = new SessionConfigManager({
       logPath: this.context.paths.getSessionLogPath(this.session.id),
     });
@@ -211,15 +207,6 @@ export class Project {
       userPrompt: message,
       additionalDirectories,
     });
-    if (message !== null) {
-      outputFormat.onInit({
-        text: message,
-        sessionId: this.session.id,
-        tools,
-        model,
-        cwd: this.context.cwd,
-      });
-    }
     let userMessage: NormalizedMessage | null = null;
     if (message !== null) {
       const lastMessageUuid =
@@ -273,12 +260,58 @@ export class Project {
         ? [...historyMessages, userMessage]
         : [userMessage];
     const filteredInput = input.filter((message) => message !== null);
+
+    // Check if conversation history contains any images
+    const hasImagesInHistory = filteredInput.some((msg) => {
+      if (msg.role === 'user' && Array.isArray(msg.content)) {
+        return msg.content.some((part: any) => part.type === 'image');
+      }
+      return false;
+    });
+
+    // Model selection priority (high to low):
+    // 1. opts.model - explicitly specified for this call
+    // 2. visionModel - if images present and visionModel is configured
+    // 3. default model - resolved from context
+    let modelToUse = opts.model;
+
+    // Auto-select visionModel when:
+    // - No explicit model for this call (opts.model is undefined)
+    // - Conversation contains images
+    // - visionModel is configured and different from the base model
+    if (!modelToUse && hasImagesInHistory) {
+      const visionModel = this.context.config.visionModel;
+      const baseModel = this.context.config.model;
+
+      // Check if visionModel was explicitly configured (not just a fallback)
+      // by comparing against what the base model would be
+      if (visionModel && visionModel !== baseModel) {
+        modelToUse = visionModel;
+      }
+    }
+
+    // Resolve the final model (only once)
+    const resolvedModel = (
+      await resolveModelWithContext(modelToUse || null, this.context)
+    ).model!;
+
+    // Output model info for initial message
+    if (message !== null) {
+      outputFormat.onInit({
+        text: message,
+        sessionId: this.session.id,
+        tools,
+        model: resolvedModel,
+        cwd: this.context.cwd,
+      });
+    }
+
     const toolsManager = new Tools(tools);
 
     // 4. 执行 AI 交互循环
     const result = await runLoop({
       input: filteredInput, // 包含用户消息的历史上下文
-      model,
+      model: resolvedModel,
       tools: toolsManager,
       cwd: this.context.cwd,
       systemPrompt: opts.systemPrompt,
