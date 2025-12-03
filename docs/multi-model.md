@@ -97,6 +97,26 @@
     "quick": "glm-4.5"      // 快速响应模型
   }
 }
+
+// 推荐配置
+//   "model": "iflow/qwen3-coder-plus",
+//   "planModel": "iflow/qwen3-max",
+//   "smallModel": "iflow/kimi-k2-0905",
+// 推荐模型
+// model
+// 1. anthropic/claude-sonnet-4-5-20250929
+// 2. openai/gpt-5
+// 3. iflow/qwen3-coder-plus
+// 4. modelscope/Qwen/Qwen3-Coder-480B-A35B-Instruct
+// 5. iflow/qwen3-coder 同 Qwen3-Coder-480B-A35B-Instruct
+// planModel
+// 1. iflow/qwen3-max
+// 2. iflow/deepseek-v3.2 同 modelscope/deepseek-ai/DeepSeek-V3.2-Exp
+// 4. modelscope/ZhipuAI/GLM-4.6 同 iflow/glm-4.6
+// smallModel
+// 1. anthropic/claude-haiku-4-5
+// 2. iflow/kimi-k2-0905 同 modelscope/moonshotai/Kimi-K2-Instruct-0905
+
 ```
 
 #### **成本追踪系统（Cost Tracking）**

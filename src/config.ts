@@ -81,6 +81,12 @@ export type Config = {
   temperature?: number;
   recentModels?: string[];
   readOnlyMode?: boolean; // 添加只读模式配置
+  httpProxy?: string;
+  /**
+   * Extensions configuration for third-party custom agents.
+   * Allows arbitrary nested configuration without validation.
+   */
+  extensions?: Record<string, any>;
 };
 
 const DEFAULT_CONFIG: Partial<Config> = {
@@ -96,6 +102,7 @@ const DEFAULT_CONFIG: Partial<Config> = {
   autoUpdate: true,
   browser: false,
   readOnlyMode: false, // 默认不启用只读模式
+  extensions: {},
 };
 const VALID_CONFIG_KEYS = [
   ...Object.keys(DEFAULT_CONFIG),
@@ -113,9 +120,11 @@ const VALID_CONFIG_KEYS = [
   'browser',
   'temperature',
   'recentModels',
+  'httpProxy',
+  'extensions',
 ];
 const ARRAY_CONFIG_KEYS = ['plugins', 'recentModels'];
-const OBJECT_CONFIG_KEYS = ['mcpServers', 'commit', 'provider'];
+const OBJECT_CONFIG_KEYS = ['mcpServers', 'commit', 'provider', 'extensions'];
 const BOOLEAN_CONFIG_KEYS = [
   'quiet',
   'todo',

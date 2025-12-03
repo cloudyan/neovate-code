@@ -81,16 +81,20 @@ export function useInputHandlers() {
     setBashMode(mode === 'bash');
   }, [mode, setBashMode]);
 
+  const selectReverseSearchMatch = useCallback(() => {
+    const selectedMatch = reverseSearch.getSelected();
+    if (selectedMatch) {
+      inputState.setValue(selectedMatch);
+      inputState.setCursorPosition(selectedMatch.length);
+    }
+    setReverseSearchActive(false);
+    setHistoryIndex(null);
+  }, [reverseSearch, inputState, setHistoryIndex]);
+
   const handleSubmit = useCallback(async () => {
     // In reverse search mode, select the current match
     if (reverseSearchActive) {
-      const selectedMatch = reverseSearch.getSelected();
-      if (selectedMatch) {
-        inputState.setValue(selectedMatch);
-        inputState.setCursorPosition(selectedMatch.length);
-      }
-      setReverseSearchActive(false);
-      setHistoryIndex(null); // Reset history index
+      selectReverseSearchMatch();
       return;
     }
 
@@ -136,14 +140,14 @@ export function useInputHandlers() {
     mode,
     memoryMode,
     reverseSearchActive,
-    reverseSearch,
-    setHistoryIndex,
+    selectReverseSearchMatch,
   ]);
 
   const handleTabPress = useCallback(
     (isShiftTab: boolean) => {
-      // Disable tab in reverse search mode
+      // In reverse search mode, tab acts like enter to select the match
       if (reverseSearchActive) {
+        selectReverseSearchMatch();
         return;
       }
       // 1. slash command
@@ -182,6 +186,7 @@ export function useInputHandlers() {
       applyFileSuggestion,
       canTriggerTabSuggestion,
       reverseSearchActive,
+      selectReverseSearchMatch,
     ],
   );
 

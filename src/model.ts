@@ -93,13 +93,40 @@ export interface Provider {
     baseURL?: string; // 基础 API 地址
     apiKey?: string; // API 密钥
     headers?: Record<string, string>; // 请求头部
+    httpProxy?: string;
   };
 }
+
+import { createProxyFetch } from './utils/proxy';
 
 export type ProvidersMap = Record<string, Provider>;
 export type ModelMap = Record<string, Omit<Model, 'id' | 'cost'>>;
 
-// 预定义的所有模型映射表
+/**
+ * Inject proxy support into AI SDK configuration
+ * Priority: Provider-level proxy > Global proxy
+ *
+ * @param config - SDK configuration object
+ * @param provider - Provider configuration
+ * @returns Config with proxy fetch injected if proxy is configured
+ */
+function withProxyConfig<T extends Record<string, any>>(
+  config: T,
+  provider: Provider,
+): T {
+  const proxyUrl = provider.options?.httpProxy;
+
+  if (proxyUrl) {
+    const proxyFetch = createProxyFetch(proxyUrl);
+    return {
+      ...config,
+      fetch: proxyFetch,
+    };
+  }
+
+  return config;
+}
+
 export const models: ModelMap = {
   'deepseek-v3-0324': {
     name: 'DeepSeek-V3-0324',
@@ -154,6 +181,32 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 131072, output: 65536 },
+  },
+  'deepseek-v3.2': {
+    name: 'DeepSeek V3.2',
+    attachment: false,
+    reasoning: true,
+    temperature: true,
+    tool_call: true,
+    knowledge: '2025-12',
+    release_date: '2025-12-01',
+    last_updated: '2025-12-01',
+    modalities: { input: ['text'], output: ['text'] },
+    open_weights: true,
+    limit: { context: 131072, output: 65536 },
+  },
+  'deepseek-v3.2-speciale': {
+    name: 'DeepSeek V3.2 Speciale',
+    attachment: false,
+    reasoning: true,
+    temperature: true,
+    tool_call: false,
+    knowledge: '2025-12',
+    release_date: '2025-12-01',
+    last_updated: '2025-12-01',
+    modalities: { input: ['text'], output: ['text'] },
+    open_weights: true,
+    limit: { context: 131072, output: 131072 },
   },
   'deepseek-r1-0528': {
     name: 'DeepSeek-R1-0528',
@@ -979,21 +1032,28 @@ function getProviderApiKey(provider: Provider) {
   return key;
 }
 
-export const defaultModelCreatorCompatible = (
-  name: string,
-  provider: Provider,
-): LanguageModelV2 => {
-  if (provider.id !== 'openai') {
-    assert(provider.api, `Provider ${provider.id} must have an api`);
-  }
-  const baseURL = getProviderBaseURL(provider);
-  const apiKey = getProviderApiKey(provider);
-  assert(baseURL, 'baseURL is required');
-  return createOpenAICompatible({
-    name: provider.id,
-    baseURL,
-    apiKey,
-  })(name);
+export const createModelCreatorCompatible = (opts?: {
+  headers?: Record<string, string>;
+}) => {
+  return (name: string, provider: Provider): LanguageModelV2 => {
+    if (provider.id !== 'openai') {
+      assert(provider.api, `Provider ${provider.id} must have an api`);
+    }
+    const baseURL = getProviderBaseURL(provider);
+    const apiKey = getProviderApiKey(provider);
+    assert(baseURL, 'baseURL is required');
+    return createOpenAICompatible(
+      withProxyConfig(
+        {
+          name: provider.id,
+          baseURL,
+          apiKey,
+          headers: opts?.headers,
+        },
+        provider,
+      ),
+    )(name);
+  };
 };
 
 // 默认的模型创建函数，适用于大多数提供商
@@ -1006,10 +1066,15 @@ export const defaultModelCreator = (
   }
   const baseURL = getProviderBaseURL(provider);
   const apiKey = getProviderApiKey(provider);
-  return createOpenAI({
-    baseURL,
-    apiKey,
-  }).chat(name);
+  return createOpenAI(
+    withProxyConfig(
+      {
+        baseURL,
+        apiKey,
+      },
+      provider,
+    ),
+  ).chat(name);
 };
 
 // 预定义的所有提供商映射表
@@ -1186,10 +1251,9 @@ export const providers: ProvidersMap = {
     createModel(name, provider) {
       const baseURL = getProviderBaseURL(provider);
       const apiKey = getProviderApiKey(provider);
-      return createAnthropic({
-        apiKey,
-        baseURL,
-      }).chat(name);
+      return createAnthropic(
+        withProxyConfig({ apiKey, baseURL }, provider),
+      ).chat(name);
     },
   },
   aihubmix: {
@@ -1224,9 +1288,17 @@ export const providers: ProvidersMap = {
     },
     createModel(name, provider) {
       const apiKey = getProviderApiKey(provider);
-      return createAihubmix({
-        apiKey,
-      }).chat(name);
+      return createAihubmix(
+        withProxyConfig(
+          {
+            apiKey,
+            headers: {
+              'APP-Code': 'TPQW7551',
+            },
+          },
+          provider,
+        ),
+      ).chat(name);
     },
   },
   openrouter: {
@@ -1248,6 +1320,8 @@ export const providers: ProvidersMap = {
       'deepseek/deepseek-chat-v3.1': models['deepseek-v3-1'],
       'deepseek/deepseek-v3.1-terminus': models['deepseek-v3-1-terminus'],
       'deepseek/deepseek-v3.2-exp': models['deepseek-v3-2-exp'],
+      'deepseek/deepseek-v3.2': models['deepseek-v3.2'],
+      'deepseek/deepseek-v3.2-speciale': models['deepseek-v3.2-speciale'],
       'openai/gpt-4.1': models['gpt-4.1'],
       'openai/gpt-4': models['gpt-4'],
       'openai/gpt-4o': models['gpt-4o'],
@@ -1282,14 +1356,19 @@ export const providers: ProvidersMap = {
     createModel(name, provider) {
       const baseURL = getProviderBaseURL(provider);
       const apiKey = getProviderApiKey(provider);
-      return createOpenRouter({
-        apiKey,
-        baseURL,
-        headers: {
-          'X-Title': 'Neovate Code',
-          'HTTP-Referer': 'https://neovateai.dev/',
-        },
-      }).chat(name);
+      return createOpenRouter(
+        withProxyConfig(
+          {
+            apiKey,
+            baseURL,
+            headers: {
+              'X-Title': 'Neovate Code',
+              'HTTP-Referer': 'https://neovateai.dev/',
+            },
+          },
+          provider,
+        ),
+      ).chat(name);
     },
   },
   iflow: {
@@ -1308,7 +1387,7 @@ export const providers: ProvidersMap = {
       'glm-4.6': models['glm-4.6'],
       'qwen3-max': models['qwen3-max'],
     },
-    createModel: defaultModelCreatorCompatible,
+    createModel: createModelCreatorCompatible(),
   },
   moonshotai: {
     id: 'moonshotai',
@@ -1326,10 +1405,9 @@ export const providers: ProvidersMap = {
     createModel(name, provider) {
       const baseURL = getProviderBaseURL(provider);
       const apiKey = getProviderApiKey(provider);
-      return createOpenAI({
-        baseURL,
-        apiKey,
-      }).chat(name);
+      return createOpenAI(withProxyConfig({ baseURL, apiKey }, provider)).chat(
+        name,
+      );
     },
   },
   'moonshotai-cn': {
@@ -1348,11 +1426,16 @@ export const providers: ProvidersMap = {
     createModel(name, provider) {
       const baseURL = getProviderBaseURL(provider);
       const apiKey = getProviderApiKey(provider);
-      return createOpenAI({
-        baseURL,
-        apiKey,
-        // include usage information in streaming mode why? https://platform.moonshot.cn/docs/guide/migrating-from-openai-to-kimi#stream-模式下的-usage-值
-      }).chat(name);
+      return createOpenAI(
+        withProxyConfig(
+          {
+            baseURL,
+            apiKey,
+            // include usage information in streaming mode why? https://platform.moonshot.cn/docs/guide/migrating-from-openai-to-kimi#stream-模式下的-usage-值
+          },
+          provider,
+        ),
+      ).chat(name);
     },
   },
   groq: {
@@ -1498,8 +1581,16 @@ export const providers: ProvidersMap = {
       'anthropic/claude-sonnet-4.5': models['claude-4-5-sonnet'],
       'anthropic/claude-opus-4.1': models['claude-4.1-opus'],
       'anthropic/claude-opus-4.5': models['claude-opus-4-5'],
+      'deepseek/deepseek-v3.2-speciale': models['deepseek-v3.2-speciale'],
+      'deepseek/deepseek-chat': models['deepseek-v3-2-exp'],
+      'deepseek/deepseek-reasoner': models['deepseek-r1-0528'],
     },
-    createModel: defaultModelCreatorCompatible,
+    createModel: createModelCreatorCompatible({
+      headers: {
+        'X-Title': 'Neovate Code',
+        'HTTP-Referer': 'https://neovateai.dev/',
+      },
+    }),
   },
   minimax: {
     id: 'minimax',
@@ -1513,10 +1604,9 @@ export const providers: ProvidersMap = {
     createModel(name, provider) {
       const baseURL = getProviderBaseURL(provider);
       const apiKey = getProviderApiKey(provider);
-      return createAnthropic({
-        baseURL,
-        apiKey,
-      }).chat(name);
+      return createAnthropic(
+        withProxyConfig({ baseURL, apiKey }, provider),
+      ).chat(name);
     },
   },
   cerebras: {
@@ -1530,7 +1620,17 @@ export const providers: ProvidersMap = {
     },
     createModel(name, provider) {
       const apiKey = getProviderApiKey(provider);
-      return createCerebras({ apiKey })(name);
+      return createCerebras(
+        withProxyConfig(
+          {
+            apiKey,
+            headers: {
+              'X-Cerebras-3rd-Party-Integration': 'cline',
+            },
+          },
+          provider,
+        ),
+      )(name);
     },
   },
   poe: {
@@ -1553,7 +1653,7 @@ export const providers: ProvidersMap = {
       },
       'Grok-4.1-Fast': models['grok-4.1-fast'],
     },
-    createModel: defaultModelCreatorCompatible,
+    createModel: createModelCreatorCompatible(),
   },
   antigravity: {
     id: 'antigravity',
@@ -1613,25 +1713,6 @@ export const modelAlias: ModelAlias = {
   'k2-turbo': 'moonshotai-cn/kimi-k2-thinking-turbo',
 };
 
-// 推荐配置
-//   "model": "iflow/qwen3-coder-plus",
-//   "planModel": "iflow/qwen3-max",
-//   "smallModel": "iflow/kimi-k2-0905",
-// 推荐模型
-// model
-// 1. anthropic/claude-sonnet-4-5-20250929
-// 2. openai/gpt-5
-// 3. iflow/qwen3-coder-plus
-// 4. modelscope/Qwen/Qwen3-Coder-480B-A35B-Instruct
-// 5. iflow/qwen3-coder 同 Qwen3-Coder-480B-A35B-Instruct
-// planModel
-// 1. iflow/qwen3-max
-// 2. iflow/deepseek-v3.2 同 modelscope/deepseek-ai/DeepSeek-V3.2-Exp
-// 4. modelscope/ZhipuAI/GLM-4.6 同 iflow/glm-4.6
-// smallModel
-// 1. anthropic/claude-haiku-4-5
-// 2. iflow/kimi-k2-0905 同 modelscope/moonshotai/Kimi-K2-Instruct-0905
-
 export type ModelInfo = {
   provider: Provider; // prividerInfo 供应商信息
   model: Omit<Model, 'cost'>; // modelInfo 模型元数据(不包含成本信息) 即接口 Model
@@ -1671,6 +1752,39 @@ function mergeConfigProviders(
     mergedProviders[providerId] = provider;
   });
   return mergedProviders;
+}
+
+/**
+ * Apply global proxy to all providers without provider-level proxy
+ *
+ * @param providers - Map of all providers
+ * @param globalHttpProxy - Global proxy URL from config.httpProxy
+ * @returns Updated providers map with global proxy applied
+ */
+function applyGlobalProxyToProviders(
+  providers: ProvidersMap,
+  globalHttpProxy: string,
+): ProvidersMap {
+  return Object.fromEntries(
+    Object.entries(providers).map(([id, prov]) => {
+      const provider = prov as Provider;
+      // Skip if provider already has its own proxy
+      if (provider.options?.httpProxy) {
+        return [id, provider];
+      }
+      // Apply global proxy
+      return [
+        id,
+        {
+          ...provider,
+          options: {
+            ...provider.options,
+            httpProxy: globalHttpProxy,
+          },
+        },
+      ];
+    }),
+  );
 }
 
 /**
@@ -1729,9 +1843,18 @@ export async function resolveModelWithContext(
   // 2. 配置合并
   // 如果配置文件中定义了提供商，则深度合并到已处理的提供商中
   // 支持覆盖现有提供商或添加新的提供商
-  const finalProviders = context.config.provider
+  let finalProviders = context.config.provider
     ? mergeConfigProviders(hookedProviders, context.config.provider)
     : hookedProviders;
+
+  // Apply global proxy to ALL providers that don't have provider-level proxy
+  // This ensures both built-in and custom providers get the global proxy configuration
+  if (context.config.httpProxy) {
+    finalProviders = applyGlobalProxyToProviders(
+      finalProviders,
+      context.config.httpProxy,
+    );
+  }
 
   // 3. 插件钩子: modelAlias
   // 允许插件自定义模型别名映射

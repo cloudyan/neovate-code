@@ -52,6 +52,7 @@ async function generateCommitMessage(opts: GenerateCommitMessageOpts) {
     systemPrompt,
     context: opts.context,
     model,
+    thinking: false, // Disable thinking mode for commit messages
   });
   let message = result.success ? result.data.text : null;
   if (typeof message !== 'string') {
@@ -81,6 +82,7 @@ async function generateBranchName(opts: GenerateBranchNameOpts) {
     systemPrompt: createBranchSystemPrompt(),
     context: opts.context,
     model,
+    thinking: false, // Disable thinking mode for branch names
   });
   const branchName = result.success ? result.data.text : null;
   if (typeof branchName !== 'string') {
@@ -210,7 +212,8 @@ export async function runCommit(context: Context) {
   }
 
   if (!hasChanged) {
-    throw new Error('No changes to commit');
+    logger.logWarn('No changes to commit');
+    return;
   }
 
   if (argv.stage) {
@@ -228,9 +231,10 @@ export async function runCommit(context: Context) {
 
   const diff = await getStagedDiff();
   if (diff.length === 0) {
-    throw new Error(
+    logger.logWarn(
       'No staged changes to commit. Use -s flag to stage all changes or manually stage files with git add.',
     );
+    return;
   }
 
   const fileList = await getStagedFileList();
