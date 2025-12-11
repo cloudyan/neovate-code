@@ -19,11 +19,6 @@ import { createReadTool } from './tools/read';
 import { createTodoTool, type TodoItem } from './tools/todo';
 import { createWriteTool } from './tools/write';
 
-// WIP
-// import { createDocumentTool } from './tools/document';
-// import { createEvaluateTool } from './tools/evaluate';
-// import { createCodeReviewTool } from './tools/code-review';
-
 type ResolveToolsOpts = {
   context: Context;
   sessionId: string;
@@ -45,9 +40,6 @@ export async function resolveTools(opts: ResolveToolsOpts) {
     createGlobTool({ cwd }),
     createGrepTool({ cwd }),
     createFetchTool({ model }),
-    // createDocumentTool({ cwd }),
-    // createEvaluateTool({ cwd }),
-    // createCodeReviewTool({ cwd }),
   ];
   const askUserQuestionTools = opts.askUserQuestion
     ? [createAskUserQuestionTool()]
@@ -288,9 +280,6 @@ export type ToolResult = {
   isError?: boolean;
 };
 
-/**
- *
- */
 /**
  * 创建一个新的工具，可以被 AI 代理使用。
  * 适合 MCP 工具的场景(核心原则)：1. 标准化程度高 2. 需要复用 3. 资源密集型（大量计算资源, 特殊环境依赖）

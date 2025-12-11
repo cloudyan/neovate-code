@@ -1,6 +1,5 @@
 import type { PromptCommand } from '../../types';
 
-// 编写执行计划
 export function writePlanCommand(language: string): PromptCommand {
   return {
     type: 'prompt',

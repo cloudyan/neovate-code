@@ -8,6 +8,14 @@ import { usePasteManager } from './usePasteManager';
 import { useReverseHistorySearch } from './useReverseHistorySearch';
 import { useSlashCommands } from './useSlashCommands';
 
+export type InputMode = 'bash' | 'memory' | 'prompt';
+
+function getInputMode(value: string): InputMode {
+  if (value.startsWith('!')) return 'bash';
+  if (value.startsWith('#')) return 'memory';
+  return 'prompt';
+}
+
 export function useInputHandlers() {
   const {
     send,
@@ -20,11 +28,10 @@ export function useInputHandlers() {
     toggleMode,
     clearQueue,
     setBashMode,
-    mode,
-    updateMode,
   } = useAppStore();
 
   const inputState = useInputState();
+  const mode = getInputMode(inputState.state.value);
   const slashCommands = useSlashCommands(inputState.state.value);
   const [forceTabTrigger, setForceTabTrigger] = useState(false);
   const fileSuggestion = useFileSuggestion(inputState.state, forceTabTrigger);
@@ -114,14 +121,14 @@ export function useInputHandlers() {
     }
     // 3. bash mode - execute command directly
     if (mode === 'bash') {
-      const command = value.trim();
+      const command = value.slice(1).trim();
       inputState.reset();
       await send(`!${command}`);
       return;
     }
     // 4. memory mode - show modal and save to memory
     if (mode === 'memory') {
-      const rule = value.trim(); // Remove # prefix
+      const rule = value.slice(1).trim(); // Remove # prefix
       inputState.reset();
       await memoryMode.handleMemorySubmit(rule);
       return;

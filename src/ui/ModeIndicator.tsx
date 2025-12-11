@@ -2,9 +2,11 @@ import { Box, Text } from 'ink';
 import React from 'react';
 import { SPACING, UI_COLORS } from './constants';
 import { useAppStore } from './store';
+import { useInputHandlers } from './useInputHandlers';
 
 export function ModeIndicator() {
-  const { planMode, brainstormMode, planResult, slashCommandJSX, mode } =
+  let { mode } = useInputHandlers();
+  const { planMode, brainstormMode, bashMode, planResult, slashCommandJSX } =
     useAppStore();
   if (slashCommandJSX) {
     return null;
