@@ -128,6 +128,9 @@ export class History {
                 toolCallId: part.id,
                 toolName: part.name,
                 input: part.input,
+                ...(part.providerMetadata && {
+                  providerMetadata: part.providerMetadata,
+                }),
               };
             } else {
               throw new Error(
@@ -296,11 +299,7 @@ export class History {
       throw new Error('Generated summary is empty');
     }
 
-    // 会清除原始消息并用摘要替换
-    // Clear original messages and replace with summary
-    this.messages = [];
-
-    this.onMessage?.({
+    const summaryMessage: NormalizedMessage = {
       parentUuid: null,
       uuid: randomUUID(),
       role: 'user',
@@ -308,7 +307,9 @@ export class History {
       uiContent: COMPACT_MESSAGE,
       type: 'message',
       timestamp: new Date().toISOString(),
-    });
+    };
+    this.messages = [summaryMessage];
+    await this.onMessage?.(summaryMessage);
     debug('Generated summary:', summary);
     return {
       compressed: true,

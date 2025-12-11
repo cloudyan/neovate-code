@@ -27,6 +27,7 @@ export function createBuiltinCommands(opts: {
   productName: string;
   argvConfig: Record<string, any>;
   language: string;
+  askUserQuestion?: boolean;
 }): SlashCommand[] {
   return [
     clearCommand,
@@ -47,7 +48,7 @@ export function createBuiltinCommands(opts: {
     copyCommand,
     statusCommand,
     createAddDirCommand(),
-    brainstormCommand(opts.language),
+    brainstormCommand(opts.language, opts.askUserQuestion),
     writePlanCommand(opts.language),
     executePlanCommand(opts.language),
     languageCommand,

@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'pathe';
 import { z } from 'zod';
+import { TOOL_NAMES } from '../constants';
 import { createTool } from '../tool';
 import { ripGrep } from '../utils/ripgrep';
 import { safeStringify } from '../utils/safeStringify';
@@ -9,7 +10,7 @@ const DEFAULT_LIMIT = 1000;
 
 export function createGrepTool(opts: { cwd: string }) {
   return createTool({
-    name: 'grep',
+    name: TOOL_NAMES.GREP,
     description: `Search for a pattern in a file or directory.`,
     parameters: z.object({
       pattern: z.string().describe('The pattern to search for'),
@@ -25,11 +26,11 @@ export function createGrepTool(opts: { cwd: string }) {
         .describe('The file pattern to include in the search'),
       limit: z
         .number()
-        .positive()
+        // .positive()
         .max(DEFAULT_LIMIT)
         .optional()
         .describe(
-          `Maximum number of files to return (default: ${DEFAULT_LIMIT})`,
+          `Maximum number of files to return (positive number, default: ${DEFAULT_LIMIT})`,
         ),
     }),
     getDescription: ({ params }) => {

@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import type { ApprovalMode } from '../config';
-import type { LoopResult, StreamResult } from '../loop';
+import type { LoopResult, StreamResult, ThinkingConfig } from '../loop';
 import type { Message, NormalizedMessage, UserMessage } from '../message';
 import type { ModelInfo, ProvidersMap } from '../model';
 import { Paths } from '../paths';
@@ -131,7 +131,10 @@ interface AppState {
   approvalModal: {
     toolUse: ToolUse;
     category?: ApprovalCategory;
-    resolve: (result: ApprovalResult) => Promise<void>;
+    resolve: (
+      result: ApprovalResult,
+      params?: Record<string, unknown>,
+    ) => Promise<void>;
   } | null;
 
   memoryModal: {
@@ -150,7 +153,7 @@ interface AppState {
   copyModalVisible: boolean;
 
   bashBackgroundPrompt: BashPromptBackgroundEvent | null;
-  thinking: { effort: 'low' | 'medium' | 'high' } | undefined;
+  thinking: ThinkingConfig | undefined;
 }
 
 type InitializeOpts = {
@@ -191,7 +194,7 @@ interface AppActions {
   }: {
     toolUse: ToolUse;
     category?: ApprovalCategory;
-  }) => Promise<ApprovalResult>;
+  }) => Promise<{ approved: boolean; params?: Record<string, unknown> }>;
   showMemoryModal: (rule: string) => Promise<'project' | 'global' | null>;
   addToQueue: (message: string) => void;
   clearQueue: () => void;
@@ -649,12 +652,13 @@ export const useAppStore = create<AppStore>()(
             // don't await this
             (async () => {
               try {
-                const queryResult = await bridge.request('utils.quickQuery', {
-                  cwd,
-                  systemPrompt:
-                    "Analyze if this message indicates a new conversation topic. If it does, extract a 2-3 word title that captures the new topic. Format your response as a JSON object with one fields: 'title' (string). Only include these fields, no other text.",
-                  userPrompt: message,
-                });
+                const queryResult = await bridge.request(
+                  'utils.summarizeMessage',
+                  {
+                    cwd,
+                    message,
+                  },
+                );
 
                 if (queryResult.success && queryResult.data?.text) {
                   try {
@@ -724,11 +728,11 @@ export const useAppStore = create<AppStore>()(
         const attachments = [];
         // Handle pasted images
         if (message && Object.keys(pastedImageMap).length > 0) {
-          const pastedImageRegex = /\[Image \d+X\d+ [^\]]+#(\d+)\]/g;
+          const pastedImageRegex = /\[Image (#\d+)\]/g;
           const imageMatches = [...message.matchAll(pastedImageRegex)];
 
           for (const match of imageMatches) {
-            const imageId = `#${match[1]}`;
+            const imageId = match[1];
             const imageData = pastedImageMap[imageId];
             if (imageData) {
               const mimeType = detectImageFormat(imageData);
@@ -964,12 +968,18 @@ export const useAppStore = create<AppStore>()(
         category?: ApprovalCategory;
       }) => {
         const { bridge, cwd, sessionId } = get();
-        return new Promise<boolean>((resolve) => {
+        return new Promise<{
+          approved: boolean;
+          params?: Record<string, unknown>;
+        }>((resolve) => {
           set({
             approvalModal: {
               toolUse,
               category,
-              resolve: async (result: ApprovalResult) => {
+              resolve: async (
+                result: ApprovalResult,
+                params?: Record<string, unknown>,
+              ) => {
                 set({ approvalModal: null });
                 const isApproved = result !== 'deny';
                 if (result === 'approve_always_edit') {
@@ -985,7 +995,10 @@ export const useAppStore = create<AppStore>()(
                     approvalTool: toolUse.name,
                   });
                 }
-                resolve(isApproved);
+                resolve({
+                  approved: isApproved,
+                  params: isApproved ? params : undefined,
+                });
               },
             },
           });
@@ -1171,7 +1184,7 @@ export const useAppStore = create<AppStore>()(
         const { thinking: current, model } = get();
         if (!model) return;
         if (!model.thinkingConfig) return;
-        let next: { effort: 'low' | 'medium' | 'high' } | undefined;
+        let next: ThinkingConfig | undefined;
         if (!current) {
           next = { effort: 'low' };
         } else if (current.effort === 'low') {

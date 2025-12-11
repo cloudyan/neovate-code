@@ -1,3 +1,67 @@
+## 0.19.0
+
+`2025-12-05`
+
+- feat: add desktop configuration options by [@sorrycc](https://github.com/sorrycc)
+- feat: add displayName to tool configuration by [@sorrycc](https://github.com/sorrycc)
+- feat: add cross-platform support for AskUserQuestion tool with generic tool approval protocol by [@阿平](https://github.com/阿平) in [#493](https://github.com/umijs/takumi/pull/493)
+- feat(workspace): add branch verification and custom base branch option for workspace creation by [@unknown_](https://github.com/unknown_) in [#489](https://github.com/umijs/takumi/pull/489)
+- feat: add tools disable configuration with command-line and config support by [@阿平](https://github.com/阿平) in [#491](https://github.com/umijs/takumi/pull/491)
+- feat: add type-safe handler system for message bus by [@sorrycc](https://github.com/sorrycc)
+- feat: implement askUserQuestion tool with interactive modal UI by [@阿平](https://github.com/阿平) in [#488](https://github.com/umijs/takumi/pull/488)
+- fix: correct getting started tips to reference AGENTS.md and fix typo by [@Huang Qi](https://github.com/Huang Qi) in [#490](https://github.com/umijs/takumi/pull/490)
+- feat: add response format and utils handlers for message testing by [@sorrycc](https://github.com/sorrycc)
+- feat: add file size and token limits validation with error handling by [@阿平](https://github.com/阿平) in [#486](https://github.com/umijs/takumi/pull/486)
+- refactor: enhance model creator with proxy config and headers support by [@sorrycc](https://github.com/sorrycc)
+- feat(mcp): add @modelcontextprotocol/sdk dependency and update HTTP transport implementation by [@QuietlyChan](https://github.com/QuietlyChan) in [#482](https://github.com/umijs/takumi/pull/482)
+- feat: add replace_all option for global string replacement by [@阿平](https://github.com/阿平) in [#474](https://github.com/umijs/takumi/pull/474)
+- feat: add auto-fix for unquoted YAML values with colons and improve error handling by [@阿平](https://github.com/阿平) in [#478](https://github.com/umijs/takumi/pull/478)
+- feat: add extensions configuration for third-party custom agents by [@阿平](https://github.com/阿平) in [#485](https://github.com/umijs/takumi/pull/485)
+- refactor: extract reverse search match selection into reusable callback by [@sorrycc](https://github.com/sorrycc)
+- fix: improve suggestion item width calculation and fix lint warnings by [@YuwangLiu](https://github.com/YuwangLiu) in [#483](https://github.com/umijs/takumi/pull/483)
+- feat: implement progressive disclosure for /init command with two-phase documentation generation by @chencheng (云谦) in [#484](https://github.com/umijs/takumi/pull/484)
+- feat: add deepseek v3.2 and speciale models with updated provider mappings by [@sorrycc](https://github.com/sorrycc)
+- feat: add HTTP proxy support for AI SDK providers by [@YuwangLiu](https://github.com/YuwangLiu) in [#470](https://github.com/umijs/takumi/pull/470)
+- feat: add custom list rendering with ordered/unordered support by [@阿平](https://github.com/阿平) in [#473](https://github.com/umijs/takumi/pull/473)
+- feat: 禁用提交消息和分支名称生成的思考模式 by [@afc163](https://github.com/afc163) in [#471](https://github.com/umijs/takumi/pull/471)
+- fix: log warning instead of throwing error when no changes to commit by [@afc163](https://github.com/afc163) in [#472](https://github.com/umijs/takumi/pull/472)
+- feat: enhance MCP result conversion with improved format detection by [@阿平](https://github.com/阿平) in [#460](https://github.com/umijs/takumi/pull/460)
+
+
+## 0.18.2
+
+`2025-11-28`
+
+- fix: update copilot documentation url in model configuration by [@sorrycc](https://github.com/sorrycc)
+- fix(mcp): fix redundant console output for stdio-type MCP by [@QuietlyChan](https://github.com/QuietlyChan) in [#463](https://github.com/umijs/takumi/pull/463)
+- feat: add visionModel support for multimodal tasks by [@Yuwang Liu](https://github.com/Yuwang Liu) in [#467](https://github.com/umijs/takumi/pull/467)
+- refactor: unify list navigation logic using useListNavigation hook by [@Yuwang Liu](https://github.com/Yuwang Liu) in [#456](https://github.com/umijs/takumi/pull/456)
+- fix: add reasoning content conversion for assistant messages in compact normalization by [@阿平](https://github.com/阿平) in [#468](https://github.com/umijs/takumi/pull/468)
+- feat: add antigravity provider and improve github provider by [@sorrycc](https://github.com/sorrycc)
+- fix: simplify summary message generation and assignment by [@阿平](https://github.com/阿平) in [#459](https://github.com/umijs/takumi/pull/459)
+- feat(browser): add model selection dropdown to chat sender footer [AI] by [@Kying-star](https://github.com/Kying-star) in [#369](https://github.com/umijs/takumi/pull/369)
+- feat: add poe provider with claude gemini gpt grok models support, Close #455 by [@sorrycc](https://github.com/sorrycc)
+- feat: add reverse history search (Ctrl+R) functionality by [@Yuwang Liu](https://github.com/Yuwang Liu) in [#451](https://github.com/umijs/takumi/pull/451)
+
+
+## 0.18.1
+
+`2025-11-25`
+
+- feat: add claude-opus-4-5 model support and update model aliases by [@sorrycc](https://github.com/sorrycc)
+- fix(ui): fix indentation issues caused by special characters by [@QuietlyChan](https://github.com/QuietlyChan) in [#452](https://github.com/umijs/takumi/pull/452)
+- feat(log): add cross-platform support to open generated HTML log files by [@QuietlyChan](https://github.com/QuietlyChan) in [#443](https://github.com/umijs/takumi/pull/443)
+- fix: reset selected index when suggestions change by [@Rongjianying](https://github.com/Rongjianying) in [#448](https://github.com/umijs/takumi/pull/448)
+- feat: add wanqing provider support to thinking configuration by [@阿平](https://github.com/阿平) in [#440](https://github.com/umijs/takumi/pull/440)
+- fix: add pnpmfile hooks to downgrade string-width 8.x to 7.2.0 for compatibility by [@阿平](https://github.com/阿平) in [#439](https://github.com/umijs/takumi/pull/439)
+- feat: add cerebras provider support with glm-4.6 and gpt-oss-120b models by [@sorrycc](https://github.com/sorrycc)
+- Revert "fix: pin string-width version to 7.2.0 to resolve ink compatibility issue " by [@sorrycc](https://github.com/sorrycc) in [#437](https://github.com/umijs/takumi/pull/437)
+- fix: pin string-width version to 7.2.0 to resolve ink compatibility issue by [@阿平](https://github.com/阿平) in [#437](https://github.com/umijs/takumi/pull/437)
+- feat: add project.workspaces.get handler and rename list handler by [@sorrycc](https://github.com/sorrycc)
+- fix: remove qwen3-coder model from providers map by [@sorrycc](https://github.com/sorrycc)
+- dep: update clipboardy from 5.0.0 to 5.0.1 and glob from 11.0.3 to 13.0.0 by [@sorrycc](https://github.com/sorrycc)
+
+
 ## 0.18.0
 
 `2025-11-20`

@@ -40,22 +40,18 @@ export type CommitConfig = {
 
 export type ProviderConfig = Partial<Omit<Provider, 'createModel'>>;
 
-export type CodeReviewConfig = {
-  enabled: boolean;
-  autoRunOnCommit: boolean;
-  severityThreshold: 'low' | 'medium' | 'high' | 'critical';
-  categories: ('security' | 'performance' | 'quality' | 'architecture')[];
-  excludePatterns: string[];
-  outputFormat: 'json' | 'markdown' | 'summary';
-  autoFix: boolean;
-  maxFilesPerReview: number;
-  cacheResults: boolean;
+export type DesktopConfig = {
+  theme?: 'light' | 'dark' | 'system';
+  sendMessageWith?: 'enter' | 'cmdEnter';
+  terminalFont?: string;
+  terminalFontSize?: number;
 };
 
 export type Config = {
   model: string;
   planModel: string;
   smallModel?: string;
+  visionModel?: string;
   language: string;
   quiet: boolean;
   approvalMode: ApprovalMode;
@@ -64,7 +60,6 @@ export type Config = {
   provider?: Record<string, ProviderConfig>;
   systemPrompt?: string;
   todo?: boolean;
-  codeReview?: CodeReviewConfig;
   /**
    * Controls whether automatic conversation compression is enabled.
    * When set to false, conversation history will accumulate and context limit will be exceeded.
@@ -79,6 +74,18 @@ export type Config = {
   browser?: boolean;
   temperature?: number;
   recentModels?: string[];
+  httpProxy?: string;
+  desktop?: DesktopConfig;
+  /**
+   * Extensions configuration for third-party custom agents.
+   * Allows arbitrary nested configuration without validation.
+   */
+  extensions?: Record<string, any>;
+  /**
+   * Tools configuration for enabling/disabling specific tools.
+   * Key is the tool name, value is boolean (false to disable).
+   */
+  tools?: Record<string, boolean>;
 };
 
 const DEFAULT_CONFIG: Partial<Config> = {
@@ -93,12 +100,19 @@ const DEFAULT_CONFIG: Partial<Config> = {
   outputFormat: 'text',
   autoUpdate: true,
   browser: false,
+  extensions: {},
+  tools: {},
+  desktop: {
+    theme: 'light',
+    sendMessageWith: 'enter',
+  },
 };
 const VALID_CONFIG_KEYS = [
   ...Object.keys(DEFAULT_CONFIG),
   'model',
   'planModel',
   'smallModel',
+  'visionModel',
   'systemPrompt',
   'todo',
   'autoCompact',
@@ -109,9 +123,19 @@ const VALID_CONFIG_KEYS = [
   'browser',
   'temperature',
   'recentModels',
+  'httpProxy',
+  'extensions',
+  'tools',
 ];
 const ARRAY_CONFIG_KEYS = ['plugins', 'recentModels'];
-const OBJECT_CONFIG_KEYS = ['mcpServers', 'commit', 'provider'];
+const OBJECT_CONFIG_KEYS = [
+  'mcpServers',
+  'commit',
+  'provider',
+  'extensions',
+  'tools',
+  'desktop',
+];
 const BOOLEAN_CONFIG_KEYS = [
   'quiet',
   'todo',
@@ -119,6 +143,14 @@ const BOOLEAN_CONFIG_KEYS = [
   'autoUpdate',
   'browser',
 ];
+export const GLOBAL_ONLY_KEYS = ['desktop'];
+
+function assertGlobalAllowed(global: boolean, key: string) {
+  const rootKey = key.split('.')[0];
+  if (!global && GLOBAL_ONLY_KEYS.includes(rootKey)) {
+    throw new Error(`Config key '${rootKey}' can only be set globally`);
+  }
+}
 
 export class ConfigManager {
   globalConfig: Partial<Config>;
@@ -161,6 +193,7 @@ export class ConfigManager {
     ) as Config;
     config.planModel = config.planModel || config.model;
     config.smallModel = config.smallModel || config.model;
+    config.visionModel = config.visionModel || config.model;
     if (config.browser) {
       config.mcpServers = mergeBrowserMcpServers(
         config.mcpServers,
@@ -171,6 +204,7 @@ export class ConfigManager {
   }
 
   removeConfig(global: boolean, key: string, values?: string[]) {
+    assertGlobalAllowed(global, key);
     const config = global ? this.globalConfig : this.projectConfig;
     const configPath = global ? this.globalConfigPath : this.projectConfigPath;
 
@@ -235,6 +269,7 @@ export class ConfigManager {
   }
 
   addConfig(global: boolean, key: string, values: string[]) {
+    assertGlobalAllowed(global, key);
     if (!VALID_CONFIG_KEYS.includes(key)) {
       throw new Error(`Invalid config key: ${key}`);
     }
@@ -280,6 +315,7 @@ export class ConfigManager {
   }
 
   setConfig(global: boolean, key: string, value: string) {
+    assertGlobalAllowed(global, key);
     const config = global ? this.globalConfig : this.projectConfig;
     const configPath = global ? this.globalConfigPath : this.projectConfigPath;
 
@@ -345,6 +381,7 @@ export class ConfigManager {
       if (!VALID_CONFIG_KEYS.includes(key)) {
         throw new Error(`Invalid config key: ${key}`);
       }
+      assertGlobalAllowed(global, key);
     });
     let config = global ? this.globalConfig : this.projectConfig;
     const configPath = global ? this.globalConfigPath : this.projectConfigPath;

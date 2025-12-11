@@ -52,8 +52,10 @@ type Argv = {
   outputStyle?: string; // --output-style
   planModel?: string; // --plan-model
   smallModel?: string;
+  visionModel?: string;
   resume?: string; // -r, --resume
   systemPrompt?: string; // --system-prompt
+  tools?: string;
   // array
   plugin: string[]; // --plugin (可多次使用)
   mcpConfig: string[]; // --mcp-config (可多次使用)
@@ -87,8 +89,10 @@ async function parseArgs(argv: any) {
       'outputStyle',
       'planModel',
       'smallModel',
+      'visionModel',
       'resume',
       'systemPrompt',
+      'tools',
     ],
   }) as Argv;
   if (args.resume && args.continue) {
@@ -116,6 +120,7 @@ Options:
   -m, --model <model>           Specify model to use
   --plan-model <model>          Specify a plan model for some tasks
   --small-model <model>         Specify a small model for quick operations
+  --vision-model <model>        Specify a vision model for image tasks
   -r, --resume <session-id>     Resume a session
   -c, --continue                Continue the latest session
   -q, --quiet                   Quiet mode, non interactive
@@ -126,10 +131,13 @@ Options:
   --output-style <style>        Output style (name or path)
   --approval-mode <mode>        Tool approval mode, default, autoEdit, yolo
   --mcp-config <config>         MCP server configuration (JSON string with "mcpServers" object or file path)
+  --tools <json>                Tools configuration (JSON object with tool names as keys and boolean values)
 
 Examples:
   ${p} "Refactor this file to use hooks."
   ${p} -m gpt-4o "Add tests for the following code."
+  ${p} --tools '{"write":false}' "analyze this code"
+  ${p} --tools '{"bash":false,"write":false}' "explain the logic"
 
 Commands:
   config                        Manage configuration
@@ -320,7 +328,29 @@ export async function runNeovate(opts: {
   // Parse MCP config if provided
   const mcpServers = parseMcpConfig(argv.mcpConfig || [], cwd);
 
-  // 集中管理依赖--依赖注入 (Dependency Injection)
+  let toolsConfig: Record<string, boolean> | undefined;
+  if (argv.tools) {
+    try {
+      toolsConfig = JSON.parse(argv.tools);
+      if (typeof toolsConfig !== 'object' || Array.isArray(toolsConfig)) {
+        throw new Error('must be a JSON object like {"write":false}');
+      }
+      for (const [name, value] of Object.entries(toolsConfig)) {
+        if (typeof value !== 'boolean') {
+          throw new Error(
+            `tool "${name}" must be true or false, got: ${value}`,
+          );
+        }
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error('Error: Invalid --tools parameter');
+      console.error(`  ${message}`);
+      console.error(`  Example: --tools '{"write":false,"bash":false}'`);
+      process.exit(1);
+    }
+  }
+
   const contextCreateOpts = {
     // 产品信息
     productName: opts.productName,
@@ -331,16 +361,18 @@ export async function runNeovate(opts: {
       model: argv.model, // AI 模型
       planModel: argv.planModel, // 计划模式专用模型
       smallModel: argv.smallModel,
-      quiet: argv.quiet, // 安静模式标志
-      outputFormat: argv.outputFormat, // 输出格式 (text/json/stream-json)
-      plugins: argv.plugin, // 额外插件路径
-      systemPrompt: argv.systemPrompt, // 自定义系统提示词
-      appendSystemPrompt: argv.appendSystemPrompt, // 追加系统提示词
-      language: argv.language, // 语言设置
-      outputStyle: argv.outputStyle, // 输出样式
-      approvalMode: argv.approvalMode, // 工具审批模式
-      mcpServers, // MCP 服务器配置
-      browser: argv.browser, // 浏览器集成
+      visionModel: argv.visionModel,
+      quiet: argv.quiet,
+      outputFormat: argv.outputFormat,
+      plugins: argv.plugin,
+      systemPrompt: argv.systemPrompt,
+      appendSystemPrompt: argv.appendSystemPrompt,
+      language: argv.language,
+      outputStyle: argv.outputStyle,
+      approvalMode: argv.approvalMode,
+      mcpServers,
+      browser: argv.browser,
+      tools: toolsConfig,
     },
     // 插件列表
     plugins: opts.plugins,

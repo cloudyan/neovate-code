@@ -13,11 +13,14 @@ import {
 } from '@openrouter/ai-sdk-provider';
 import assert from 'assert';
 import defu from 'defu';
-import path from 'pathe';
-import type { ProviderConfig } from './config';
+import {
+  AntigravityProvider,
+  createAntigravityProvider,
+  GithubProvider,
+} from 'oauth-providers';
+import { ConfigManager, type ProviderConfig } from './config';
 import type { Context } from './context';
 import { PluginHookType } from './plugin';
-import { GithubProvider } from './providers/githubCopilot';
 import { getThinkingConfig } from './thinking-config';
 import { rotateApiKey } from './utils/apiKeyRotation';
 
@@ -80,20 +83,50 @@ export interface Provider {
   createModel(
     name: string,
     provider: Provider,
-    globalConfigDir: string,
+    options: {
+      globalConfigDir: string;
+      setGlobalConfig: (key: string, value: string, isGlobal: boolean) => void;
+    },
   ): Promise<LanguageModelV2> | LanguageModelV2;
   // 额外配置选项
   options?: {
-    baseURL?: string; // 基础 API 地址
-    apiKey?: string; // API 密钥
-    headers?: Record<string, string>; // 请求头部
+    baseURL?: string;
+    apiKey?: string;
+    headers?: Record<string, string>;
+    httpProxy?: string;
   };
 }
+
+import { createProxyFetch } from './utils/proxy';
 
 export type ProvidersMap = Record<string, Provider>;
 export type ModelMap = Record<string, Omit<Model, 'id' | 'cost'>>;
 
-// 预定义的所有模型映射表
+/**
+ * Inject proxy support into AI SDK configuration
+ * Priority: Provider-level proxy > Global proxy
+ *
+ * @param config - SDK configuration object
+ * @param provider - Provider configuration
+ * @returns Config with proxy fetch injected if proxy is configured
+ */
+function withProxyConfig<T extends Record<string, any>>(
+  config: T,
+  provider: Provider,
+): T {
+  const proxyUrl = provider.options?.httpProxy;
+
+  if (proxyUrl) {
+    const proxyFetch = createProxyFetch(proxyUrl);
+    return {
+      ...config,
+      fetch: proxyFetch,
+    };
+  }
+
+  return config;
+}
+
 export const models: ModelMap = {
   'deepseek-v3-0324': {
     name: 'DeepSeek-V3-0324',
@@ -148,6 +181,32 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 131072, output: 65536 },
+  },
+  'deepseek-v3.2': {
+    name: 'DeepSeek V3.2',
+    attachment: false,
+    reasoning: true,
+    temperature: true,
+    tool_call: true,
+    knowledge: '2025-12',
+    release_date: '2025-12-01',
+    last_updated: '2025-12-01',
+    modalities: { input: ['text'], output: ['text'] },
+    open_weights: true,
+    limit: { context: 131072, output: 65536 },
+  },
+  'deepseek-v3.2-speciale': {
+    name: 'DeepSeek V3.2 Speciale',
+    attachment: false,
+    reasoning: true,
+    temperature: true,
+    tool_call: false,
+    knowledge: '2025-12',
+    release_date: '2025-12-01',
+    last_updated: '2025-12-01',
+    modalities: { input: ['text'], output: ['text'] },
+    open_weights: true,
+    limit: { context: 131072, output: 131072 },
   },
   'deepseek-r1-0528': {
     name: 'DeepSeek-R1-0528',
@@ -531,6 +590,22 @@ export const models: ModelMap = {
     open_weights: false,
     limit: { context: 400000, output: 100000 },
   },
+  'gpt-5.1-codex-max': {
+    name: 'GPT 5.1 Codex Max',
+    attachment: true,
+    reasoning: true,
+    temperature: false,
+    tool_call: true,
+    knowledge: '2024-09-30',
+    release_date: '2025-11-13',
+    last_updated: '2025-11-13',
+    modalities: {
+      input: ['text', 'image'],
+      output: ['text'],
+    },
+    open_weights: false,
+    limit: { context: 400000, output: 128000 },
+  },
   'gpt-5.1': {
     name: 'GPT-5.1',
     attachment: true,
@@ -681,7 +756,7 @@ export const models: ModelMap = {
     limit: { context: 200000, output: 100000 },
   },
   'glm-4.5': {
-    name: 'GLM 4.5',
+    name: 'GLM-4.5',
     attachment: false,
     reasoning: true,
     temperature: true,
@@ -720,7 +795,7 @@ export const models: ModelMap = {
     limit: { context: 131072, output: 98304 },
   },
   'glm-4.5v': {
-    name: 'GLM 4.5V',
+    name: 'GLM-4.5V',
     attachment: true,
     reasoning: true,
     temperature: true,
@@ -744,6 +819,19 @@ export const models: ModelMap = {
     modalities: { input: ['text'], output: ['text'] },
     open_weights: true,
     limit: { context: 204800, output: 131072 },
+  },
+  'glm-4.6v': {
+    name: 'GLM-4.6V',
+    attachment: true,
+    reasoning: true,
+    temperature: true,
+    tool_call: true,
+    knowledge: '2025-04',
+    release_date: '2025-12-08',
+    last_updated: '2025-12-08',
+    modalities: { input: ['text', 'image', 'video'], output: ['text'] },
+    open_weights: true,
+    limit: { context: 131072, output: 24000 },
   },
   'sonoma-dusk-alpha': {
     name: 'Sonoma Dusk Alpha',
@@ -806,6 +894,19 @@ export const models: ModelMap = {
     knowledge: '2025-02-31',
     release_date: '2025-10-15',
     last_updated: '2025-10-15',
+    modalities: { input: ['text', 'image'], output: ['text'] },
+    open_weights: false,
+    limit: { context: 200000, output: 64000 },
+  },
+  'claude-opus-4-5': {
+    name: 'Claude Opus 4.5',
+    attachment: true,
+    reasoning: true,
+    temperature: true,
+    tool_call: true,
+    knowledge: '2025-03-31',
+    release_date: '2025-11-24',
+    last_updated: '2025-11-24',
     modalities: { input: ['text', 'image'], output: ['text'] },
     open_weights: false,
     limit: { context: 200000, output: 64000 },
@@ -960,21 +1061,28 @@ function getProviderApiKey(provider: Provider) {
   return key;
 }
 
-export const defaultModelCreatorCompatible = (
-  name: string,
-  provider: Provider,
-): LanguageModelV2 => {
-  if (provider.id !== 'openai') {
-    assert(provider.api, `Provider ${provider.id} must have an api`);
-  }
-  const baseURL = getProviderBaseURL(provider);
-  const apiKey = getProviderApiKey(provider);
-  assert(baseURL, 'baseURL is required');
-  return createOpenAICompatible({
-    name: provider.id,
-    baseURL,
-    apiKey,
-  })(name);
+export const createModelCreatorCompatible = (opts?: {
+  headers?: Record<string, string>;
+}) => {
+  return (name: string, provider: Provider): LanguageModelV2 => {
+    if (provider.id !== 'openai') {
+      assert(provider.api, `Provider ${provider.id} must have an api`);
+    }
+    const baseURL = getProviderBaseURL(provider);
+    const apiKey = getProviderApiKey(provider);
+    assert(baseURL, 'baseURL is required');
+    return createOpenAICompatible(
+      withProxyConfig(
+        {
+          name: provider.id,
+          baseURL,
+          apiKey,
+          headers: opts?.headers,
+        },
+        provider,
+      ),
+    )(name);
+  };
 };
 
 // 默认的模型创建函数，适用于大多数提供商
@@ -987,21 +1095,26 @@ export const defaultModelCreator = (
   }
   const baseURL = getProviderBaseURL(provider);
   const apiKey = getProviderApiKey(provider);
-  return createOpenAI({
-    baseURL,
-    apiKey,
-  }).chat(name);
+  return createOpenAI(
+    withProxyConfig(
+      {
+        baseURL,
+        apiKey,
+      },
+      provider,
+    ),
+  ).chat(name);
 };
 
 // 预定义的所有提供商映射表
 export const providers: ProvidersMap = {
   'github-copilot': {
     id: 'github-copilot',
+    name: 'GitHub Copilot',
     env: [],
     apiEnv: [],
     api: 'https://api.githubcopilot.com',
-    name: 'GitHub Copilot',
-    doc: 'https://docs.github.com/en/copilot',
+    doc: 'https://github.com/settings/copilot/features',
     models: {
       'claude-opus-4': models['claude-4-opus'],
       'grok-code-fast-1': models['grok-code-fast-1'],
@@ -1024,16 +1137,31 @@ export const providers: ProvidersMap = {
       'gpt-5': models['gpt-5'],
       'claude-3.7-sonnet-thought': models['claude-3-7-sonnet'],
       'claude-sonnet-4.5': models['claude-4-5-sonnet'],
+      'claude-opus-4-5': models['claude-opus-4-5'],
     },
-    async createModel(name, provider, globalConfigDir) {
-      const githubDataPath = path.join(globalConfigDir, 'githubCopilot.json');
-      const githubProvider = new GithubProvider({ authFile: githubDataPath });
-      const token = await githubProvider.access();
-      if (!token) {
-        throw new Error(
-          'Failed to get GitHub Copilot token, use /login to login first',
+    async createModel(name, provider, options) {
+      const apiKey = provider.options?.apiKey;
+      assert(
+        apiKey,
+        'Failed to get GitHub Copilot token, use /login to login first',
+      );
+      let account = JSON.parse(apiKey);
+      const githubProvider = new GithubProvider();
+      githubProvider.setState(account);
+      if (githubProvider.isTokenExpired()) {
+        await githubProvider.refresh();
+        account = githubProvider.getState();
+        provider.options = {
+          ...provider.options,
+          apiKey: JSON.stringify(account),
+        };
+        options.setGlobalConfig(
+          'provider.github-copilot.options.apiKey',
+          JSON.stringify(account),
+          true,
         );
       }
+      const token = account.copilot_token;
       return createOpenAI({
         baseURL: 'https://api.individual.githubcopilot.com',
         headers: {
@@ -1064,6 +1192,7 @@ export const providers: ProvidersMap = {
       'gpt-5.1': models['gpt-5.1'],
       'gpt-5.1-codex': models['gpt-5.1-codex'],
       'gpt-5.1-codex-mini': models['gpt-5.1-codex-mini'],
+      'gpt-5.1-codex-max': models['gpt-5.1-codex-max'],
       'gpt-5': models['gpt-5'],
       'gpt-5-mini': models['gpt-5-mini'],
       'gpt-5-codex': models['gpt-5-codex'],
@@ -1102,7 +1231,7 @@ export const providers: ProvidersMap = {
     apiEnv: ['DEEPSEEK_API_BASE'],
     doc: 'https://platform.deepseek.com/api-docs/pricing',
     models: {
-      'deepseek-chat': models['deepseek-v3-2-exp'],
+      'deepseek-chat': models['deepseek-v3.2'],
       'deepseek-reasoner': models['deepseek-r1-0528'],
     },
     createModel: defaultModelCreator,
@@ -1147,14 +1276,14 @@ export const providers: ProvidersMap = {
       'claude-3-7-sonnet-20250219-thinking': models['claude-3-7-sonnet'],
       'claude-3-5-sonnet-20241022': models['claude-3-5-sonnet-20241022'],
       'claude-haiku-4-5': models['claude-haiku-4-5'],
+      'claude-opus-4-5': models['claude-opus-4-5'],
     },
     createModel(name, provider) {
       const baseURL = getProviderBaseURL(provider);
       const apiKey = getProviderApiKey(provider);
-      return createAnthropic({
-        apiKey,
-        baseURL,
-      }).chat(name);
+      return createAnthropic(
+        withProxyConfig({ apiKey, baseURL }, provider),
+      ).chat(name);
     },
   },
   aihubmix: {
@@ -1189,9 +1318,17 @@ export const providers: ProvidersMap = {
     },
     createModel(name, provider) {
       const apiKey = getProviderApiKey(provider);
-      return createAihubmix({
-        apiKey,
-      }).chat(name);
+      return createAihubmix(
+        withProxyConfig(
+          {
+            apiKey,
+            headers: {
+              'APP-Code': 'TPQW7551',
+            },
+          },
+          provider,
+        ),
+      ).chat(name);
     },
   },
   openrouter: {
@@ -1207,11 +1344,14 @@ export const providers: ProvidersMap = {
       'anthropic/claude-haiku-4.5': models['claude-haiku-4-5'],
       'anthropic/claude-opus-4': models['claude-4-opus'],
       'anthropic/claude-opus-4.1': models['claude-4.1-opus'],
+      'anthropic/claude-opus-4.5': models['claude-opus-4-5'],
       'deepseek/deepseek-r1-0528': models['deepseek-r1-0528'],
       'deepseek/deepseek-chat-v3-0324': models['deepseek-v3-0324'],
       'deepseek/deepseek-chat-v3.1': models['deepseek-v3-1'],
       'deepseek/deepseek-v3.1-terminus': models['deepseek-v3-1-terminus'],
       'deepseek/deepseek-v3.2-exp': models['deepseek-v3-2-exp'],
+      'deepseek/deepseek-v3.2': models['deepseek-v3.2'],
+      'deepseek/deepseek-v3.2-speciale': models['deepseek-v3.2-speciale'],
       'openai/gpt-4.1': models['gpt-4.1'],
       'openai/gpt-4': models['gpt-4'],
       'openai/gpt-4o': models['gpt-4o'],
@@ -1222,6 +1362,7 @@ export const providers: ProvidersMap = {
       'openai/gpt-oss-120b': models['gpt-oss-120b'],
       'openai/gpt-5.1-codex': models['gpt-5.1-codex'],
       'openai/gpt-5.1-codex-mini': models['gpt-5.1-codex-mini'],
+      'openai/gpt-5.1-codex-max': models['gpt-5.1-codex-max'],
       'openai/gpt-5.1': models['gpt-5.1'],
       'openai/gpt-5': models['gpt-5'],
       'openai/gpt-5-mini': models['gpt-5-mini'],
@@ -1239,6 +1380,7 @@ export const providers: ProvidersMap = {
       'z-ai/glm-4.5': models['glm-4.5'],
       'z-ai/glm-4.5v': models['glm-4.5v'],
       'z-ai/glm-4.6': models['glm-4.6'],
+      'z-ai/glm-4.6v': models['glm-4.6v'],
       'minimax/minimax-m2': models['minimax-m2'],
       'openrouter/sherlock-dash-alpha': models['sherlock-dash-alpha'],
       'openrouter/sherlock-think-alpha': models['sherlock-think-alpha'],
@@ -1246,14 +1388,19 @@ export const providers: ProvidersMap = {
     createModel(name, provider) {
       const baseURL = getProviderBaseURL(provider);
       const apiKey = getProviderApiKey(provider);
-      return createOpenRouter({
-        apiKey,
-        baseURL,
-        headers: {
-          'X-Title': 'Neovate Code',
-          'HTTP-Referer': 'https://neovateai.dev/',
-        },
-      }).chat(name);
+      return createOpenRouter(
+        withProxyConfig(
+          {
+            apiKey,
+            baseURL,
+            headers: {
+              'X-Title': 'Neovate Code',
+              'HTTP-Referer': 'https://neovateai.dev/',
+            },
+          },
+          provider,
+        ),
+      ).chat(name);
     },
   },
   iflow: {
@@ -1272,7 +1419,7 @@ export const providers: ProvidersMap = {
       'glm-4.6': models['glm-4.6'],
       'qwen3-max': models['qwen3-max'],
     },
-    createModel: defaultModelCreatorCompatible,
+    createModel: createModelCreatorCompatible(),
   },
   moonshotai: {
     id: 'moonshotai',
@@ -1290,10 +1437,9 @@ export const providers: ProvidersMap = {
     createModel(name, provider) {
       const baseURL = getProviderBaseURL(provider);
       const apiKey = getProviderApiKey(provider);
-      return createOpenAI({
-        baseURL,
-        apiKey,
-      }).chat(name);
+      return createOpenAI(withProxyConfig({ baseURL, apiKey }, provider)).chat(
+        name,
+      );
     },
   },
   'moonshotai-cn': {
@@ -1312,11 +1458,16 @@ export const providers: ProvidersMap = {
     createModel(name, provider) {
       const baseURL = getProviderBaseURL(provider);
       const apiKey = getProviderApiKey(provider);
-      return createOpenAI({
-        baseURL,
-        apiKey,
-        // include usage information in streaming mode why? https://platform.moonshot.cn/docs/guide/migrating-from-openai-to-kimi#stream-模式下的-usage-值
-      }).chat(name);
+      return createOpenAI(
+        withProxyConfig(
+          {
+            baseURL,
+            apiKey,
+            // include usage information in streaming mode why? https://platform.moonshot.cn/docs/guide/migrating-from-openai-to-kimi#stream-模式下的-usage-值
+          },
+          provider,
+        ),
+      ).chat(name);
     },
   },
   groq: {
@@ -1379,6 +1530,8 @@ export const providers: ProvidersMap = {
       'ZhipuAI/GLM-4.5': models['glm-4.5'],
       'ZhipuAI/GLM-4.5V': models['glm-4.5v'],
       'ZhipuAI/GLM-4.6': models['glm-4.6'],
+      'deepseek-ai/DeepSeek-V3.2': models['deepseek-v3.2'],
+      'deepseek-ai/DeepSeek-V3.2-Speciale': models['deepseek-v3.2-speciale'],
     },
     createModel: defaultModelCreator,
   },
@@ -1408,6 +1561,7 @@ export const providers: ProvidersMap = {
       'glm-4.5-air': models['glm-4.5-air'],
       'glm-4.5v': models['glm-4.5v'],
       'glm-4.6': models['glm-4.6'],
+      'glm-4.6v': models['glm-4.6v'],
     },
     createModel: defaultModelCreator,
   },
@@ -1423,6 +1577,7 @@ export const providers: ProvidersMap = {
       'glm-4.5-air': models['glm-4.5-air'],
       'glm-4.5': models['glm-4.5'],
       'glm-4.5-flash': models['glm-4.5-flash'],
+      'glm-4.6v': models['glm-4.6v'],
     },
     createModel: defaultModelCreator,
   },
@@ -1438,6 +1593,7 @@ export const providers: ProvidersMap = {
       'glm-4.5-air': models['glm-4.5-air'],
       'glm-4.5': models['glm-4.5'],
       'glm-4.5-flash': models['glm-4.5-flash'],
+      'glm-4.6v': models['glm-4.6v'],
     },
     createModel: defaultModelCreator,
   },
@@ -1461,8 +1617,20 @@ export const providers: ProvidersMap = {
       'openai/gpt-5.1-codex-mini': models['gpt-5.1-codex-mini'],
       'anthropic/claude-sonnet-4.5': models['claude-4-5-sonnet'],
       'anthropic/claude-opus-4.1': models['claude-4.1-opus'],
+      'anthropic/claude-opus-4.5': models['claude-opus-4-5'],
+      'z-ai/glm-4.6': models['glm-4.6'],
+      'z-ai/glm-4.6v': models['glm-4.6v'],
+      'z-ai/glm-4.6v-flash': models['glm-4.6v'],
+      'deepseek/deepseek-v3.2-speciale': models['deepseek-v3.2-speciale'],
+      'deepseek/deepseek-chat': models['deepseek-v3-2-exp'],
+      'deepseek/deepseek-reasoner': models['deepseek-r1-0528'],
     },
-    createModel: defaultModelCreatorCompatible,
+    createModel: createModelCreatorCompatible({
+      headers: {
+        'X-Title': 'Neovate Code',
+        'HTTP-Referer': 'https://neovateai.dev/',
+      },
+    }),
   },
   minimax: {
     id: 'minimax',
@@ -1476,10 +1644,9 @@ export const providers: ProvidersMap = {
     createModel(name, provider) {
       const baseURL = getProviderBaseURL(provider);
       const apiKey = getProviderApiKey(provider);
-      return createAnthropic({
-        baseURL,
-        apiKey,
-      }).chat(name);
+      return createAnthropic(
+        withProxyConfig({ baseURL, apiKey }, provider),
+      ).chat(name);
     },
   },
   cerebras: {
@@ -1493,7 +1660,75 @@ export const providers: ProvidersMap = {
     },
     createModel(name, provider) {
       const apiKey = getProviderApiKey(provider);
-      return createCerebras({ apiKey })(name);
+      return createCerebras(
+        withProxyConfig(
+          {
+            apiKey,
+            headers: {
+              'X-Cerebras-3rd-Party-Integration': 'cline',
+            },
+          },
+          provider,
+        ),
+      )(name);
+    },
+  },
+  poe: {
+    id: 'poe',
+    env: ['POE_API_KEY'],
+    name: 'Poe',
+    api: 'https://api.poe.com/v1',
+    doc: 'https://poe.com',
+    models: {
+      'Claude-Opus-4.5': models['claude-4-opus'],
+      'Claude-Sonnet-4.5': models['claude-4-5-sonnet'],
+      'Gemini-3-Pro': models['gemini-3-pro-preview'],
+      'Gemini-2.5-Pro': models['gemini-2.5-pro'],
+      'Gemini-2.5-Flash': models['gemini-2.5-flash'],
+      'GPT-5.1': models['gpt-5.1'],
+      'GPT-5.1-Codex': models['gpt-5.1-codex'],
+      'Grok-4.1-Fast-Non-Reasoning': {
+        ...models['grok-4.1-fast'],
+        reasoning: false,
+      },
+      'Grok-4.1-Fast': models['grok-4.1-fast'],
+    },
+    createModel: createModelCreatorCompatible(),
+  },
+  antigravity: {
+    id: 'antigravity',
+    env: [],
+    name: 'Antigravity',
+    doc: 'https://antigravity.google/',
+    models: {
+      'gemini-2.5-pro': models['gemini-2.5-pro'],
+      'gemini-2.5-flash': models['gemini-2.5-flash'],
+      'gemini-3-pro-low': models['gemini-3-pro-preview'],
+      'gemini-3-pro-high': models['gemini-3-pro-preview'],
+      'claude-sonnet-4-5-thinking': models['claude-4-5-sonnet'],
+    },
+    async createModel(name, provider, options) {
+      const apiKey = provider.options?.apiKey;
+      assert(apiKey, 'Antigravity not logged in.');
+      let account = JSON.parse(apiKey);
+      const p = new AntigravityProvider();
+      p.setState(account);
+      if (p.isTokenExpired()) {
+        await p.refresh();
+        account = p.getState();
+        provider.options = {
+          ...provider.options,
+          apiKey: JSON.stringify(account),
+        };
+        options.setGlobalConfig(
+          'provider.antigravity.options.apiKey',
+          JSON.stringify(account),
+          true,
+        );
+      }
+      return createAntigravityProvider({
+        account,
+      })(name);
     },
   },
 };
@@ -1507,10 +1742,9 @@ export const modelAlias: ModelAlias = {
   '41': 'openai/gpt-4.1',
   '4': 'openai/gpt-4',
   '4o': 'openai/gpt-4o',
-  'flash-lite': 'google/gemini-2.5-flash-lite',
   flash: 'google/gemini-2.5-flash',
   gemini: 'google/gemini-2.5-pro',
-  grok: 'xai/grok-4',
+  grok: 'xai/grok-4-1-fast',
   'grok-code': 'xai/grok-code-fast-1',
   sonnet: 'anthropic/claude-sonnet-4-5-20250929',
   haiku: 'anthropic/claude-haiku-4-5',
@@ -1520,25 +1754,6 @@ export const modelAlias: ModelAlias = {
   k2: 'moonshotai-cn/kimi-k2-0711-preview',
   'k2-turbo': 'moonshotai-cn/kimi-k2-turbo-preview',
 };
-
-// 推荐配置
-//   "model": "iflow/qwen3-coder-plus",
-//   "planModel": "iflow/qwen3-max",
-//   "smallModel": "iflow/kimi-k2-0905",
-// 推荐模型
-// model
-// 1. anthropic/claude-sonnet-4-5-20250929
-// 2. openai/gpt-5
-// 3. iflow/qwen3-coder-plus
-// 4. modelscope/Qwen/Qwen3-Coder-480B-A35B-Instruct
-// 5. iflow/qwen3-coder 同 Qwen3-Coder-480B-A35B-Instruct
-// planModel
-// 1. iflow/qwen3-max
-// 2. iflow/deepseek-v3.2 同 modelscope/deepseek-ai/DeepSeek-V3.2-Exp
-// 4. modelscope/ZhipuAI/GLM-4.6 同 iflow/glm-4.6
-// smallModel
-// 1. anthropic/claude-haiku-4-5
-// 2. iflow/kimi-k2-0905 同 modelscope/moonshotai/Kimi-K2-Instruct-0905
 
 export type ModelInfo = {
   provider: Provider; // prividerInfo 供应商信息
@@ -1581,39 +1796,6 @@ function mergeConfigProviders(
   return mergedProviders;
 }
 
-/**
- * 带上下文的模型解析函数（核心入口）
- *
- * 这是模型解析的核心入口函数，集成了插件系统、配置管理和模型解析三大功能模块。
- * 它协调整个解析流程，支持插件扩展和配置覆盖。
- *
- * @param name - 模型名称（可为 null，将使用配置中的默认模型）
- *               支持格式：
- *               - 完整格式: "provider/model" (如 "anthropic/claude-3-7-sonnet-20250219-thinking")
- *               - 别名格式: "sonnet-3.7-thinking" (会通过 modelAlias 转换)
- * @param context - 应用上下文，包含配置、插件、路径等信息
- * @returns 返回包含以下内容的对象：
- *          - providers: 最终的提供商映射（经过插件钩子和配置合并）
- *          - modelAlias: 模型别名映射（经过插件钩子处理）
- *          - model: 解析后的模型信息（如果指定了模型名称）
- *
- * @example
- * ```typescript
- * const { providers, modelAlias, model } = await resolveModelWithContext(
- *   'gpt-4o',
- *   context
- * );
- * // model 包含 provider、model 元数据和 aisdk 实例
- * ```
- *
- * 工作流程：
- * 1. 通过 provider 钩子允许插件扩展提供商
- * 2. 合并用户配置文件中的提供商定义
- * 3. 通过 modelAlias 钩子允许插件自定义别名
- * 4. 确定模型名称（参数优先，否则使用配置）
- * 5. 调用 resolveModel 进行实际解析
- * 6. 返回完整的解析结果
- */
 export async function resolveModelWithContext(
   name: string | null,
   context: Context,
@@ -1637,9 +1819,18 @@ export async function resolveModelWithContext(
   // 2. 配置合并
   // 如果配置文件中定义了提供商，则深度合并到已处理的提供商中
   // 支持覆盖现有提供商或添加新的提供商
-  const finalProviders = context.config.provider
+  let finalProviders = context.config.provider
     ? mergeConfigProviders(hookedProviders, context.config.provider)
     : hookedProviders;
+
+  // Apply global proxy to ALL providers that don't have provider-level proxy
+  // This ensures both built-in and custom providers get the global proxy configuration
+  if (context.config.httpProxy) {
+    finalProviders = applyGlobalProxyToProviders(
+      finalProviders,
+      context.config.httpProxy,
+    );
+  }
 
   // 3. 插件钩子: modelAlias
   // 允许插件自定义模型别名映射
@@ -1667,6 +1858,14 @@ export async function resolveModelWithContext(
           finalProviders,
           hookedModelAlias,
           context.paths.globalConfigDir,
+          (key, value, isGlobal) => {
+            const configManager = new ConfigManager(
+              context.cwd,
+              context.productName,
+              {},
+            );
+            configManager.setConfig(isGlobal, key, value);
+          },
         )
       : null;
   } catch (err) {
@@ -1696,6 +1895,7 @@ export async function resolveModel(
   providers: ProvidersMap,
   modelAlias: Record<string, string>,
   globalConfigDir: string,
+  setGlobalConfig: (key: string, value: string, isGlobal: boolean) => void,
 ): Promise<ModelInfo> {
   // 1. 别名解析
   const alias = modelAlias[name];
@@ -1729,7 +1929,10 @@ export async function resolveModel(
     let m: LanguageModelV2 | Promise<LanguageModelV2> = provider.createModel(
       modelId,
       provider,
-      globalConfigDir,
+      {
+        globalConfigDir,
+        setGlobalConfig,
+      },
     );
     if (isPromise(m)) {
       m = await m;

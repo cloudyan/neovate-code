@@ -15,8 +15,14 @@ import type {
 } from './message';
 import type { ModelInfo } from './model';
 import { addPromptCache } from './promptCache';
-import { getThinkingConfig } from './thinking-config';
-import type { ToolResult, Tools, ToolUse } from './tool';
+import { getThinkingConfig, type ReasoningEffort } from './thinking-config';
+import type {
+  ToolApprovalResult,
+  ToolParams,
+  ToolResult,
+  Tools,
+  ToolUse,
+} from './tool';
 import { Usage } from './usage';
 import { randomUUID } from './utils/randomUUID';
 import { safeParseJson } from './utils/safeParseJson';
@@ -85,6 +91,20 @@ export type StreamResult = StreamResultBase & {
   error?: any;
 };
 
+export type ResponseFormat =
+  | {
+      type: 'text';
+    }
+  | {
+      type: 'json';
+      schema?: any;
+      name?: string;
+      description?: string;
+    };
+export type ThinkingConfig = {
+  effort: ReasoningEffort;
+};
+
 type RunLoopOpts = {
   input: string | NormalizedMessage[]; // 用户输入消息
   model: ModelInfo; // AI 模型信息
@@ -93,16 +113,15 @@ type RunLoopOpts = {
   systemPrompt?: string; // 系统提示词
   maxTurns?: number; // 最大交互轮数限制（默认 50）
   errorRetryTurns?: number;
-  signal?: AbortSignal; // 取消信号，用于中断操作
-  llmsContexts?: string[]; // AI 上下文（来自 LlmsContext）
-  autoCompact?: boolean; // 是否自动压缩历史消息
-  thinking?: {
-    effort: 'low' | 'medium' | 'high';
-  };
+  signal?: AbortSignal;
+  llmsContexts?: string[];
+  autoCompact?: boolean;
+  thinking?: ThinkingConfig;
   temperature?: number;
-  onTextDelta?: (text: string) => Promise<void>; // 文本增量回调
-  onText?: (text: string) => Promise<void>; // 完整文本回调
-  onReasoning?: (text: string) => Promise<void>; // 推理过程回调
+  responseFormat?: ResponseFormat;
+  onTextDelta?: (text: string) => Promise<void>;
+  onText?: (text: string) => Promise<void>;
+  onReasoning?: (text: string) => Promise<void>;
   onStreamResult?: (result: StreamResult) => Promise<void>;
   onChunk?: (chunk: any, requestId: string) => Promise<void>; // 原始数据块处理回调，当接收到响应数据块时触发
   onToolUse?: (toolUse: ToolUse) => Promise<ToolUse>; // 工具使用前
@@ -115,9 +134,9 @@ type RunLoopOpts = {
     usage: Usage;
     startTime: Date;
     endTime: Date;
-  }) => Promise<void>; // 每轮交互结束回调，包含用量统计
-  onToolApprove?: (toolUse: ToolUse) => Promise<boolean>; // 工具审批回调，当需要审批工具调用时触发，返回是否批准
-  onMessage?: OnMessage; // 消息处理回调，当 AI 生成新消息时触发
+  }) => Promise<void>;
+  onToolApprove?: (toolUse: ToolUse) => Promise<ToolApprovalResult>;
+  onMessage?: OnMessage;
 };
 
 // 核心函数，实现了一个完整的 AI 交互循环
@@ -230,6 +249,7 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
     let text = '';
     let reasoning = '';
     const toolCalls: Array<{
+      providerMetadata?: any;
       toolCallId: string;
       toolName: string;
       input: string;
@@ -264,6 +284,9 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
           ...(opts.temperature !== undefined && {
             temperature: opts.temperature,
           }),
+          ...(opts.responseFormat !== undefined && {
+            responseFormat: opts.responseFormat,
+          }),
         });
         opts.onStreamResult?.({
           requestId,
@@ -294,6 +317,9 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
                 toolCallId: chunk.toolCallId,
                 toolName: chunk.toolName,
                 input: chunk.input,
+                ...(chunk.providerMetadata && {
+                  providerMetadata: chunk.providerMetadata,
+                }),
               });
               break;
             case 'finish':
@@ -438,6 +464,10 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
       if (displayName) {
         toolUse.displayName = displayName;
       }
+      if (toolCall.providerMetadata) {
+        // @ts-ignore
+        toolUse.providerMetadata = toolCall.providerMetadata;
+      }
       assistantContent.push(toolUse);
     }
     await history.addMessage(
@@ -467,12 +497,24 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
       if (opts.onToolUse) {
         toolUse = await opts.onToolUse(toolUse as ToolUse);
       }
-      // 2. 工具审批
-      const approved = opts.onToolApprove
-        ? await opts.onToolApprove(toolUse as ToolUse)
-        : true;
+      let approved = true;
+      let updatedParams: ToolParams | undefined = undefined;
+
+      if (opts.onToolApprove) {
+        const approvalResult = await opts.onToolApprove(toolUse as ToolUse);
+        if (typeof approvalResult === 'object') {
+          approved = approvalResult.approved;
+          updatedParams = approvalResult.params;
+        } else {
+          approved = approvalResult;
+        }
+      }
+
       if (approved) {
         toolCallsCount++;
+        if (updatedParams) {
+          toolUse.params = { ...toolUse.params, ...updatedParams };
+        }
         let toolResult = await opts.tools.invoke(
           toolUse.name,
           JSON.stringify(toolUse.params),

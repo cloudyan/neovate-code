@@ -75,6 +75,7 @@ export class Session {
 }
 
 export type SessionConfig = {
+  model?: string;
   approvalMode?: ApprovalMode;
   approvalTools: string[];
   summary?: string;

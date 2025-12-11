@@ -34,6 +34,8 @@ type UseTextInputProps = {
   onQueuedMessagesUp?: () => void;
   onHistoryDown?: () => void;
   onHistoryReset?: () => void;
+  onReverseSearch?: () => void;
+  onReverseSearchPrevious?: () => void;
   focus?: boolean;
   mask?: string;
   multiline?: boolean;
@@ -42,10 +44,7 @@ type UseTextInputProps = {
   invert: (text: string) => string;
   themeText: (text: string) => string;
   columns: number;
-  onImagePaste?: (
-    base64Image: string,
-    filename?: string,
-  ) => Promise<{ prompt?: string }> | void;
+  onImagePaste?: (base64Image: string) => void;
   disableCursorMovementForUpDownKeys?: boolean;
   externalOffset: number;
   onOffsetChange: (offset: number) => void;
@@ -73,6 +72,8 @@ export function useTextInput({
   onQueuedMessagesUp,
   onHistoryDown,
   onHistoryReset,
+  onReverseSearch,
+  onReverseSearchPrevious,
   mask = '',
   multiline = false,
   cursorChar,
@@ -170,6 +171,7 @@ export function useTextInput({
     base64Image: string,
   ): Promise<void> => {
     const result = await onImagePaste?.(base64Image);
+    // @ts-expect-error - result is not typed
     const content = result?.prompt || IMAGE_PLACEHOLDER;
     const newCursor = cursor.insert(content);
     setOffset(newCursor.offset);
@@ -239,6 +241,20 @@ export function useTextInput({
     ['l', () => clear()],
     ['n', () => downOrHistoryDown()],
     ['p', () => upOrHistoryUp()],
+    [
+      'r',
+      () => {
+        onReverseSearch?.();
+        return cursor;
+      },
+    ],
+    [
+      's',
+      () => {
+        onReverseSearchPrevious?.();
+        return cursor;
+      },
+    ],
     ['u', () => cursor.deleteToLineStart()],
     ['v', () => tryImagePaste()],
     ['w', () => cursor.deleteWordBefore()],

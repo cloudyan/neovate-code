@@ -28,7 +28,7 @@ export type Props = {
   readonly onHistoryUp?: () => void;
 
   /**
-   * Optional callback for handling queued messages on option+up arrow
+   * Optional callback for handling queued messages on alt+up arrow (option+up on macOS)
    */
   readonly onQueuedMessagesUp?: () => void;
 
@@ -123,7 +123,6 @@ export type Props = {
    */
   readonly onImagePaste?: (
     base64Image: string,
-    filename?: string,
   ) => Promise<{ prompt?: string }> | void;
 
   /**
@@ -163,6 +162,16 @@ export type Props = {
    */
   readonly onExternalEdit?: () => void;
 
+  /**
+   * Optional callback when Ctrl+R is pressed for reverse search.
+   */
+  readonly onReverseSearch?: () => void;
+
+  /**
+   * Optional callback when Ctrl+S is pressed for reverse search previous.
+   */
+  readonly onReverseSearchPrevious?: () => void;
+
   onCtrlBBackground?: () => void;
 };
 
@@ -195,6 +204,8 @@ export default function TextInput({
   onTabPress,
   onDelete,
   onExternalEdit,
+  onReverseSearch,
+  onReverseSearchPrevious,
   onCtrlBBackground,
 }: Props): React.JSX.Element {
   const { onInput, renderedValue } = useTextInput({
@@ -209,6 +220,8 @@ export default function TextInput({
     onHistoryUp,
     onQueuedMessagesUp,
     onHistoryDown,
+    onReverseSearch,
+    onReverseSearchPrevious,
     focus,
     mask,
     multiline,
@@ -293,10 +306,7 @@ export default function TextInput({
           try {
             const imageResult = await processImageFromPath(mergedInput);
             if (imageResult) {
-              const imagePromptResult = await onImagePaste(
-                imageResult.base64,
-                imageResult.filename,
-              );
+              const imagePromptResult = await onImagePaste(imageResult.base64);
               if (imagePromptResult?.prompt) {
                 const { newValue, newCursorOffset } = insertTextAtCursor(
                   imagePromptResult.prompt,

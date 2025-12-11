@@ -1,8 +1,10 @@
 import type { ModelInfo } from './model';
 
+export type ReasoningEffort = 'low' | 'medium' | 'high';
+
 export function getThinkingConfig(
   model: ModelInfo,
-  reasoningEffort: 'low' | 'medium' | 'high',
+  reasoningEffort: ReasoningEffort,
 ): Record<string, any> | undefined {
   if (!model.model.reasoning) {
     return undefined;
@@ -20,8 +22,8 @@ export function getThinkingConfig(
     };
   }
 
-  if (['openrouter', 'zenmux'].includes(model.provider.id)) {
-    let effort: 'low' | 'medium' | 'high' | undefined = reasoningEffort;
+  if (['openrouter', 'zenmux', 'wanqing'].includes(model.provider.id)) {
+    let effort: ReasoningEffort | undefined = reasoningEffort;
     let budgetTokens = undefined;
     if (effort === 'high') {
       effort = undefined;
