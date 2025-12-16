@@ -1,6 +1,7 @@
 import { Box, Text, useInput } from 'ink';
-import TextInput from 'ink-text-input';
 import React, { useCallback, useState } from 'react';
+import { symbols } from '../utils/symbols';
+import TextInput from './TextInput';
 import { UI_COLORS } from './constants';
 
 export type SelectOption = {
@@ -153,7 +154,7 @@ export function SelectInput({
               // When input option is selected, show the text input inline
               <Box>
                 <Text color={isSelected ? UI_COLORS.ASK_PRIMARY : undefined}>
-                  {`> `}
+                  {isSelected ? '> ' : '  '}
                 </Text>
                 <Text
                   dimColor
@@ -171,7 +172,7 @@ export function SelectInput({
                           : undefined
                     }
                   >
-                    {isChecked ? '[✓] ' : '[ ] '}
+                    {isChecked ? `[${symbols.tick}] ` : '[ ] '}
                   </Text>
                 )}
                 <TextInput
@@ -211,7 +212,7 @@ export function SelectInput({
                           : undefined
                     }
                   >
-                    {isChecked ? '[✓] ' : '[ ] '}
+                    {isChecked ? `[${symbols.tick}] ` : '[ ] '}
                   </Text>
                 )}
                 <Text
@@ -229,7 +230,9 @@ export function SelectInput({
                   {displayLabel}
                 </Text>
                 {mode === 'single' && isAnswered && (
-                  <Text color={UI_COLORS.ASK_SUCCESS}>{' ✓'}</Text>
+                  <Text
+                    color={UI_COLORS.ASK_SUCCESS}
+                  >{` ${symbols.tick}`}</Text>
                 )}
               </Box>
             )}

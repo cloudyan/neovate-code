@@ -101,14 +101,12 @@ Usage:
       offset: z
         .number()
         .optional()
-        .nullable()
         .describe(
           'The line number to start reading from. Only provide if the file is too large to read at once',
         ),
       limit: z
         .number()
         .optional()
-        .nullable()
         .describe(
           `The number of lines to read. Only provide if the file is too large to read at once`,
         ),
@@ -229,6 +227,9 @@ function readFileWithOffsetLimit(
   limit: number = MAX_LINES_TO_READ,
 ) {
   const fileContent = fs.readFileSync(filePath, { encoding: 'utf8' });
+  if (fileContent === undefined || fileContent === null) {
+    throw new Error(`Failed to read file: ${filePath}`);
+  }
   const allLines = fileContent.split(/\r?\n/);
   const totalLines = allLines.length;
 

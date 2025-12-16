@@ -16,10 +16,10 @@ import type { ApprovalCategory, ToolUse } from './tool';
 // ============================================================================
 
 /** Standard success response without data */
-type SuccessResponse = { success: boolean };
+type SuccessResponse = { success: true };
 
 /** Standard error response */
-type ErrorResponse = { success: boolean; error: string };
+type ErrorResponse = { success: false; error: string };
 
 // ============================================================================
 // Config Handlers
@@ -59,6 +59,77 @@ type ConfigListOutput = {
     projectConfigDir: string;
     config: any;
   };
+};
+
+// ============================================================================
+// Git Handlers
+// ============================================================================
+
+type GitCloneInput = {
+  url: string;
+  destination: string;
+  taskId?: string;
+  // TODO: Future enhancement - HTTPS authentication with username/password
+  // Currently only supports:
+  // 1. Public HTTPS repos (no auth needed)
+  // 2. SSH repos with pre-configured keys
+  // Future: Add these fields when implementing HTTPS auth
+  // username?: string;
+  // password?: string;
+};
+type GitCloneOutput = {
+  success: boolean;
+  data?: {
+    clonePath: string;
+    repoName: string;
+  };
+  error?: string;
+  errorCode?: string;
+  needsCredentials?: boolean;
+};
+
+type GitStatusInput = {
+  cwd: string;
+};
+type GitStatusOutput = {
+  success: boolean;
+  data?: {
+    isRepo: boolean;
+    hasUncommittedChanges: boolean;
+    hasStagedChanges: boolean;
+    isGitInstalled: boolean;
+    isUserConfigured: { name: boolean; email: boolean };
+    isMerging: boolean;
+  };
+  error?: string;
+};
+
+type GitStageInput = {
+  cwd: string;
+  all?: boolean;
+};
+
+type GitCommitInput = {
+  cwd: string;
+  message: string;
+  noVerify?: boolean;
+};
+
+type GitPushInput = {
+  cwd: string;
+};
+
+type GitCreateBranchInput = {
+  cwd: string;
+  name: string;
+};
+type GitCreateBranchOutput = {
+  success: boolean;
+  data?: {
+    branchName: string;
+    wasRenamed: boolean;
+  };
+  error?: string;
 };
 
 // ============================================================================
@@ -326,6 +397,26 @@ type ProjectWorkspacesCreateGithubPROutput = {
   success: boolean;
   error?: string;
   data?: { prUrl: string; prNumber: number };
+};
+
+type ProjectGenerateCommitInput = {
+  cwd: string;
+  language?: string; // defaults to 'English'
+  systemPrompt?: string; // custom system prompt override
+  model?: string; // passed to quickQuery
+  diff?: string; // git diff, fetched if not provided
+  fileList?: string; // staged file list, fetched if not provided
+};
+
+type ProjectGenerateCommitOutput = {
+  success: boolean;
+  error?: string;
+  data?: {
+    commitMessage: string;
+    branchName: string;
+    isBreakingChange: boolean;
+    summary: string;
+  };
 };
 
 // ============================================================================
@@ -747,6 +838,24 @@ export type HandlerMap = {
   'config.remove': { input: ConfigRemoveInput; output: SuccessResponse };
   'config.list': { input: ConfigListInput; output: ConfigListOutput };
 
+  // Git handlers
+  'git.clone': { input: GitCloneInput; output: GitCloneOutput };
+  'git.clone.cancel': { input: { taskId: string }; output: SuccessResponse };
+  'git.status': { input: GitStatusInput; output: GitStatusOutput };
+  'git.stage': {
+    input: GitStageInput;
+    output: SuccessResponse | ErrorResponse;
+  };
+  'git.commit': {
+    input: GitCommitInput;
+    output: SuccessResponse | ErrorResponse;
+  };
+  'git.push': { input: GitPushInput; output: SuccessResponse | ErrorResponse };
+  'git.createBranch': {
+    input: GitCreateBranchInput;
+    output: GitCreateBranchOutput;
+  };
+
   // MCP handlers
   'mcp.getStatus': { input: McpGetStatusInput; output: McpGetStatusOutput };
   'mcp.reconnect': { input: McpReconnectInput; output: McpReconnectOutput };
@@ -805,6 +914,10 @@ export type HandlerMap = {
   'project.workspaces.createGithubPR': {
     input: ProjectWorkspacesCreateGithubPRInput;
     output: ProjectWorkspacesCreateGithubPROutput;
+  };
+  'project.generateCommit': {
+    input: ProjectGenerateCommitInput;
+    output: ProjectGenerateCommitOutput;
   };
 
   // Providers handlers

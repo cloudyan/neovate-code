@@ -60,6 +60,7 @@ class NodeHandlerRegistry {
   private contextCreateOpts: any;
   private contexts = new Map<string, Context>();
   private abortControllers = new Map<string, AbortController>();
+
   constructor(messageBus: MessageBus, contextCreateOpts: any) {
     this.messageBus = messageBus;
     this.contextCreateOpts = contextCreateOpts;
@@ -1168,6 +1169,327 @@ class NodeHandlerRegistry {
       },
     );
 
+    this.messageBus.registerHandler('project.generateCommit', async (data) => {
+      const { cwd, language = 'English', systemPrompt, model } = data;
+      try {
+        const { getStagedDiff, getStagedFileList } = await import(
+          './utils/git'
+        );
+
+        // Fetch diff and fileList if not provided
+        const diff = data.diff ?? (await getStagedDiff(cwd));
+        const fileList = data.fileList ?? (await getStagedFileList(cwd));
+
+        // Return error if no staged changes
+        if (!diff || diff.length === 0) {
+          return {
+            success: false,
+            error: 'No staged changes to commit',
+          };
+        }
+
+        // Build user prompt with staged files and diffs
+        const userPrompt = `
+# Staged files:
+${fileList}
+
+# Diffs:
+${diff}
+        `.trim();
+
+        // Use custom system prompt or default
+        const finalSystemPrompt =
+          systemPrompt || createGenerateCommitSystemPrompt(language);
+
+        // Call utils.quickQuery with JSON schema for structured output
+        const result = await this.messageBus.messageHandlers.get(
+          'utils.quickQuery',
+        )?.({
+          cwd,
+          userPrompt,
+          systemPrompt: finalSystemPrompt,
+          model,
+          responseFormat: {
+            type: 'json',
+            schema: z.toJSONSchema(
+              z.object({
+                commitMessage: z.string(),
+                branchName: z.string(),
+                isBreakingChange: z.boolean(),
+                summary: z.string(),
+              }),
+            ),
+          },
+        });
+
+        if (!result?.success) {
+          return {
+            success: false,
+            error: result?.error || 'Failed to generate commit message',
+          };
+        }
+
+        // Parse the JSON response
+        const jsonResponse = JSON.parse(result.data.text);
+
+        return {
+          success: true,
+          data: {
+            commitMessage: jsonResponse.commitMessage,
+            branchName: jsonResponse.branchName,
+            isBreakingChange: jsonResponse.isBreakingChange,
+            summary: jsonResponse.summary,
+          },
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message || 'Failed to generate commit',
+        };
+      }
+    });
+
+    //////////////////////////////////////////////
+    // git operations
+    this.messageBus.registerHandler('git.status', async (data) => {
+      const { cwd } = data;
+      try {
+        const {
+          isGitInstalled,
+          isGitRepository,
+          hasUncommittedChanges,
+          isGitUserConfigured,
+        } = await import('./utils/git');
+        const { getStagedFileList } = await import('./utils/git');
+        const { existsSync } = await import('fs');
+        const { join } = await import('path');
+        const { getGitRoot } = await import('./worktree');
+
+        // Check if git is installed
+        const gitInstalled = await isGitInstalled();
+        if (!gitInstalled) {
+          return {
+            success: true,
+            data: {
+              isRepo: false,
+              hasUncommittedChanges: false,
+              hasStagedChanges: false,
+              isGitInstalled: false,
+              isUserConfigured: { name: false, email: false },
+              isMerging: false,
+            },
+          };
+        }
+
+        // Check if it's a git repository
+        const isRepo = await isGitRepository(cwd);
+        if (!isRepo) {
+          return {
+            success: true,
+            data: {
+              isRepo: false,
+              hasUncommittedChanges: false,
+              hasStagedChanges: false,
+              isGitInstalled: true,
+              isUserConfigured: { name: false, email: false },
+              isMerging: false,
+            },
+          };
+        }
+
+        // Get all status information in parallel
+        const [hasChanges, userConfig, stagedFiles, gitRoot] =
+          await Promise.all([
+            hasUncommittedChanges(cwd),
+            isGitUserConfigured(cwd),
+            getStagedFileList(cwd),
+            getGitRoot(cwd),
+          ]);
+
+        // Check if repository is in merge state
+        const isMerging = existsSync(join(gitRoot, '.git', 'MERGE_HEAD'));
+
+        return {
+          success: true,
+          data: {
+            isRepo: true,
+            hasUncommittedChanges: hasChanges,
+            hasStagedChanges: stagedFiles.length > 0,
+            isGitInstalled: true,
+            isUserConfigured: userConfig,
+            isMerging,
+          },
+        };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message || 'Failed to get git status',
+        };
+      }
+    });
+
+    this.messageBus.registerHandler('git.stage', async (data) => {
+      const { cwd, all = true } = data;
+      try {
+        const { stageAll } = await import('./utils/git');
+
+        if (all) {
+          await stageAll(cwd);
+        }
+
+        return { success: true };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message || 'Failed to stage changes',
+        };
+      }
+    });
+
+    this.messageBus.registerHandler('git.commit', async (data) => {
+      const { cwd, message, noVerify = false } = data;
+      try {
+        const { gitCommit } = await import('./utils/git');
+        await gitCommit(cwd, message, noVerify, (line, stream) => {
+          this.messageBus.emitEvent('git.commit.output', { line, stream });
+        });
+        return { success: true };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message || 'Failed to commit changes',
+        };
+      }
+    });
+
+    this.messageBus.registerHandler('git.push', async (data) => {
+      const { cwd } = data;
+      try {
+        const { gitPush, hasRemote } = await import('./utils/git');
+
+        // Check if remote exists
+        const remoteExists = await hasRemote(cwd);
+        if (!remoteExists) {
+          return {
+            success: false,
+            error: 'No remote repository configured',
+          };
+        }
+
+        await gitPush(cwd, (line, stream) => {
+          this.messageBus.emitEvent('git.push.output', { line, stream });
+        });
+        return { success: true };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message || 'Failed to push changes',
+        };
+      }
+    });
+
+    this.messageBus.registerHandler('git.createBranch', async (data) => {
+      const { cwd, name } = data;
+      try {
+        const { createAndCheckoutBranch, branchExists } = await import(
+          './utils/git'
+        );
+
+        // Check if branch already exists
+        const exists = await branchExists(cwd, name);
+        if (exists) {
+          // Add timestamp to make it unique
+          const timestamp = new Date()
+            .toISOString()
+            .slice(0, 16)
+            .replace(/[-:]/g, '');
+          const newName = `${name}-${timestamp}`;
+          await createAndCheckoutBranch(cwd, newName);
+          return {
+            success: true,
+            data: { branchName: newName, wasRenamed: true },
+          };
+        }
+
+        await createAndCheckoutBranch(cwd, name);
+        return { success: true, data: { branchName: name, wasRenamed: false } };
+      } catch (error: any) {
+        return {
+          success: false,
+          error: error.message || 'Failed to create branch',
+        };
+      }
+    });
+
+    this.messageBus.registerHandler('git.clone', async (data) => {
+      const { url, destination, taskId } = data;
+      const { cloneRepository } = await import('./utils/git');
+
+      // Set up abort controller for cancellation
+      let abortController: AbortController | undefined;
+      if (taskId) {
+        abortController = new AbortController();
+        this.abortControllers.set(taskId, abortController);
+      }
+
+      try {
+        const result = await cloneRepository({
+          url,
+          destination,
+          signal: abortController?.signal,
+          timeoutMinutes: process.env.GIT_CLONE_TIMEOUT_MINUTES
+            ? Number.parseInt(process.env.GIT_CLONE_TIMEOUT_MINUTES, 10)
+            : 30,
+          onProgress: (progress) => {
+            this.messageBus.emitEvent('git.clone.progress', {
+              taskId,
+              percent: progress.percent,
+              message: progress.message,
+            });
+          },
+        });
+
+        // Wrap result to match expected response format
+        if (result.success) {
+          return {
+            success: true,
+            data: {
+              clonePath: result.clonePath,
+              repoName: result.repoName,
+            },
+          };
+        }
+        return result;
+      } catch (error: any) {
+        // Clean up abort controller in catch block as well (for early returns)
+        if (taskId && this.abortControllers.has(taskId)) {
+          this.abortControllers.delete(taskId);
+        }
+        throw error;
+      } finally {
+        // Clean up abort controller
+        if (taskId && this.abortControllers.has(taskId)) {
+          this.abortControllers.delete(taskId);
+        }
+      }
+    });
+
+    // Cancel git clone operation
+    this.messageBus.registerHandler('git.clone.cancel', async (data) => {
+      const { taskId } = data;
+      const controller = this.abortControllers.get(taskId);
+
+      if (controller) {
+        controller.abort();
+        this.abortControllers.delete(taskId);
+        return { success: true };
+      }
+      return {
+        success: false,
+        error: 'Clone task not found or already completed',
+      };
+    });
+
     //////////////////////////////////////////////
     // providers
     this.messageBus.registerHandler('providers.list', async (data) => {
@@ -1305,10 +1627,12 @@ class NodeHandlerRegistry {
       const resolvedModel =
         // e.g. model from slash command or agent
         model ||
-        (await this.messageBus.messageHandlers.get('session.getModel')?.({
-          cwd,
-          sessionId,
-        }))!.data.model;
+        (
+          await this.messageBus.messageHandlers.get('session.getModel')?.({
+            cwd,
+            sessionId,
+          })
+        )?.data.model;
 
       const abortController = new AbortController();
       const key = buildSignalKey(cwd, project.session.id);
@@ -1467,6 +1791,8 @@ class NodeHandlerRegistry {
           message: jsonlLogger.addMessage({
             message: normalizedMessage,
           }),
+          sessionId,
+          cwd,
         });
         previousUuid = normalizedMessage.uuid;
       }
@@ -1903,12 +2229,7 @@ class NodeHandlerRegistry {
     this.messageBus.registerHandler('utils.getPaths', async (data) => {
       const { cwd, maxFiles = 6000 } = data;
       const context = await this.getContext(cwd);
-      const result = listDirectory(
-        context.cwd,
-        context.cwd,
-        context.productName,
-        maxFiles,
-      );
+      const result = listDirectory(context.cwd, context.cwd, maxFiles);
       return {
         success: true,
         data: {
@@ -1937,14 +2258,12 @@ class NodeHandlerRegistry {
 
     this.messageBus.registerHandler('utils.files.list', async (data) => {
       const { cwd, query } = data;
-      const context = await this.getContext(cwd);
       return {
         success: true,
         data: {
           files: await getFiles({
             cwd,
             maxSize: 50,
-            productName: context.productName,
             query: query || '',
           }),
         },
@@ -2107,4 +2426,52 @@ function normalizeProviders(providers: ProvidersMap, context: Context) {
       };
     },
   );
+}
+
+function createGenerateCommitSystemPrompt(language: string) {
+  const { isEnglish } = require('./utils/language');
+  const useEnglish = isEnglish(language);
+  const descriptionLang = useEnglish
+    ? ''
+    : `\n   - Use ${language} for the description`;
+  const summaryLang = useEnglish ? '' : `\n   - Use ${language}`;
+  return `
+You are an expert software engineer that generates Git commit information based on provided diffs.
+
+Review the provided context and diffs which are about to be committed to a git repo.
+Analyze the changes carefully and generate a JSON response with the following fields:
+
+1. **commitMessage**: A one-line commit message following conventional commit format
+   - Format: <type>: <description>
+   - Types: fix, feat, build, chore, ci, docs, style, refactor, perf, test${descriptionLang}
+   - Use imperative mood (e.g., "add feature" not "added feature")
+   - Do not exceed 72 characters
+   - Do not capitalize the first letter
+   - Do not end with a period
+
+2. **branchName**: A suggested Git branch name
+   - Format: <type>/<description> for conventional commits, or <description> for regular changes
+   - Use only lowercase letters, numbers, and hyphens
+   - Maximum 50 characters
+   - No leading or trailing hyphens
+
+3. **isBreakingChange**: Boolean indicating if this is a breaking change
+   - Set to true if the changes break backward compatibility
+   - Look for removed public APIs, changed function signatures, etc.
+
+4. **summary**: A brief 1-2 sentence summary of the changes${summaryLang}
+   - Describe what was changed and why
+
+## Response Format
+
+Respond with valid JSON only, no additional text or markdown formatting.
+
+Example response:
+{
+  "commitMessage": "feat: add user authentication system",
+  "branchName": "feat/add-user-authentication",
+  "isBreakingChange": false,
+  "summary": "Added JWT-based authentication with login and logout endpoints."
+}
+  `.trim();
 }

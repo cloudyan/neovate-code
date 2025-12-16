@@ -45,6 +45,7 @@ type ContextOpts = {
   mcpManager: MCPManager; // MCP 服务器管理器
   backgroundTaskManager: BackgroundTaskManager;
   messageBus?: MessageBus;
+  plugins: (string | Plugin)[];
 };
 
 /**
@@ -99,6 +100,7 @@ export class Context {
   mcpManager: MCPManager;
   backgroundTaskManager: BackgroundTaskManager;
   messageBus?: MessageBus;
+  plugins: (string | Plugin)[];
 
   constructor(opts: ContextOpts) {
     this.cwd = opts.cwd;
@@ -112,6 +114,7 @@ export class Context {
     this.argvConfig = opts.argvConfig;
     this.backgroundTaskManager = opts.backgroundTaskManager;
     this.messageBus = opts.messageBus;
+    this.plugins = opts.plugins;
   }
 
   /**
@@ -301,6 +304,7 @@ export class Context {
       mcpManager,
       backgroundTaskManager,
       messageBus: opts.messageBus,
+      plugins: pluginsConfigs,
     });
   }
 }
