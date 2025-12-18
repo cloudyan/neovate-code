@@ -22,6 +22,7 @@ import { type Config, ConfigManager } from './config';
 import { MCPManager } from './mcp';
 import type { MessageBus } from './messageBus';
 import { Paths } from './paths';
+import { SkillManager } from './skill';
 import {
   type Plugin,
   type PluginApplyOpts,
@@ -44,6 +45,7 @@ type ContextOpts = {
   argvConfig: Record<string, any>; // 原始命令行参数
   mcpManager: MCPManager; // MCP 服务器管理器
   backgroundTaskManager: BackgroundTaskManager;
+  skillManager: SkillManager;
   messageBus?: MessageBus;
   plugins: (string | Plugin)[];
 };
@@ -99,6 +101,7 @@ export class Context {
   argvConfig: Record<string, any>;
   mcpManager: MCPManager;
   backgroundTaskManager: BackgroundTaskManager;
+  skillManager: SkillManager;
   messageBus?: MessageBus;
   plugins: (string | Plugin)[];
 
@@ -113,6 +116,7 @@ export class Context {
     this.#pluginManager = opts.pluginManager;
     this.argvConfig = opts.argvConfig;
     this.backgroundTaskManager = opts.backgroundTaskManager;
+    this.skillManager = opts.skillManager;
     this.messageBus = opts.messageBus;
     this.plugins = opts.plugins;
   }
@@ -290,8 +294,8 @@ export class Context {
     // 创建 MCP 管理器（不立即连接，延迟到使用时）
     const mcpManager = MCPManager.create(mcpServers);
     const backgroundTaskManager = new BackgroundTaskManager();
-
-    // 步骤 8: 创建最终的 Context 实例
+    const skillManager = new SkillManager({ paths });
+    await skillManager.loadSkills();
     return new Context({
       cwd,
       productName,
@@ -303,6 +307,7 @@ export class Context {
       paths,
       mcpManager,
       backgroundTaskManager,
+      skillManager,
       messageBus: opts.messageBus,
       plugins: pluginsConfigs,
     });
