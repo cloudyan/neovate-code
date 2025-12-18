@@ -167,7 +167,7 @@ flowchart TD
     Rule7 --> UserDecision{用户决策}
     UserDecision -->|批准| Approve
     UserDecision -->|拒绝| Reject[❌ 拒绝执行]
-    
+
     style Rule1 fill:#fff3e0,color:#000
     style Rule2 fill:#e8f5e9,color:#000
     style Rule3 fill:#e1f5fe,color:#000
@@ -346,7 +346,7 @@ export function createBashTool(opts) {
 
 #### 规则 5: autoEdit 模式
 
-**触发条件**: 
+**触发条件**:
 - `approvalMode === 'autoEdit'` 或 `sessionConfigManager.config.approvalMode === 'autoEdit'`
 - **且** `tool.approval?.category === 'write'`
 
@@ -467,7 +467,7 @@ sequenceDiagram
     participant UIBridge
     participant ApprovalModal
     participant User as 用户
-    
+
     Loop->>Project: onToolApprove(toolUse)
     Project->>Project: 检查规则 1-6
     Note over Project: 所有规则未通过
@@ -478,7 +478,7 @@ sequenceDiagram
     ApprovalModal->>UIBridge: 返回用户决策
     UIBridge->>Project: 返回审批结果
     Project->>Loop: 返回 true/false
-    
+
     alt 批准
         Loop->>Loop: 执行工具
     else 拒绝
