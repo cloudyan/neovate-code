@@ -1,3 +1,13 @@
+## 0.22.0
+
+`2025-12-19`
+
+- fix: add missing -g flag in config set httpProxy example by [@unknown_](https://github.com/unknown_) in [#541](https://github.com/umijs/takumi/pull/541)
+- feat: add gemini 3 flash preview model support by @chencheng (云谦) in [#543](https://github.com/umijs/takumi/pull/543)
+- feat: add skill source tracking and support claude directories by [@sorrycc](https://github.com/sorrycc)
+- feat: add skill tool implementation with skill manager by @chencheng (云谦) in [#540](https://github.com/umijs/takumi/pull/540)
+
+
 ## 0.21.0
 
 `2025-12-17`
