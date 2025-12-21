@@ -9,6 +9,7 @@ import type { OutputStyle } from './outputStyle';
 import type { SlashCommand } from './slash-commands/types';
 import type { Tool, ToolResult, ToolUse } from './tool';
 import type { Usage } from './usage';
+import type { OpenAICompatibleProvider } from '@ai-sdk/openai-compatible';
 
 export enum PluginHookType {
   First = 'first',
@@ -152,6 +153,7 @@ export type Plugin = {
         provider: Provider,
       ) => LanguageModelV2;
       createOpenAI: (options: any) => OpenAIProvider;
+      createOpenAICompatible: (options: any) => OpenAICompatibleProvider;
     },
   ) => Promise<ProvidersMap> | ProvidersMap;
   modelAlias?: (
