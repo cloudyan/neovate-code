@@ -1,3 +1,4 @@
+import { TOOL_NAMES } from './constants';
 import type { Context } from './context';
 import { JsonlLogger, RequestLogger } from './jsonl';
 import { LlmsContext } from './llmsContext';
@@ -56,6 +57,8 @@ export class Project {
       write: true,
       todo: true,
       askUserQuestion: !this.context.config.quiet,
+      signal: opts.signal,
+      task: this.context.config.quiet,
     });
     tools = await this.context.apply({
       hook: 'tool',
@@ -68,11 +71,13 @@ export class Project {
       this.context.config.outputStyle,
       this.context.cwd,
     );
+    const hasTaskTool = tools.some((t) => t.name === TOOL_NAMES.TASK);
     let systemPrompt = generateSystemPrompt({
       todo: this.context.config.todo!,
       productName: this.context.productName,
       language: this.context.config.language,
       outputStyle,
+      task: hasTaskTool,
     });
     systemPrompt = await this.context.apply({
       hook: 'systemPrompt',
@@ -107,6 +112,8 @@ export class Project {
       write: false,
       todo: false,
       askUserQuestion: !this.context.config.quiet,
+      signal: opts.signal,
+      task: false,
     });
     tools = await this.context.apply({
       hook: 'tool',
@@ -160,6 +167,7 @@ export class Project {
       format: this.context.config.outputFormat!,
       quiet: this.context.config.quiet,
     });
+
     const jsonlLogger = new JsonlLogger({
       filePath: this.context.paths.getSessionLogPath(this.session.id),
     });
@@ -451,6 +459,7 @@ export class Project {
     if (result.success && result.data.history) {
       this.session.updateHistory(result.data.history);
     }
+
     return result;
   }
 }

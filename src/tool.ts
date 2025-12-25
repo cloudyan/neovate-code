@@ -17,6 +17,7 @@ import { createGrepTool } from './tools/grep';
 import { createLSTool } from './tools/ls';
 import { createReadTool } from './tools/read';
 import { createSkillTool } from './tools/skill';
+import { createTaskTool } from './tools/task';
 import { createTodoTool, type TodoItem } from './tools/todo';
 import { createWriteTool } from './tools/write';
 
@@ -26,6 +27,8 @@ type ResolveToolsOpts = {
   write?: boolean;
   todo?: boolean;
   askUserQuestion?: boolean;
+  signal?: AbortSignal;
+  task?: boolean;
 };
 
 export async function resolveTools(opts: ResolveToolsOpts) {
@@ -77,6 +80,7 @@ export async function resolveTools(opts: ResolveToolsOpts) {
         }),
       ]
     : [];
+
   const mcpTools = await getMcpTools(opts.context);
 
   const allTools = [
@@ -89,15 +93,34 @@ export async function resolveTools(opts: ResolveToolsOpts) {
   ];
 
   const toolsConfig = opts.context.config.tools;
-  if (!toolsConfig || Object.keys(toolsConfig).length === 0) {
-    return allTools;
-  }
+  const availableTools = (() => {
+    if (!toolsConfig || Object.keys(toolsConfig).length === 0) {
+      return allTools;
+    }
+    return allTools.filter((tool) => {
+      // Check if the tool is disabled (only explicitly set to false will disable)
+      const isDisabled = toolsConfig[tool.name] === false;
+      return !isDisabled;
+    });
+  })();
 
-  return allTools.filter((tool) => {
-    // Check if the tool is disabled (only explicitly set to false will disable)
-    const isDisabled = toolsConfig[tool.name] === false;
-    return !isDisabled;
-  });
+  const taskTools = (() => {
+    // Task tool is only available in quiet mode
+    if (!opts.task) return [];
+    if (!opts.context.agentManager) return [];
+    const tool = createTaskTool({
+      context: opts.context,
+      tools: availableTools,
+      sessionId: opts.sessionId,
+      signal: opts.signal,
+    });
+    if (toolsConfig && toolsConfig[tool.name] === false) {
+      return [];
+    }
+    return [tool];
+  })();
+
+  return [...availableTools, ...taskTools];
 }
 
 async function getMcpTools(context: Context): Promise<Tool[]> {
@@ -131,7 +154,11 @@ export class Tools {
     return Object.keys(this.tools).length;
   }
 
-  async invoke(toolName: string, args: string): Promise<ToolResult> {
+  async invoke(
+    toolName: string,
+    args: string,
+    toolCallId: string,
+  ): Promise<ToolResult> {
     const tool = this.tools[toolName];
     if (!tool) {
       return {
@@ -156,7 +183,7 @@ export class Tools {
         isError: true,
       };
     }
-    return await tool.execute(argsObj);
+    return await tool.execute(argsObj, toolCallId);
   }
 
   toLanguageV2Tools(): LanguageModelV2FunctionTool[] {
@@ -171,7 +198,7 @@ export class Tools {
         : 0;
       const desc =
         limit > 0 && tool.description.length > limit
-          ? tool.description.slice(0, limit - 3) + '...'
+          ? `${tool.description.slice(0, limit - 3)}...`
           : tool.description;
       return {
         type: 'function',
@@ -235,7 +262,10 @@ export interface Tool<TSchema extends z.ZodTypeAny = z.ZodTypeAny> {
     cwd: string;
   }) => string;
   displayName?: string;
-  execute: (params: z.output<TSchema>) => Promise<ToolResult> | ToolResult;
+  execute: (
+    params: z.output<TSchema>,
+    toolCallId?: string,
+  ) => Promise<ToolResult> | ToolResult;
   approval?: ToolApprovalInfo;
   parameters: TSchema;
 }
@@ -283,6 +313,11 @@ export type ToolResult = {
   llmContent: string | (TextPart | ImagePart)[];
   returnDisplay?: ReturnDisplay;
   isError?: boolean;
+  metadata?: {
+    agentId?: string;
+    agentType?: string;
+    [key: string]: any;
+  };
 };
 
 /**
@@ -319,7 +354,10 @@ export function createTool<TSchema extends z.ZodTypeAny>(config: {
   displayName?: string;
   description: string;
   parameters: TSchema;
-  execute: (params: z.output<TSchema>) => Promise<ToolResult> | ToolResult;
+  execute: (
+    params: z.output<TSchema>,
+    toolCallId?: string,
+  ) => Promise<ToolResult> | ToolResult;
   approval?: ToolApprovalInfo;
   getDescription?: ({
     params,

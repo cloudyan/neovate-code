@@ -35,6 +35,12 @@ export enum TOOL_NAMES {
   KILL_BASH = 'kill_bash',
   GREP = 'grep',
   ASK_USER_QUESTION = 'AskUserQuestion',
+  READ = 'read',
+  GLOB = 'glob',
+  WRITE = 'write',
+  EDIT = 'edit',
+  LS = 'ls',
+  TASK = 'task',
 }
 
 export const BASH_EVENTS = {
@@ -65,3 +71,8 @@ export const DEFAULT_LANGUAGE: LanguageName =
   SUPPORTED_LANGUAGES[DEFAULT_LANGUAGE_CODE];
 
 export const BACKGROUND_THRESHOLD_MS = 2000;
+
+export enum AGENT_TYPE {
+  EXPLORE = 'Explore',
+  PLAN = 'Plan',
+}

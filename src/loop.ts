@@ -8,10 +8,11 @@ import type {
 import createDebug from 'debug';
 import { At } from './at';
 import { History, type OnMessage } from './history';
-import type {
-  AssistantContent,
-  NormalizedMessage,
-  ToolUsePart,
+import {
+  type AssistantContent,
+  createToolResultPart2,
+  type NormalizedMessage,
+  type ToolUsePart,
 } from './message';
 import type { ModelInfo } from './model';
 import { addPromptCache } from './promptCache';
@@ -503,7 +504,12 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
       break;
     }
 
-    const toolResults: any[] = [];
+    const toolResults: {
+      toolCallId: string;
+      toolName: string;
+      input: Record<string, any>;
+      result: ToolResult;
+    }[] = [];
     for (const toolCall of toolCalls) {
       let toolUse: ToolUse = {
         name: toolCall.toolName,
@@ -534,6 +540,7 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
         let toolResult = await opts.tools.invoke(
           toolUse.name,
           JSON.stringify(toolUse.params),
+          toolUse.callId,
         );
         // 3. 工具结果处理
         if (opts.onToolResult) {
@@ -565,16 +572,15 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
         });
         await history.addMessage({
           role: 'tool',
-          content: toolResults.map((tr) => {
-            return {
-              type: 'tool-result',
-              toolCallId: tr.toolCallId,
-              toolName: tr.toolName,
-              input: tr.input,
-              result: tr.result,
-            };
-          }),
-        } as any);
+          content: toolResults.map((tr) =>
+            createToolResultPart2(
+              tr.toolCallId,
+              tr.toolName,
+              tr.input,
+              tr.result,
+            ),
+          ),
+        });
         return {
           success: false,
           error: {
@@ -592,16 +598,15 @@ export async function runLoop(opts: RunLoopOpts): Promise<LoopResult> {
     if (toolResults.length) {
       await history.addMessage({
         role: 'tool',
-        content: toolResults.map((tr) => {
-          return {
-            type: 'tool-result',
-            toolCallId: tr.toolCallId,
-            toolName: tr.toolName,
-            input: tr.input,
-            result: tr.result,
-          };
-        }),
-      } as any);
+        content: toolResults.map((tr) =>
+          createToolResultPart2(
+            tr.toolCallId,
+            tr.toolName,
+            tr.input,
+            tr.result,
+          ),
+        ),
+      });
     }
   }
   const duration = Date.now() - startTime;

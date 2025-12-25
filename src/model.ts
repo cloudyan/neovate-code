@@ -3,6 +3,7 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 import { createCerebras } from '@ai-sdk/cerebras';
 import { createGoogleGenerativeAI } from '@ai-sdk/google';
+import { createHuggingFace } from '@ai-sdk/huggingface';
 import { createOpenAI } from '@ai-sdk/openai';
 import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 import { createXai } from '@ai-sdk/xai';
@@ -11,6 +12,11 @@ import {
   createOpenRouter,
   type LanguageModelV2,
 } from '@openrouter/ai-sdk-provider';
+import {
+  extractReasoningMiddleware,
+  type LanguageModelMiddleware,
+  wrapLanguageModel,
+} from 'ai';
 import assert from 'assert';
 import defu from 'defu';
 import {
@@ -23,6 +29,7 @@ import type { Context } from './context';
 import { PluginHookType } from './plugin';
 import { getThinkingConfig } from './thinking-config';
 import { rotateApiKey } from './utils/apiKeyRotation';
+import { mergeSystemMessagesMiddleware } from './utils/mergeSystemMessagesMiddleware';
 
 export interface ModelModalities {
   input: ('text' | 'image' | 'audio' | 'video' | 'pdf')[];
@@ -875,6 +882,19 @@ export const models: ModelMap = {
     open_weights: true,
     limit: { context: 131072, output: 24000 },
   },
+  'glm-4.7': {
+    name: 'GLM-4.7',
+    attachment: false,
+    reasoning: true,
+    temperature: true,
+    tool_call: true,
+    knowledge: '2025-04',
+    release_date: '2025-12-22',
+    last_updated: '2025-12-22',
+    modalities: { input: ['text'], output: ['text'] },
+    open_weights: true,
+    limit: { context: 204800, output: 131072 },
+  },
   'sonoma-dusk-alpha': {
     name: 'Sonoma Dusk Alpha',
     attachment: true,
@@ -1083,6 +1103,19 @@ export const models: ModelMap = {
     open_weights: true,
     limit: { context: 131072, output: 32768 },
   },
+  'minimax-m2.1': {
+    name: 'MiniMax-M2.1',
+    attachment: false,
+    reasoning: true,
+    temperature: true,
+    tool_call: true,
+    knowledge: '',
+    release_date: '2025-12-23',
+    last_updated: '2025-12-23',
+    modalities: { input: ['text'], output: ['text'] },
+    open_weights: true,
+    limit: { context: 204800, output: 131072 },
+  },
 };
 
 function getProviderBaseURL(provider: Provider) {
@@ -1118,6 +1151,8 @@ function getProviderApiKey(provider: Provider) {
 
 export const createModelCreatorCompatible = (opts?: {
   headers?: Record<string, string>;
+  fetch?: any;
+  middlewares?: LanguageModelMiddleware[];
 }) => {
   return (name: string, provider: Provider): LanguageModelV2 => {
     if (provider.id !== 'openai') {
@@ -1126,17 +1161,22 @@ export const createModelCreatorCompatible = (opts?: {
     const baseURL = getProviderBaseURL(provider);
     const apiKey = getProviderApiKey(provider);
     assert(baseURL, 'baseURL is required');
-    return createOpenAICompatible(
+    let model = createOpenAICompatible(
       withProxyConfig(
         {
           name: provider.id,
           baseURL,
           apiKey,
           headers: opts?.headers,
+          fetch: opts?.fetch,
         },
         provider,
       ),
     )(name);
+    if (opts?.middlewares) {
+      model = wrapLanguageModel({ model, middleware: opts.middlewares });
+    }
+    return model;
   };
 };
 
@@ -1444,6 +1484,7 @@ export const providers: ProvidersMap = {
       'z-ai/glm-4.5v': models['glm-4.5v'],
       'z-ai/glm-4.6': models['glm-4.6'],
       'z-ai/glm-4.6v': models['glm-4.6v'],
+      'z-ai/glm-4.7': models['glm-4.7'],
       'minimax/minimax-m2': models['minimax-m2'],
       'openrouter/sherlock-dash-alpha': models['sherlock-dash-alpha'],
       'openrouter/sherlock-think-alpha': models['sherlock-think-alpha'],
@@ -1481,9 +1522,27 @@ export const providers: ProvidersMap = {
       'deepseek-v3.2': models['deepseek-v3-2-exp'],
       'deepseek-r1': models['deepseek-r1-0528'],
       'glm-4.6': models['glm-4.6'],
+      'glm-4.7': models['glm-4.7'],
+      'minimax-m2.1': models['minimax-m2.1'],
       'qwen3-max': models['qwen3-max'],
     },
-    createModel: defaultModelCreator,
+    createModel: createModelCreatorCompatible({
+      fetch: (url: string, options: any) => {
+        return fetch(url, {
+          ...options,
+          headers: {
+            ...options.headers,
+            'user-agent': 'iFlow-Cli',
+          },
+        });
+      },
+      middlewares: [
+        mergeSystemMessagesMiddleware,
+        extractReasoningMiddleware({
+          tagName: 'think',
+        }),
+      ],
+    }),
   },
   moonshotai: {
     id: 'moonshotai',
@@ -1605,6 +1664,7 @@ export const providers: ProvidersMap = {
       'glm-4.5v': models['glm-4.5v'],
       'glm-4.6': models['glm-4.6'],
       'glm-4.6v': models['glm-4.6v'],
+      'glm-4.7': models['glm-4.7'],
     },
     createModel: defaultModelCreator,
   },
@@ -1621,6 +1681,7 @@ export const providers: ProvidersMap = {
       'glm-4.5': models['glm-4.5'],
       'glm-4.5-flash': models['glm-4.5-flash'],
       'glm-4.6v': models['glm-4.6v'],
+      'glm-4.7': models['glm-4.7'],
     },
     createModel: defaultModelCreator,
   },
@@ -1637,6 +1698,7 @@ export const providers: ProvidersMap = {
       'glm-4.5': models['glm-4.5'],
       'glm-4.5-flash': models['glm-4.5-flash'],
       'glm-4.6v': models['glm-4.6v'],
+      'glm-4.7': models['glm-4.7'],
     },
     createModel: defaultModelCreator,
   },
@@ -1653,9 +1715,7 @@ export const providers: ProvidersMap = {
       'inclusionai/ling-flash-2.0': models['ling-flash-2.0'],
       'inclusionai/ring-mini-2.0': models['ring-mini-2.0'],
       'inclusionai/ling-mini-2.0': models['ling-mini-2.0'],
-      'google/gemini-3-flash-preview-free': models['gemini-3-flash-preview'],
       'google/gemini-3-flash-preview': models['gemini-3-flash-preview'],
-      'google/gemini-3-pro-preview-free': models['gemini-3-pro-preview'],
       'google/gemini-3-pro-preview': models['gemini-3-pro-preview'],
       'openai/gpt-5.1': models['gpt-5.1'],
       'openai/gpt-5.1-codex': models['gpt-5.1-codex'],
@@ -1683,10 +1743,29 @@ export const providers: ProvidersMap = {
     id: 'minimax',
     env: ['MINIMAX_API_KEY'],
     name: 'Minimax',
+    api: 'https://api.minimaxi.io/anthropic/v1',
+    doc: 'https://platform.minimaxi.io/docs/guides/quickstart',
+    models: {
+      'minimax-m2': models['minimax-m2'],
+      'minimax-m2.1': models['minimax-m2.1'],
+    },
+    createModel(name, provider) {
+      const baseURL = getProviderBaseURL(provider);
+      const apiKey = getProviderApiKey(provider);
+      return createAnthropic(
+        withProxyConfig({ baseURL, apiKey }, provider),
+      ).chat(name);
+    },
+  },
+  'minimax-cn': {
+    id: 'minimax-cn',
+    env: ['MINIMAX_API_KEY'],
+    name: 'Minimax CN',
     api: 'https://api.minimaxi.com/anthropic/v1',
     doc: 'https://platform.minimaxi.com/docs/guides/quickstart',
     models: {
       'minimax-m2': models['minimax-m2'],
+      'minimax-m2.1': models['minimax-m2.1'],
     },
     createModel(name, provider) {
       const baseURL = getProviderBaseURL(provider);
@@ -1729,6 +1808,24 @@ export const providers: ProvidersMap = {
           provider,
         ),
       )(name);
+    },
+  },
+  huggingface: {
+    id: 'huggingface',
+    env: ['HUGGINGFACE_API_KEY'],
+    name: 'Hugging Face',
+    doc: 'https://huggingface.co/docs/inference-providers/index',
+    models: {
+      'zai-org/GLM-4.7': models['glm-4.7'],
+      'XiaomiMiMo/MiMo-V2-Flash': models['mimo-v2-flash'],
+      'Qwen/Qwen3-Coder-480B-A35B-Instruct':
+        models['qwen3-coder-480b-a35b-instruct'],
+    },
+    createModel(name, provider) {
+      const apiKey = getProviderApiKey(provider);
+      return createHuggingFace({
+        apiKey,
+      }).languageModel(name) as unknown as LanguageModelV2;
     },
   },
   poe: {
