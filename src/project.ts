@@ -24,7 +24,10 @@ import { randomUUID } from './utils/randomUUID';
 export class Project {
   session: Session;
   context: Context;
-  constructor(opts: { sessionId?: SessionId; context: Context }) {
+  constructor(opts: {
+    sessionId?: SessionId;
+    context: Context;
+  }) {
     this.session = opts.sessionId
       ? Session.resume({
           id: opts.sessionId,
@@ -58,7 +61,7 @@ export class Project {
       todo: true,
       askUserQuestion: !this.context.config.quiet,
       signal: opts.signal,
-      task: this.context.config.quiet,
+      task: true,
     });
     tools = await this.context.apply({
       hook: 'tool',
@@ -141,7 +144,7 @@ export class Project {
     });
   }
 
-  private async sendWithSystemPromptAndTools(
+  async sendWithSystemPromptAndTools(
     message: string | null,
     opts: {
       model?: string;

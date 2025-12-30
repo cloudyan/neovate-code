@@ -1,5 +1,7 @@
 # CONTRIBUTING
 
+For development workflow and best practices, see [DEVELOPMENT.md](./DEVELOPMENT.md).
+
 ## Prepare
 
 Setup the API keys for the LLMs providers, use the env variables in your bashrc/zshrc/fishrc files or use `/login` the select a provider and enter the API Key.
@@ -34,7 +36,7 @@ $ alias t="bun /path/to/neovate/src/cli.ts"
 $ t
 ```
 
-Note: After installation, you can use either `neovate` or the shorter alias `neo` to run the CLI.
+Note: After installation, you can use either `neovate` to run the CLI.
 
 Before you commit, you need to run the `ready` script to check if the code is ready to be committed.
 
@@ -80,4 +82,10 @@ Choose one of the following methods to debug the CLI:
 $ pnpm release
 $ pnpm release:minor
 $ pnpm release:major
+```
+
+Since npm has [updated it's security policy](https://github.blog/changelog/2025-12-09-npm-classic-tokens-revoked-session-based-auth-and-cli-token-management-now-available/), you need to run `npm login` before and run `npm publish` after the release temporarily. Later we will update the release script to do this automatically or use github actions to publish the package.
+
+```bash
+$ npm login && pnpm release && npm publish
 ```

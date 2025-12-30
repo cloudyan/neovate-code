@@ -100,6 +100,7 @@ type GitStatusOutput = {
     isGitInstalled: boolean;
     isUserConfigured: { name: boolean; email: boolean };
     isMerging: boolean;
+    unstagedFiles: Array<{ status: string; file: string }>;
   };
   error?: string;
 };
@@ -822,6 +823,7 @@ type ToolApprovalInput = {
 type ToolApprovalOutput = {
   approved: boolean;
   params?: Record<string, unknown>;
+  denyReason?: string;
 };
 
 // ============================================================================

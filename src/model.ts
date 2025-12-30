@@ -1180,7 +1180,7 @@ export const createModelCreatorCompatible = (opts?: {
   };
 };
 
-export const defaultModelCreator = createModelCreatorCompatible();
+const defaultModelCreator = createModelCreatorCompatible();
 
 const openaiModelCreator = (
   name: string,
@@ -1898,22 +1898,12 @@ export const providers: ProvidersMap = {
 export type ModelAlias = Record<string, string>;
 // 模型别名映射表，用于简化模型引用，对应 Provider 下的 models 的 key
 export const modelAlias: ModelAlias = {
-  deepseek: 'deepseek/deepseek-chat',
-  r1: 'deepseek/deepseek-reasoner',
-  '41': 'openai/gpt-4.1',
-  '4': 'openai/gpt-4',
-  '4o': 'openai/gpt-4o',
   flash: 'google/gemini-2.5-flash',
-  gemini: 'google/gemini-2.5-pro',
+  gemini: 'google/gemini-3-pro-preview',
   grok: 'xai/grok-4-1-fast',
-  'grok-code': 'xai/grok-code-fast-1',
   sonnet: 'anthropic/claude-sonnet-4-5-20250929',
   haiku: 'anthropic/claude-haiku-4-5',
-  'sonnet-3.5': 'anthropic/claude-3-5-sonnet-20241022',
-  'sonnet-3.7': 'anthropic/claude-3-7-sonnet-20250219',
-  'sonnet-3.7-thinking': 'anthropic/claude-3-7-sonnet-20250219-thinking',
-  k2: 'moonshotai-cn/kimi-k2-0711-preview',
-  'k2-turbo': 'moonshotai-cn/kimi-k2-turbo-preview',
+  opus: 'anthropic/claude-opus-4-5',
 };
 
 export type ModelInfo = {
@@ -1972,6 +1962,7 @@ export async function resolveModelWithContext(
         defaultModelCreator,
         createOpenAI,
         createOpenAICompatible,
+        createAnthropic,
       },
     ],
     memo: providers, // 初始值为内置的提供商映射
