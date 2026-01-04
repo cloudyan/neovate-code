@@ -2,6 +2,15 @@
 
 For development workflow and best practices, see [DEVELOPMENT.md](./DEVELOPMENT.md).
 
+## Reporting Issues
+
+Found a bug or have a feature request? You can use our built-in slash commands to create GitHub issues directly from the CLI:
+
+- `/bug-report` - Report a bug with automated context collection
+- `/feature-request` - Suggest a new feature or enhancement
+
+These commands will guide you through providing the necessary information and create a properly formatted GitHub issue.
+
 ## Prepare
 
 Setup the API keys for the LLMs providers, use the env variables in your bashrc/zshrc/fishrc files or use `/login` the select a provider and enter the API Key.

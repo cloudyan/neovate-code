@@ -30,6 +30,7 @@ import { PluginHookType } from './plugin';
 import { getThinkingConfig } from './thinking-config';
 import { rotateApiKey } from './utils/apiKeyRotation';
 import { mergeSystemMessagesMiddleware } from './utils/mergeSystemMessagesMiddleware';
+import { prependSystemMessageMiddleware } from './utils/prependSystemMessageMiddleware';
 
 export interface ModelModalities {
   input: ('text' | 'image' | 'audio' | 'video' | 'pdf')[];
@@ -79,23 +80,22 @@ export interface Model {
 }
 
 export interface Provider {
-  id: string; // 提供商唯一标识符
-  env: string[]; // 必需的环境变量列表
-  name: string; // 提供商显示名称
-  apiEnv?: string[]; // API 地址环境变量(可选)
-  api?: string; // 默认 API 地址
-  doc: string; // 提供商文档链接
-  models: Record<string, string | Omit<Model, 'id' | 'cost'>>; // 支持的模型列表
-  // 创建模型实例的函数
-  createModel(
+  id: string;
+  env: string[];
+  name: string;
+  apiEnv?: string[];
+  api?: string;
+  doc: string;
+  models: Record<string, string | Omit<Model, 'id' | 'cost'>>;
+  createModel?: (
     name: string,
     provider: Provider,
     options: {
       globalConfigDir: string;
       setGlobalConfig: (key: string, value: string, isGlobal: boolean) => void;
     },
-  ): Promise<LanguageModelV2> | LanguageModelV2;
-  // 额外配置选项
+  ) => Promise<LanguageModelV2> | LanguageModelV2;
+  createModelType?: 'anthropic';
   options?: {
     baseURL?: string;
     apiKey?: string;
@@ -1181,6 +1181,17 @@ export const createModelCreatorCompatible = (opts?: {
 };
 
 const defaultModelCreator = createModelCreatorCompatible();
+const defaultAnthropicModelCreator = (name: string, provider: Provider) => {
+  const baseURL = getProviderBaseURL(provider);
+  const apiKey = getProviderApiKey(provider);
+  const model = createAnthropic(
+    withProxyConfig({ apiKey, baseURL }, provider),
+  ).chat(name);
+  return wrapLanguageModel({
+    model,
+    middleware: [prependSystemMessageMiddleware],
+  });
+};
 
 const openaiModelCreator = (
   name: string,
@@ -1378,13 +1389,7 @@ export const providers: ProvidersMap = {
       'claude-haiku-4-5': models['claude-haiku-4-5'],
       'claude-opus-4-5': models['claude-opus-4-5'],
     },
-    createModel(name, provider) {
-      const baseURL = getProviderBaseURL(provider);
-      const apiKey = getProviderApiKey(provider);
-      return createAnthropic(
-        withProxyConfig({ apiKey, baseURL }, provider),
-      ).chat(name);
-    },
+    createModelType: 'anthropic',
   },
   aihubmix: {
     id: 'aihubmix',
@@ -1892,6 +1897,42 @@ export const providers: ProvidersMap = {
       })(name);
     },
   },
+  nvidia: {
+    id: 'nvidia',
+    env: ['NVIDIA_API_KEY'],
+    name: 'NVIDIA',
+    api: 'https://integrate.api.nvidia.com/v1/',
+    doc: 'https://nvidia.com/',
+    models: {
+      'z-ai/glm4.7': models['glm-4.7'],
+      'minimaxai/minimax-m2.1': models['minimax-m2.1'],
+      'moonshotai/kimi-k2-thinking': models['kimi-k2-thinking'],
+      'openai/gpt-oss-120b': models['gpt-oss-120b'],
+      'qwen/qwen3-coder-480b-a35b-instruct':
+        models['qwen3-coder-480b-a35b-instruct'],
+    },
+    createModel: createModelCreatorCompatible({
+      middlewares: [
+        extractReasoningMiddleware({
+          tagName: 'think',
+        }),
+      ],
+    }),
+  },
+  canopywave: {
+    id: 'canopywave',
+    env: ['CANOPYWAVE_API_KEY'],
+    name: 'CanopyWave',
+    api: 'https://inference.canopywave.io/v1',
+    doc: 'https://canopywave.io/',
+    models: {
+      'minimax/minimax-m2.1': models['minimax-m2.1'],
+      'zai/glm-4.7': models['glm-4.7'],
+      'moonshotai/kimi-k2-thinking': models['kimi-k2-thinking'],
+      'deepseek/deepseek-chat-v3.2': models['deepseek-v3-2-exp'],
+    },
+    createModel: defaultModelCreator,
+  },
 };
 
 // value format: provider/model
@@ -1923,6 +1964,9 @@ function mergeConfigProviders(
   Object.entries(configProviders).forEach(([providerId, config]) => {
     let provider = mergedProviders[providerId] || {};
     provider = defu(config, provider) as Provider;
+    if (provider.createModelType === 'anthropic') {
+      provider.createModel = defaultAnthropicModelCreator;
+    }
     if (!provider.createModel) {
       provider.createModel = defaultModelCreator;
     }
@@ -2079,7 +2123,7 @@ export async function resolveModel(
   // 4. 创建模型客户端实例
   model.id = modelId;
   const mCreator = async () => {
-    let m: LanguageModelV2 | Promise<LanguageModelV2> = provider.createModel(
+    let m: LanguageModelV2 | Promise<LanguageModelV2> = provider.createModel!(
       modelId,
       provider,
       {

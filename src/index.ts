@@ -48,10 +48,9 @@ type Argv = {
   // boolean
   help: boolean; // -h, --help
   mcp: boolean;
-  quiet: boolean; // -q, --quiet
-  continue?: boolean; // -c, --continue
-  version: boolean; // -v, --version
-  browser?: boolean;
+  quiet: boolean;
+  continue?: boolean;
+  version: boolean;
   // string
   appendSystemPrompt?: string;
   approvalMode?: string; // --approval-mode
@@ -87,7 +86,7 @@ async function parseArgs(argv: any) {
       mcpConfig: [],
     },
     array: ['plugin', 'mcpConfig'],
-    boolean: ['help', 'mcp', 'quiet', 'continue', 'version', 'browser'],
+    boolean: ['help', 'mcp', 'quiet', 'continue', 'version'],
     string: [
       'appendSystemPrompt',
       'approvalMode',
@@ -134,7 +133,6 @@ Options:
   -r, --resume <session-id>     Resume a session
   -c, --continue                Continue the latest session
   -q, --quiet                   Quiet mode, non interactive
-  --browser                     Enable browser integration
   --cwd <path>                  Specify the working directory
   --system-prompt <prompt>      Custom system prompt for code agent
   --output-format <format>      Output format, text, stream-json, json
@@ -410,7 +408,6 @@ export async function runNeovate(opts: {
       outputStyle: argv.outputStyle,
       approvalMode: argv.approvalMode,
       mcpServers,
-      browser: argv.browser,
       tools: toolsConfig,
     },
     // 插件列表

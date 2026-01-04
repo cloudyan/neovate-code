@@ -14,6 +14,7 @@ import { Markdown } from './Markdown';
 import { Messages } from './Messages';
 import { QueueDisplay } from './QueueDisplay';
 import { useAppStore } from './store';
+import { TerminalSizeProvider } from './TerminalSizeContext';
 import { TranscriptModeIndicator } from './TranscriptModeIndicator';
 import { useTerminalRefresh } from './useTerminalRefresh';
 
@@ -156,42 +157,44 @@ export function App() {
     })();
   }, [copyModalVisible, bridge, cwd, sessionId]);
   return (
-    <Box
-      flexDirection="column"
-      key={`${forceRerender}-${forkParentUuid}-${forkCounter}-${transcriptMode}`}
-    >
-      <Messages />
-      <BackgroundPrompt />
-      <PlanResult />
-      <ActivityIndicator />
-      <QueueDisplay />
-      {transcriptMode ? <TranscriptModeIndicator /> : <ChatInput />}
-      <SlashCommandJSX />
-      <ApprovalModal />
-      {forkModalVisible && (
-        <ForkModal
-          messages={forkMessages as any}
-          onSelect={(uuid) => {
-            fork(uuid);
-          }}
-          onClose={() => {
-            hideForkModal();
-          }}
-        />
-      )}
-      {copyModalVisible && (
-        <CopyModal
-          messages={copyMessages as any}
-          onSelect={(uuid) => {
-            copyMessage(uuid);
-          }}
-          onClose={() => {
-            hideCopyModal();
-          }}
-        />
-      )}
-      <ExitHint />
-      <Debug />
-    </Box>
+    <TerminalSizeProvider>
+      <Box
+        flexDirection="column"
+        key={`${forceRerender}-${forkParentUuid}-${forkCounter}-${transcriptMode}`}
+      >
+        <Messages />
+        <BackgroundPrompt />
+        <PlanResult />
+        <ActivityIndicator />
+        <QueueDisplay />
+        {transcriptMode ? <TranscriptModeIndicator /> : <ChatInput />}
+        <SlashCommandJSX />
+        <ApprovalModal />
+        {forkModalVisible && (
+          <ForkModal
+            messages={forkMessages as any}
+            onSelect={(uuid) => {
+              fork(uuid);
+            }}
+            onClose={() => {
+              hideForkModal();
+            }}
+          />
+        )}
+        {copyModalVisible && (
+          <CopyModal
+            messages={copyMessages as any}
+            onSelect={(uuid) => {
+              copyMessage(uuid);
+            }}
+            onClose={() => {
+              hideCopyModal();
+            }}
+          />
+        )}
+        <ExitHint />
+        <Debug />
+      </Box>
+    </TerminalSizeProvider>
   );
 }
