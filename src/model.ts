@@ -1390,6 +1390,7 @@ export const providers: ProvidersMap = {
       'claude-opus-4-5': models['claude-opus-4-5'],
     },
     createModelType: 'anthropic',
+    createModel: defaultAnthropicModelCreator,
   },
   aihubmix: {
     id: 'aihubmix',
@@ -1932,6 +1933,23 @@ export const providers: ProvidersMap = {
       'deepseek/deepseek-chat-v3.2': models['deepseek-v3-2-exp'],
     },
     createModel: defaultModelCreator,
+  },
+  modelwatch: {
+    id: 'modelwatch',
+    env: ['MODELWATCH_API_KEY'],
+    name: 'ModelWatch',
+    api: 'http://api.modelwatch.dev/antigravity/v1/',
+    doc: 'https://api.modelwatch.dev/',
+    models: {
+      'gemini-2.5-flash': models['gemini-2.5-flash'],
+      'gemini-3-flash-preview': models['gemini-3-flash-preview'],
+      'gemini-3-pro-preview': models['gemini-3-pro-preview'],
+      'claude-4-5-sonnet': models['claude-4-5-sonnet'],
+      'claude-haiku-4-5': models['claude-haiku-4-5'],
+      'claude-opus-4-5': models['claude-opus-4-5'],
+    },
+    createModelType: 'anthropic',
+    createModel: defaultAnthropicModelCreator,
   },
 };
 
