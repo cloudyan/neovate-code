@@ -8,8 +8,14 @@ export const opencodeZenProvider: Provider = {
   api: 'https://opencode.ai/zen/v1',
   doc: 'https://opencode.ai/docs/zen',
   models: {
-    'glm-4.7': {},
+    // 免费模型
+    'big-pickle': {},
+    'minimax-m2.5-free': {},
+    'kimi-k2.5-free': {},
+    'gpt-5-nano': {},
     'glm-4.7-free': {},
+
+    'glm-4.7': {},
     'glm-4.6': {},
     'qwen3-coder': {},
     'claude-4.1-opus': {
@@ -29,7 +35,6 @@ export const opencodeZenProvider: Provider = {
       apiFormat: ApiFormat.Anthropic,
     },
     'kimi-k2.5': {},
-    'kimi-k2.5-free': {},
     'gemini-3-pro': {
       apiFormat: ApiFormat.Google,
     },
@@ -51,9 +56,6 @@ export const opencodeZenProvider: Provider = {
     },
     'gpt-5.1-codex-max': {
       apiFormat: ApiFormat.Responses,
-    },
-    'minimax-m2.1-free': {
-      apiFormat: ApiFormat.Anthropic,
     },
     'claude-4-sonnet': {
       apiFormat: ApiFormat.Anthropic,

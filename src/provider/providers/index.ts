@@ -25,6 +25,7 @@ export { xaiProvider } from './xai';
 export { anthropicProvider } from './anthropic';
 export { aihubmixProvider } from './aihubmix';
 export { openrouterProvider } from './openrouter';
+export { iflowProvider } from './iflow';
 export { moonshotaiProvider } from './moonshotai';
 export { moonshotaiCnProvider } from './moonshotai-cn';
 export { groqProvider } from './groq';
@@ -60,6 +61,7 @@ import { xaiProvider } from './xai';
 import { anthropicProvider } from './anthropic';
 import { aihubmixProvider } from './aihubmix';
 import { openrouterProvider } from './openrouter';
+import { iflowProvider } from './iflow';
 import { moonshotaiProvider } from './moonshotai';
 import { moonshotaiCnProvider } from './moonshotai-cn';
 import { groqProvider } from './groq';
@@ -85,7 +87,7 @@ import { codexProvider } from './codex';
 import { kimiCodingPlanProvider } from './kimi-coding-plan';
 import { kiloProvider } from './kilo';
 import { bailianCodingPlanProvider } from './bailian-coding-plan';
-// import { opencodeZenProvider } from './opencode-zen';
+import { opencodeZenProvider } from './opencode-zen';
 
 // Combined providers map
 export const providers: ProvidersMap = {
@@ -97,6 +99,7 @@ export const providers: ProvidersMap = {
   anthropic: anthropicProvider,
   aihubmix: aihubmixProvider,
   openrouter: openrouterProvider,
+  iflow: iflowProvider,
   moonshotai: moonshotaiProvider,
   'moonshotai-cn': moonshotaiCnProvider,
   groq: groqProvider,
@@ -122,5 +125,5 @@ export const providers: ProvidersMap = {
   qwen: qwenProvider,
   codex: codexProvider,
   kilo: kiloProvider,
-  // opencode: opencodeZenProvider,
+  opencode: opencodeZenProvider,
 };

@@ -99,10 +99,14 @@ export function createCustomFetch(opts: {
         return fetch;
       }
     })();
+    // debug
+    // console.log('Request URL:', urlStr);
     const mergedHeaders = {
       ...(options?.headers as Record<string, string>),
       ...headers,
     };
+    // debug
+    // console.log('Request Headers:', JSON.stringify(mergedHeaders, null, 2));
     onRequest?.({
       url: urlStr,
       method: options?.method || 'POST',
@@ -113,10 +117,14 @@ export function createCustomFetch(opts: {
       ...options,
       headers: mergedHeaders,
     });
+    // debug
+    // console.log('Response Status:', response.status);
     const responseHeaders: Record<string, string> = {};
     response.headers.forEach((value, key) => {
       responseHeaders[key] = value;
     });
+    // debug
+    // console.log('Response Headers:', JSON.stringify(responseHeaders, null, 2));
     onResponse?.({
       url: urlStr,
       status: response.status,

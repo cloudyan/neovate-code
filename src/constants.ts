@@ -1,8 +1,22 @@
 export const PRODUCT_NAME = 'NEOVATE';
-export const PRODUCT_ASCII_ART = `
+
+// npx oh-my-logo "ZACODE" fire --filled --block-font block
+const ZA_LOGO = `
+███████╗  █████╗   ██████╗  ██████╗  ██████╗  ███████╗
+╚══███╔╝ ██╔══██╗ ██╔════╝ ██╔═══██╗ ██╔══██╗ ██╔════╝
+  ███╔╝  ███████║ ██║      ██║   ██║ ██║  ██║ █████╗
+ ███╔╝   ██╔══██║ ██║      ██║   ██║ ██║  ██║ ██╔══╝
+███████╗ ██║  ██║ ╚██████╗ ╚██████╔╝ ██████╔╝ ███████╗
+╚══════╝ ╚═╝  ╚═╝  ╚═════╝  ╚═════╝  ╚═════╝  ╚══════╝
+`.trim();
+
+// npx oh-my-logo "NEOVATE" fire --filled --block-font tiny
+const NEOVATE_LOGO = `
 █▄ █ █▀▀ █▀█ █ █ ▄▀█ ▀█▀ █▀▀
 █ ▀█ ██▄ █▄█ ▀▄▀ █▀█  █  ██▄
 `.trim();
+
+export const PRODUCT_ASCII_ART = ZA_LOGO;
 export const DEFAULT_OUTPUT_STYLE_NAME = 'Default';
 export const IMAGE_EXTENSIONS = new Set([
   '.png',
